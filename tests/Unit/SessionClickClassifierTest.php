@@ -41,16 +41,34 @@ class SessionClickClassifierTest extends TestCase
         $this->assertFalse($classified['tel']);
     }
 
-    public function test_classifies_plain_click_with_cta_label_text(): void
+    public function test_classifies_call_now_as_tel_not_cta(): void
     {
+        $this->assertTrue(SessionClickClassifier::isCallLabel('Call Now'));
+        $this->assertFalse(SessionClickClassifier::isCtaLabel('Call Now'));
+        $this->assertFalse(SessionClickClassifier::isCtaElement('BUTTON', 'btn-primary', '', [], 'Call Now'));
+
+        $classified = SessionClickClassifier::classifyClickEvent([
+            'type' => 'click',
+            'tag' => 'BUTTON',
+            'class' => 'btn btn-primary',
+            'text' => 'Call Now',
+        ]);
+
+        $this->assertTrue($classified['tel']);
+        $this->assertFalse($classified['cta']);
+    }
+
+    public function test_classifies_click_to_call_class_as_tel(): void
+    {
+        $this->assertTrue(SessionClickClassifier::isCallElement('click-to-call-widget', 'phone-cta'));
         $classified = SessionClickClassifier::classifyClickEvent([
             'type' => 'click',
             'tag' => 'A',
-            'class' => 'provider-card',
-            'text' => 'See Plans',
-            'href' => 'https://example.com/verizon',
+            'class' => 'click-to-call',
+            'href' => '#',
+            'text' => 'Speak to an expert',
         ]);
-
-        $this->assertTrue($classified['cta']);
+        $this->assertTrue($classified['tel']);
+        $this->assertFalse($classified['cta']);
     }
 }

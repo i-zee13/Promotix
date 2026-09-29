@@ -1246,6 +1246,33 @@ class PageAnalyticsAggregator
                     ->pluck('total', 'event_type')
                 : collect();
 
+            $ctaFromEvents = (int) ($eventCounts['cta_click'] ?? 0);
+            $telFromEvents = (int) ($eventCounts['phone_click'] ?? 0) + (int) ($eventCounts['tel_click'] ?? 0);
+
+            // Historical "Call Now" buttons were stored as cta_click — reattribute by label.
+            if ($eventQuery !== null && Schema::hasColumn('visit_behavior_events', 'element_text') && $ctaFromEvents > 0) {
+                $callMisclassifiedQuery = DB::table('visit_behavior_events')
+                    ->whereIn('domain_id', $domainIds)
+                    ->whereBetween('occurred_at', [$from, $to])
+                    ->where('event_type', 'cta_click')
+                    ->where(function ($q): void {
+                        $q->where('element_text', 'like', '%call%')
+                            ->orWhere('element_text', 'like', '%phone%')
+                            ->orWhere('element_text', 'like', '%dial%')
+                            ->orWhere('element_text', 'like', '%talk to%')
+                            ->orWhere('element_text', 'like', '%speak to%')
+                            ->orWhere('element_text', 'like', '%callback%');
+                    });
+                if ($paidSessionIds !== [] && Schema::hasColumn('visit_behavior_events', 'session_id')) {
+                    $callMisclassifiedQuery->whereIn('session_id', $paidSessionIds);
+                }
+                $misclassified = (int) $callMisclassifiedQuery->count();
+                if ($misclassified > 0) {
+                    $ctaFromEvents = max(0, $ctaFromEvents - $misclassified);
+                    $telFromEvents += $misclassified;
+                }
+            }
+
             $defaults['forms'] = max(
                 $defaults['forms'],
                 (int) ($eventCounts['form_submit'] ?? 0) + (int) ($eventCounts['form_fill'] ?? 0)
@@ -1253,11 +1280,8 @@ class PageAnalyticsAggregator
             if ($defaults['forms'] === 0) {
                 $defaults['forms'] = (int) ($eventCounts['form_start'] ?? 0);
             }
-            $defaults['cta'] = max($defaults['cta'], (int) ($eventCounts['cta_click'] ?? 0));
-            $defaults['tel'] = max(
-                $defaults['tel'],
-                (int) ($eventCounts['phone_click'] ?? 0) + (int) ($eventCounts['tel_click'] ?? 0)
-            );
+            $defaults['cta'] = max($defaults['cta'], $ctaFromEvents);
+            $defaults['tel'] = max($defaults['tel'], $telFromEvents);
             $defaults['carts'] = max($defaults['carts'], (int) ($eventCounts['add_to_cart'] ?? 0));
             $defaults['checkouts'] = max(
                 $defaults['checkouts'],

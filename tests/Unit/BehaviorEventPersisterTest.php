@@ -11,6 +11,7 @@ class BehaviorEventPersisterTest extends TestCase
     {
         $rows = BehaviorEventPersister::extractRows([
             ['type' => 'cta_click', 't' => 100, 'ts' => 1700000000100, 'href' => '/buy', 'element_text' => 'Buy', 'page_url' => 'https://ex.com/a', 'session_id' => 's1', 'visitor_id' => 'v1', 'tag' => 'A'],
+            ['type' => 'cta_click', 't' => 150, 'href' => '#', 'element_text' => 'Call Now', 'page_url' => 'https://ex.com/a', 'tag' => 'BUTTON'],
             ['type' => 'phone_click', 't' => 200, 'href' => 'tel:+1999', 'tel_number' => '+1999', 'page_url' => 'https://ex.com/a'],
             ['type' => 'form_submit', 't' => 300, 'form_id' => 'lead', 'success' => 0, 'page_url' => 'https://ex.com/a'],
             ['type' => 'scroll', 't' => 400, 'y' => 10],
@@ -21,11 +22,13 @@ class BehaviorEventPersisterTest extends TestCase
         ], 9, 88, 77, 's1', 'v1');
 
         $types = array_column($rows, 'event_type');
-        $this->assertSame(['cta_click', 'phone_click', 'form_submit', 'scroll', 'page_change', 'session_exit'], $types);
+        $this->assertSame(['cta_click', 'phone_click', 'phone_click', 'form_submit', 'scroll', 'page_change', 'session_exit'], $types);
         $this->assertSame('Buy', $rows[0]['element_text']);
         $this->assertSame('anchor', $rows[0]['link_type']);
-        $this->assertSame('+1999', $rows[1]['tel_number']);
-        $this->assertFalse($rows[2]['success']);
-        $this->assertSame(50, $rows[3]['scroll_depth']);
+        $this->assertSame('Call Now', $rows[1]['element_text']);
+        $this->assertSame('phone_click', $rows[1]['event_type']);
+        $this->assertSame('+1999', $rows[2]['tel_number']);
+        $this->assertFalse($rows[3]['success']);
+        $this->assertSame(50, $rows[4]['scroll_depth']);
     }
 }

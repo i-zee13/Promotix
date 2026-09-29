@@ -88,12 +88,21 @@ class SessionBehaviorAnalyzer
             if ($type === 'cta_click') {
                 $hasTypedCtaOrTel = true;
                 $hasClick = true;
-                $ctaClicks++;
+                $text = (string) ($raw['element_text'] ?? $raw['text'] ?? $raw['label'] ?? '');
+                $className = (string) ($raw['class'] ?? $raw['element_class'] ?? '');
+                $id = (string) ($raw['id'] ?? $raw['element_id'] ?? '');
                 $href = trim((string) ($raw['href'] ?? ''));
+                if (SessionClickClassifier::isCallLabel($text)
+                    || SessionClickClassifier::isCallElement($className, $id)
+                    || SessionClickClassifier::isTelHref($href)) {
+                    $telClicks++;
+                } else {
+                    $ctaClicks++;
+                }
                 if ($href !== '') {
                     $lastCtaHref = mb_substr($href, 0, 500);
                 }
-            } elseif (in_array($type, ['phone_click', 'tel_click'], true)) {
+            } elseif (in_array($type, ['phone_click', 'tel_click', 'call_click'], true)) {
                 $hasTypedCtaOrTel = true;
                 $hasClick = true;
                 $telClicks++;
@@ -150,8 +159,18 @@ class SessionBehaviorAnalyzer
                 }
                 $type = strtolower((string) ($raw['type'] ?? ''));
                 if ($type === 'cta_click') {
-                    $ctaClicks++;
-                } elseif (in_array($type, ['phone_click', 'tel_click'], true)) {
+                    $text = (string) ($raw['element_text'] ?? $raw['text'] ?? $raw['label'] ?? '');
+                    $className = (string) ($raw['class'] ?? $raw['element_class'] ?? '');
+                    $id = (string) ($raw['id'] ?? $raw['element_id'] ?? '');
+                    $href = trim((string) ($raw['href'] ?? ''));
+                    if (SessionClickClassifier::isCallLabel($text)
+                        || SessionClickClassifier::isCallElement($className, $id)
+                        || SessionClickClassifier::isTelHref($href)) {
+                        $telClicks++;
+                    } else {
+                        $ctaClicks++;
+                    }
+                } elseif (in_array($type, ['phone_click', 'tel_click', 'call_click'], true)) {
                     $telClicks++;
                 }
             }

@@ -2835,7 +2835,57 @@ function visitorJourneyPage() {
             this.$nextTick(() => { this.flowDrawTick++; });
         },
         pathCatalog(colKey) {
-            // Menu = only labels that have real data for this domain/range.
+            // Action / outcome: always list essential options (incl. Call CTA) so operators can see them.
+            if (colKey === 'action') {
+                const essential = [
+                    'Page viewed',
+                    'CTA clicked',
+                    'Call button clicked',
+                    'Form submitted',
+                    'Pricing viewed',
+                    'Add to cart',
+                    'Checkout started',
+                    'Payment started',
+                    'Exit',
+                ];
+                const fromData = (this.flowColumn(colKey).nodes || [])
+                    .filter((n) => Number(n.value || 0) > 0)
+                    .map((n) => n.label)
+                    .filter(Boolean);
+                const seen = {};
+                const out = [];
+                essential.concat(fromData).forEach((label) => {
+                    const key = String(label || '').toLowerCase();
+                    if (!key || seen[key]) return;
+                    seen[key] = true;
+                    out.push(label);
+                });
+                return out;
+            }
+            if (colKey === 'outcome') {
+                const essential = [
+                    'Lead confirmed',
+                    'Call connected',
+                    'Form completed',
+                    'Purchase completed',
+                    'Awaiting outcome',
+                    'Exited',
+                ];
+                const fromData = (this.flowColumn(colKey).nodes || [])
+                    .filter((n) => Number(n.value || 0) > 0)
+                    .map((n) => n.label)
+                    .filter(Boolean);
+                const seen = {};
+                const out = [];
+                essential.concat(fromData).forEach((label) => {
+                    const key = String(label || '').toLowerCase();
+                    if (!key || seen[key]) return;
+                    seen[key] = true;
+                    out.push(label);
+                });
+                return out;
+            }
+            // Landing / next: menu = only labels that have real data for this domain/range.
             const nodes = (this.flowColumn(colKey).nodes || [])
                 .filter((n) => Number(n.value || 0) > 0)
                 .slice()

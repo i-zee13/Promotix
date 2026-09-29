@@ -110,8 +110,8 @@ class BehaviorEventPersister
     private static function mapEventType(string $type, array $raw): ?string
     {
         return match ($type) {
-            'cta_click' => 'cta_click',
-            'phone_click', 'tel_click' => 'phone_click',
+            'cta_click' => self::isCallPayload($raw) ? 'phone_click' : 'cta_click',
+            'phone_click', 'tel_click', 'call_click' => 'phone_click',
             'form_start' => 'form_start',
             'form_submit', 'form_fill' => 'form_submit',
             'page_view', 'page' => 'page_view',
@@ -124,6 +124,21 @@ class BehaviorEventPersister
             'click' => self::mapLegacyClick($raw),
             default => null,
         };
+    }
+
+    /**
+     * @param  array<string, mixed>  $raw
+     */
+    private static function isCallPayload(array $raw): bool
+    {
+        $text = (string) ($raw['element_text'] ?? $raw['text'] ?? $raw['label'] ?? '');
+        $href = (string) ($raw['href'] ?? '');
+        $className = (string) ($raw['class'] ?? $raw['element_class'] ?? '');
+        $id = (string) ($raw['id'] ?? $raw['element_id'] ?? '');
+
+        return SessionClickClassifier::isTelHref($href)
+            || SessionClickClassifier::isCallLabel($text)
+            || SessionClickClassifier::isCallElement($className, $id);
     }
 
     /**

@@ -551,8 +551,28 @@ class TagController extends Controller
       return String(href || '').replace(/^(tel|callto|sms):/i, '').trim().slice(0, 64);
     }
 
+    function elementText(el){
+      try { return String(el.innerText || el.textContent || el.value || '').replace(/\\s+/g, ' ').trim().slice(0, 80).toLowerCase(); } catch (errT) { return ''; }
+    }
+
+    function isCallLabel(text){
+      var t = String(text || '').toLowerCase();
+      if (!t || t.length > 80) return false;
+      return /\\b(call\\s*(us|now|today|me|back)?|click\\s*to\\s*call|tap\\s*to\\s*call|phone\\s*(us|now|call)?|dial\\s*(us|now)?|talk\\s*to\\s*(an?\\s*)?(expert|agent|specialist|rep|us)|speak\\s*(to|with)\\s*(an?\\s*)?(expert|agent|specialist|rep|us)|request\\s*(a\\s*)?callback|schedule\\s*(a\\s*)?call)\\b/.test(t);
+    }
+
+    function isCallEl(el){
+      if (!el || !el.tagName) return false;
+      if (el.getAttribute && (el.getAttribute('data-call') != null || el.getAttribute('data-phone') != null || /^(call|phone|tel)$/i.test(String(el.getAttribute('data-action') || '')))) return true;
+      var cls = String(el.className || '').toLowerCase();
+      var id = String(el.id || '').toLowerCase();
+      if (/\\b(click[_-]?to[_-]?call|call[_-]?now|call[_-]?btn|call[_-]?button|phone[_-]?btn|phone[_-]?button|tel[_-]?btn|tel[_-]?link|calltracker|callrail|whatconverts)\\b/.test(cls + ' ' + id)) return true;
+      return isCallLabel(elementText(el));
+    }
+
     function isCtaEl(el){
       if (!el || !el.tagName) return false;
+      if (isCallEl(el)) return false;
       var tag = String(el.tagName).toUpperCase();
       if (el.getAttribute && (el.getAttribute('data-cta') != null || el.getAttribute('data-action') === 'cta')) return true;
       if (el.getAttribute && String(el.getAttribute('role') || '').toLowerCase() === 'button') return true;
@@ -567,9 +587,8 @@ class TagController extends Controller
         var t = String(el.type || '').toLowerCase();
         if (t === 'submit' || t === 'button') return true;
       }
-      var text = '';
-      try { text = String(el.innerText || el.textContent || el.value || '').replace(/\\s+/g, ' ').trim().slice(0, 80).toLowerCase(); } catch (errT) { text = ''; }
-      if (text && /\\b(get\\s*started|shop\\s*now|buy\\s*now|order\\s*now|order\\s*online|sign\\s*up|signup|subscribe|check\\s*availability|check\\s*avail|see\\s*(plans|pricing|offers)|view\\s*(plans|pricing|offers)|compare\\s*plans|request\\s*(a\\s*)?quote|get\\s*(a\\s*)?quote|apply\\s*now|learn\\s*more|contact\\s*us|call\\s*now|continue|next\\s*step|submit|send|book\\s*now|schedule|claim\\s*(offer|deal)|find\\s*(a\\s*)?plan|choose\\s*(a\\s*)?plan|zip\\s*check|enter\\s*(your\\s*)?zip)\\b/.test(text)) {
+      var text = elementText(el);
+      if (text && /\\b(get\\s*started|shop\\s*now|buy\\s*now|order\\s*now|order\\s*online|sign\\s*up|signup|subscribe|check\\s*availability|check\\s*avail|see\\s*(plans|pricing|offers)|view\\s*(plans|pricing|offers)|compare\\s*plans|request\\s*(a\\s*)?quote|get\\s*(a\\s*)?quote|apply\\s*now|learn\\s*more|contact\\s*us|continue|next\\s*step|submit|send|book\\s*now|schedule|claim\\s*(offer|deal)|find\\s*(a\\s*)?plan|choose\\s*(a\\s*)?plan|zip\\s*check|enter\\s*(your\\s*)?zip)\\b/.test(text)) {
         return true;
       }
       var href = '';
@@ -630,8 +649,8 @@ class TagController extends Controller
     function onClick(e){
       var target = closestActionEl(e.target);
       var meta = elementMeta(target);
-      var tel = isTelHref(meta.href);
-      var commerce = commerceKind(target);
+      var tel = isTelHref(meta.href) || isCallEl(target);
+      var commerce = !tel && commerceKind(target);
       var cta = !tel && !commerce && isCtaEl(target);
 
       if (tel) {
