@@ -6,7 +6,7 @@ use App\Models\Plan;
 use App\Models\User;
 
 /**
- * Workspace (non-detection) plan gates: team invite, provider whitelist, cross-domain.
+ * Workspace (non-detection) plan gates: team invite, provider whitelist, cross-domain, audience exclusion.
  */
 class WorkspacePlanFeatures
 {
@@ -15,6 +15,8 @@ class WorkspacePlanFeatures
     public const PROVIDER_WHITELIST = 'provider_ip_whitelist';
 
     public const CROSS_DOMAIN = 'cross_domain';
+
+    public const AUDIENCE_EXCLUSION = 'audience_exclusion';
 
     /**
      * @return list<array{key: string, label: string, description: string}>
@@ -36,6 +38,11 @@ class WorkspacePlanFeatures
                 'key' => self::CROSS_DOMAIN,
                 'label' => 'Cross-domain intelligence',
                 'description' => 'Show Cross-domain card on Detection Settings. Also requires Super Admin → Integrations → Cross-domain toggle On.',
+            ],
+            [
+                'key' => self::AUDIENCE_EXCLUSION,
+                'label' => 'Audience Exclusion',
+                'description' => 'Show Audience Exclusion on customer Integrations. Also requires Super Admin → Integrations → Audience Exclusion toggle On. Default on.',
             ],
         ];
     }
@@ -68,7 +75,7 @@ class WorkspacePlanFeatures
     public static function defaultEnabled(?Plan $plan, string $key): bool
     {
         if ($plan === null) {
-            return false;
+            return $key === self::AUDIENCE_EXCLUSION;
         }
 
         $tier = strtolower(trim((string) $plan->tier));
@@ -84,6 +91,8 @@ class WorkspacePlanFeatures
             // (platform Integrations toggle is a separate master switch).
             self::TEAM_INVITE, self::PROVIDER_WHITELIST => $isPremiumTier,
             self::CROSS_DOMAIN => false,
+            // Audience Exclusion stays available unless plan flag is explicitly off.
+            self::AUDIENCE_EXCLUSION => true,
             default => false,
         };
     }

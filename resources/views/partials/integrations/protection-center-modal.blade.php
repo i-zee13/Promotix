@@ -28,7 +28,7 @@
                     <p class="text-[13px] font-semibold">IP exclusions</p>
                     <p class="mt-[6px] text-[11px] text-white/55">Queue high-confidence IPs to Google Ads IP exclusions with read-back.</p>
                 </button>
-                <button type="button" class="rounded-[10px] border border-white/15 bg-[#0d0d0d] p-[14px] text-left hover:border-[var(--brand-primary)]/50" @click="closeProtectionCenter(); openAudienceMethodModal()">
+                <button type="button" class="rounded-[10px] border border-white/15 bg-[#0d0d0d] p-[14px] text-left hover:border-[var(--brand-primary)]/50" x-show="audienceExclusionAvailable" @click="closeProtectionCenter(); openAudienceMethodModal()">
                     <p class="text-[13px] font-semibold">Audience exclusion</p>
                     <p class="mt-[6px] text-[11px] text-white/55">GA4 custom-event audience wizard — method → rule → apply.</p>
                 </button>
@@ -66,9 +66,9 @@
                         </div>
                     </template>
                 </div>
-                <button type="button" class="rounded-[6px] bg-[var(--brand-primary)] px-[16px] py-[8px] text-[13px] font-semibold" @click="closeProtectionCenter(); openAudienceMethodModal()">Choose audience method</button>
-                <button type="button" class="rounded-[6px] border border-white/30 px-[16px] py-[8px] text-[13px]" @click="closeProtectionCenter(); openCreateAudienceModal()">Create GA4 audience</button>
-                <button type="button" class="rounded-[6px] border border-white/30 px-[16px] py-[8px] text-[13px]" @click="closeProtectionCenter(); openApplyAudienceModal()">Apply audience exclusion</button>
+                <button type="button" class="rounded-[6px] bg-[var(--brand-primary)] px-[16px] py-[8px] text-[13px] font-semibold" x-show="audienceExclusionAvailable" @click="closeProtectionCenter(); openAudienceMethodModal()">Choose audience method</button>
+                <button type="button" class="rounded-[6px] border border-white/30 px-[16px] py-[8px] text-[13px]" x-show="audienceExclusionAvailable" @click="closeProtectionCenter(); openCreateAudienceModal()">Create GA4 audience</button>
+                <button type="button" class="rounded-[6px] border border-white/30 px-[16px] py-[8px] text-[13px]" x-show="audienceExclusionAvailable" @click="closeProtectionCenter(); openApplyAudienceModal()">Apply audience exclusion</button>
             </div>
             <div x-show="protectionCenter.tab === 'placement'" x-cloak>
                 <button type="button" class="rounded-[6px] bg-[var(--brand-primary)] px-[16px] py-[8px] text-[13px] font-semibold" @click="closeProtectionCenter(); openPlacementModal()">Open Placement exclusions</button>

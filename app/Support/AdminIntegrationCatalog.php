@@ -12,7 +12,7 @@ class AdminIntegrationCatalog
     public const AD_PLATFORM_NAMES = ['meta-ads', 'microsoft-ads'];
 
     /** Optional tenant-facing integrations toggled from Super Admin → Integrations. */
-    public const TENANT_OPTIONAL_NAMES = ['cross-domain', 'guidance-chatbot'];
+    public const TENANT_OPTIONAL_NAMES = ['cross-domain', 'audience-exclusion', 'guidance-chatbot'];
 
     public static function ensureForUser(int $userId): void
     {
@@ -24,12 +24,14 @@ class AdminIntegrationCatalog
             ['name' => 'meta-ads', 'display_name' => 'Meta Ads', 'provider' => 'meta'],
             ['name' => 'microsoft-ads', 'display_name' => 'Microsoft Ads', 'provider' => 'microsoft'],
             ['name' => 'cross-domain', 'display_name' => 'Cross-domain intelligence', 'provider' => 'promotix'],
+            ['name' => 'audience-exclusion', 'display_name' => 'Audience Exclusion', 'provider' => 'promotix'],
             ['name' => 'guidance-chatbot', 'display_name' => 'Guidance chatbot / KB sync', 'provider' => 'guidance'],
         ] as $row) {
             $defaults = [
                 'user_id' => $userId,
                 'status' => 'not_configured',
-                'enabled' => false,
+                // Audience Exclusion stays on for existing workspaces until Super Admin turns it off.
+                'enabled' => $row['name'] === 'audience-exclusion',
             ];
             AdminIntegrationSetting::query()->firstOrCreate(
                 ['user_id' => $userId, 'name' => $row['name']],
@@ -67,7 +69,8 @@ class AdminIntegrationCatalog
             'meta-ads' => 4,
             'microsoft-ads' => 5,
             'cross-domain' => 6,
-            'guidance-chatbot' => 7,
+            'audience-exclusion' => 7,
+            'guidance-chatbot' => 8,
         ];
 
         return AdminIntegrationSetting::query()
@@ -121,9 +124,9 @@ class AdminIntegrationCatalog
     /**
      * Optional integrations surfaced on tenant Detection / Platform Integrate
      * when enabled in Super Admin → Integrations.
-     * Cross-domain also requires the plan flag `cross_domain` when a user is provided.
+     * Cross-domain / Audience Exclusion also require their plan flags when a user is provided.
      *
-     * @return array{cross_domain: bool, chatbot: bool}
+     * @return array{cross_domain: bool, audience_exclusion: bool, chatbot: bool}
      */
     public static function enabledTenantIntegrations(?\App\Models\User $user = null): array
     {
@@ -135,8 +138,17 @@ class AdminIntegrationCatalog
             );
         }
 
+        $audienceExclusion = self::tenantOptionalEnabled('audience-exclusion', defaultIfMissing: true);
+        if ($audienceExclusion && $user !== null) {
+            $audienceExclusion = \App\Support\WorkspacePlanFeatures::enabled(
+                $user,
+                \App\Support\WorkspacePlanFeatures::AUDIENCE_EXCLUSION
+            );
+        }
+
         return [
             'cross_domain' => $crossDomain,
+            'audience_exclusion' => $audienceExclusion,
             'chatbot' => self::integrationEnabledForTenants('guidance-chatbot'),
         ];
     }
@@ -156,6 +168,40 @@ class AdminIntegrationCatalog
             $user,
             \App\Support\WorkspacePlanFeatures::CROSS_DOMAIN
         );
+    }
+
+    /** Platform Integrations toggle On + plan feature `audience_exclusion` On. */
+    public static function audienceExclusionAvailableForUser(?\App\Models\User $user): bool
+    {
+        if ($user === null) {
+            return false;
+        }
+
+        if (! self::tenantOptionalEnabled('audience-exclusion', defaultIfMissing: true)) {
+            return false;
+        }
+
+        return \App\Support\WorkspacePlanFeatures::enabled(
+            $user,
+            \App\Support\WorkspacePlanFeatures::AUDIENCE_EXCLUSION
+        );
+    }
+
+    /**
+     * Tenant-optional integration: respect Super Admin toggle; if never seeded, use default.
+     */
+    public static function tenantOptionalEnabled(string $name, bool $defaultIfMissing = false): bool
+    {
+        if (! Schema::hasTable('admin_integration_settings')) {
+            return $defaultIfMissing;
+        }
+
+        $exists = self::platformOperatorIntegrationQuery($name)->exists();
+        if (! $exists) {
+            return $defaultIfMissing;
+        }
+
+        return self::integrationEnabledForTenants($name);
     }
 
     public static function integrationEnabledForTenants(string $name): bool
@@ -254,6 +300,11 @@ class AdminIntegrationCatalog
                 'subtitle' => 'Link visitor sessions across domains in your workspace for journey intelligence.',
                 'connected_label' => 'Enabled for tenants',
             ],
+            'audience-exclusion' => [
+                'icon' => 'A',
+                'subtitle' => 'Show Audience Exclusion setup / apply on customer Integrations (Google Ads). Off = hidden everywhere in the portal.',
+                'connected_label' => 'Enabled for tenants',
+            ],
             'guidance-chatbot' => [
                 'icon' => 'C',
                 'subtitle' => 'Clickronix Copilot — answers from local knowledge bank (no OpenAI key). Optional Guidance articles add extra coverage.',
@@ -332,6 +383,9 @@ class AdminIntegrationCatalog
             'cross-domain' => [
                 ['name' => 'linked_domains', 'label' => 'Linked domains', 'type' => 'text', 'secret' => false, 'readonly' => true],
                 ['name' => 'cross_sessions_30d', 'label' => 'Cross-domain hits (30d)', 'type' => 'text', 'secret' => false, 'readonly' => true],
+            ],
+            'audience-exclusion' => [
+                ['name' => 'note', 'label' => 'Portal visibility', 'type' => 'text', 'secret' => false, 'readonly' => true],
             ],
             'guidance-chatbot' => [
                 ['name' => 'published_articles', 'label' => 'Published articles', 'type' => 'text', 'secret' => false, 'readonly' => true],

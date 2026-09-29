@@ -262,7 +262,7 @@
 
                     <div class="mt-4">
                         <label class="figma-sa-label">Workspace features (plan gate)</label>
-                        <p class="mt-1 text-[11px] text-[#a9a9a9]">Team invite / provider whitelist default on for Enterprise · Advanced · Custom. Cross-domain stays off until you check it — and Super Admin → Integrations → Cross-domain must also be On.</p>
+                        <p class="mt-1 text-[11px] text-[#a9a9a9]">Team invite / provider whitelist default on for Enterprise · Advanced · Custom. Cross-domain stays off until you check it. Audience Exclusion defaults on. Platform toggles under Super Admin → Integrations must also be On.</p>
                         <div class="mt-3 grid gap-2 sm:grid-cols-2">
                             @foreach (\App\Support\WorkspacePlanFeatures::catalog() as $feat)
                                 <label class="inline-flex items-start gap-2 rounded-[8px] border border-white/10 bg-black/20 px-3 py-2 text-[11px] text-[#d9d9d9] cursor-pointer">
@@ -442,6 +442,9 @@ function plansPricingPage(plans, products, storeUrl, defaultProductTitle) {
             // Match WorkspacePlanFeatures::defaultEnabled — cross_domain stays off until checked.
             if (key === 'cross_domain') {
                 return false;
+            }
+            if (key === 'audience_exclusion') {
+                return true;
             }
             const tier = String(this.form.tier || '').toLowerCase();
             const name = String(this.form.name || '').toLowerCase();

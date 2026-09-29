@@ -699,6 +699,11 @@ class SupportPagesController extends Controller
                 $row['settings'] = array_merge($row['settings'] ?? [], $crossDomainStats);
                 $row['manage_url'] = route('super-admin.traffic.cross-domain');
             }
+            if ($row['name'] === 'audience-exclusion') {
+                $row['settings'] = array_merge($row['settings'] ?? [], [
+                    'note' => 'Toggle Off hides Audience Exclusion in the customer portal',
+                ]);
+            }
 
             return array_merge($row, $meta);
         })->values()->all();

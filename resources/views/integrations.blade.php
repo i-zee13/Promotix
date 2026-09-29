@@ -180,6 +180,8 @@ document.addEventListener('DOMContentLoaded', () => {
         'audienceListStatsUrl' => route('integrations.google.audience-list-stats'),
         'audienceListsUrl' => route('integrations.google.audience-lists'),
         'audienceExclusionExportUrl' => route('integrations.google.audience-exclusion-export'),
+        'audienceExclusionAvailable' => (bool) (($enabledTenantIntegrations['audience_exclusion'] ?? false)
+            || \App\Support\AdminIntegrationCatalog::audienceExclusionAvailableForUser(auth()->user())),
         'ga4StatusUrl' => route('integrations.google.ga4-status'),
         'createAudienceUrl' => route('integrations.google.create-audience'),
         'applyAudienceUrl' => route('integrations.google.apply-audience'),
@@ -1174,7 +1176,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         {{-- Connected Platforms --}}
         <section id="connected-platforms" class="pi-platforms-card">
-            <details class="mb-[14px] rounded-[10px] border border-white/10 bg-black/20 px-[14px] py-[12px]">
+            <details class="mb-[14px] rounded-[10px] border border-white/10 bg-black/20 px-[14px] py-[12px]" x-show="audienceExclusionAvailable">
                 <summary class="cursor-pointer text-[12px] font-semibold text-white">Pixel Guard &amp; Audience Exclusion guidance</summary>
                 <div class="mt-[10px] grid gap-[10px] text-[11px] leading-relaxed text-white/70 sm:grid-cols-2">
             <div>
@@ -1284,9 +1286,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                                     <button type="button" class="figma-platform-menu-item w-full text-left" @click="openProtectionCenter()">Protection Center</button>
                                                     <button type="button" class="figma-platform-menu-item w-full text-left" @click="openIpExclusionsModal()">IP exclusions</button>
                                                     <button type="button" class="figma-platform-menu-item w-full text-left" @click="openPlacementModal()">Placement exclusions</button>
-                                                    <button type="button" class="figma-platform-menu-item w-full text-left" @click="openAudienceMethodModal()">Audience Exclusion</button>
-                                                    <button type="button" class="figma-platform-menu-item w-full text-left" @click="openCreateAudienceModal()">Create GA4 audience</button>
-                                                    <button type="button" class="figma-platform-menu-item w-full text-left" @click="openApplyAudienceModal()">Apply audience exclusion</button>
+                                                    <button type="button" class="figma-platform-menu-item w-full text-left" x-show="audienceExclusionAvailable" @click="openAudienceMethodModal()">Audience Exclusion</button>
+                                                    <button type="button" class="figma-platform-menu-item w-full text-left" x-show="audienceExclusionAvailable" @click="openCreateAudienceModal()">Create GA4 audience</button>
+                                                    <button type="button" class="figma-platform-menu-item w-full text-left" x-show="audienceExclusionAvailable" @click="openApplyAudienceModal()">Apply audience exclusion</button>
                                                     <button type="button" class="figma-platform-menu-item w-full text-left" @click="openPixelGuardModal()">Pixel Guard</button>
                                                     <button type="button" class="figma-platform-menu-item w-full text-left" @click="openTrackingTemplateModal()">Tracking template</button>
                                                     <button type="button" class="figma-platform-menu-item w-full text-left" @click="openSyncPreview()">Campaign Sync preview</button>
@@ -1847,6 +1849,7 @@ function platformIntegrations(config) {
         createdAudienceLists: [],
         audienceAssociationsByDomain: config.audienceAssociationsByDomain || {},
         audienceListsByDomain: config.audienceListsByDomain || {},
+        audienceExclusionAvailable: config.audienceExclusionAvailable !== false,
         get trackingInstallation() {
             const id = String(this.selectedDomainId || '');
             if (id && this.trackingInstallationByDomain[id]) {
@@ -2438,6 +2441,10 @@ function platformIntegrations(config) {
             this.unlockSpecModal();
         },
         openAudienceMethodModal() {
+            if (!this.audienceExclusionAvailable) {
+                this.showMenuToast('Audience Exclusion is disabled for this workspace.', 'error');
+                return;
+            }
             this.openAudienceWizard();
         },
         /** Google Ads card CTA: create exclusion audience, then apply to campaigns. */
@@ -3165,6 +3172,10 @@ function platformIntegrations(config) {
             }
         },
         openCreateAudienceModal() {
+            if (!this.audienceExclusionAvailable) {
+                this.showMenuToast('Audience Exclusion is disabled for this workspace.', 'error');
+                return;
+            }
             // Only domain-linked Ads accounts — not every OAuth/MCC child account.
             let rows = Array.isArray(this.trackingIds) ? [...this.trackingIds] : [];
             if (this.selectedDomainId) {
@@ -3635,6 +3646,10 @@ ${memberRowsHtml}
             }
         },
         openApplyAudienceModal() {
+            if (!this.audienceExclusionAvailable) {
+                this.showMenuToast('Audience Exclusion is disabled for this workspace.', 'error');
+                return;
+            }
             if (!this.applyAudienceModal.audienceName) {
                 this.applyAudienceModal.audienceName = this.createAudienceModal.name;
             }

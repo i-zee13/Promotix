@@ -760,7 +760,7 @@ class IntegrationsController extends Controller
             : collect();
 
         $enabledAdPlatforms = AdminIntegrationCatalog::enabledAdPlatforms();
-        $enabledTenantIntegrations = AdminIntegrationCatalog::enabledTenantIntegrations();
+        $enabledTenantIntegrations = AdminIntegrationCatalog::enabledTenantIntegrations($user);
         $tagSetupUrl = $firstDomain
             ? route('domains.setup', $firstDomain)
             : route('domains.index');
@@ -2050,6 +2050,10 @@ class IntegrationsController extends Controller
      */
     public function audienceExclusionExport(Request $request, \App\Services\GoogleAdsAudienceAssociationService $associations): JsonResponse
     {
+        if ($denied = $this->denyUnlessAudienceExclusionAvailable($request)) {
+            return $denied;
+        }
+
         $data = $request->validate([
             'domain_id' => ['nullable', 'integer'],
             'user_list_id' => ['required', 'string', 'max:40'],
@@ -2163,6 +2167,10 @@ class IntegrationsController extends Controller
      */
     public function createAudience(Request $request, \App\Services\GoogleAdsAudienceAssociationService $associations, \App\Services\Ga4SitePresenceService $ga4Presence): JsonResponse
     {
+        if ($denied = $this->denyUnlessAudienceExclusionAvailable($request)) {
+            return $denied;
+        }
+
         $data = $request->validate([
             'domain_id' => ['required', 'integer'],
             'audience_name' => ['required', 'string', 'max:255'],
@@ -2414,6 +2422,10 @@ class IntegrationsController extends Controller
      */
     public function applyAudienceExclusion(Request $request, \App\Services\GoogleAdsAudienceAssociationService $associations, \App\Services\Ga4SitePresenceService $ga4Presence): JsonResponse
     {
+        if ($denied = $this->denyUnlessAudienceExclusionAvailable($request)) {
+            return $denied;
+        }
+
         $data = $request->validate([
             'domain_id' => ['required', 'integer'],
             'campaign_ids' => ['nullable', 'array', 'max:200'],
@@ -3152,6 +3164,10 @@ class IntegrationsController extends Controller
 
     public function audienceExclusionGet(Request $request): JsonResponse
     {
+        if ($denied = $this->denyUnlessAudienceExclusionAvailable($request)) {
+            return $denied;
+        }
+
         $userId = $request->user()->id;
 
         $mappings = DomainGoogleAdsMapping::query()
@@ -3205,6 +3221,10 @@ class IntegrationsController extends Controller
 
     public function audienceExclusionSave(Request $request): JsonResponse
     {
+        if ($denied = $this->denyUnlessAudienceExclusionAvailable($request)) {
+            return $denied;
+        }
+
         $data = $request->validate([
             'mapping_id' => ['nullable', 'integer'],
             'domain_id' => ['nullable', 'integer'],
@@ -3297,6 +3317,18 @@ class IntegrationsController extends Controller
             'audiences' => (array) ($settings['conversion_audiences'] ?? []),
             'message' => 'Audience Exclusion saved.',
         ]);
+    }
+
+    private function denyUnlessAudienceExclusionAvailable(Request $request): ?JsonResponse
+    {
+        if (AdminIntegrationCatalog::audienceExclusionAvailableForUser($request->user())) {
+            return null;
+        }
+
+        return response()->json([
+            'ok' => false,
+            'message' => 'Audience Exclusion is disabled for this workspace.',
+        ], 403);
     }
 
     public function directAdsList(Request $request): JsonResponse
