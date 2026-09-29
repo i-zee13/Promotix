@@ -42,17 +42,18 @@ class PageAnalyticsAggregator
             return $this->emptyPayload($currencyCode);
         }
 
-        // Paid Search / Google Ads KPIs only when domain is Ads-linked (same gate as Paid Dashboard).
+        // Analytics = Google Ads tracking only. No Ads link → empty dashboard (no organic leftovers).
         $adsLinkedDomainIds = Domain::query()
             ->whereIn('id', $domainIds)
             ->forPaidMarketing()
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
             ->all();
-        $adsLinkedSet = array_flip($adsLinkedDomainIds);
         if ($adsLinkedDomainIds === []) {
-            $adsTotals = ['clicks' => 0, 'cost' => 0.0, 'impressions' => 0];
+            return $this->emptyPayload($currencyCode);
         }
+        $domainIds = $adsLinkedDomainIds;
+        $adsLinkedSet = array_flip($adsLinkedDomainIds);
 
         $select = [
             'id',
@@ -86,6 +87,18 @@ class PageAnalyticsAggregator
         $query = DB::table('visits')
             ->whereIn('domain_id', $domainIds)
             ->whereBetween('visited_at', [$from, $to]);
+
+        // Paid / click-ID sessions only (same attribution as Paid Dashboard).
+        if (Schema::hasColumn('visits', 'is_paid_traffic')) {
+            $query->where(function ($group): void {
+                $group->where('is_paid_traffic', true)
+                    ->orWhere(function ($inner): void {
+                        GoogleClickAttribution::applyHasClickIdFilter($inner);
+                    });
+            });
+        } else {
+            GoogleClickAttribution::applyHasClickIdFilter($query);
+        }
 
         $this->applyVisitFilters($query, array_merge($filters, [
             'ads_linked_domain_ids' => $adsLinkedDomainIds,
@@ -381,8 +394,21 @@ class PageAnalyticsAggregator
             }
         }
 
+        $paidSessionIds = $rows->pluck('session_id')
+            ->filter(fn ($id) => is_string($id) && trim($id) !== '')
+            ->map(fn ($id) => trim((string) $id))
+            ->unique()
+            ->values()
+            ->all();
+
         try {
-            $recordingStats = $this->recordingCommerceStats($domainIds, $from, $to, $filters, $lite);
+            $recordingStats = $this->recordingCommerceStats(
+                $domainIds,
+                $from,
+                $to,
+                array_merge($filters, ['paid_session_ids' => $paidSessionIds]),
+                $lite,
+            );
         } catch (\Throwable $e) {
             report($e);
             $recordingStats = [
@@ -445,14 +471,11 @@ class PageAnalyticsAggregator
         $totalConversions = $telClicks + $ctaClicks + $formFills + $carts + $checkouts + $purchases;
 
         // Valid Users = ad visitors who are not invalid/crawler.
-        // Only count / fall back when Google Ads is linked on the selected domain(s).
-        if ($adsLinkedDomainIds === []) {
-            $validUsers = 0;
-        } elseif ($validUsers === 0 && $human > 0 && ($buckets['paid'] ?? 0) === 0) {
+        if ($validUsers === 0 && $human > 0 && ($buckets['paid'] ?? 0) === 0) {
             $validUsers = $human;
         }
 
-        $liveVisitors = $this->countLiveVisitors($domainIds, 5);
+        $liveVisitors = $this->countLiveVisitors($domainIds, 5, true);
         $inactiveVisitors = max(0, $total - $liveVisitors);
 
         $googleClicks = (int) ($adsTotals['clicks'] ?? 0);
@@ -471,7 +494,7 @@ class PageAnalyticsAggregator
             $to,
             $hourly,
             $reportingTz,
-            $filters,
+            array_merge($filters, ['paid_session_ids' => $paidSessionIds]),
         );
         $chartConversionTotal = 0;
         foreach ($performanceBuckets as $bucket) {
@@ -779,16 +802,30 @@ class PageAnalyticsAggregator
 
 
     /** @param  list<int>  $domainIds */
-    private function countLiveVisitors(array $domainIds, int $minutes = 5): int
+    private function countLiveVisitors(array $domainIds, int $minutes = 5, bool $paidOnly = false): int
     {
         if ($domainIds === [] || ! Schema::hasTable('visits')) {
             return 0;
         }
 
-        return (int) DB::table('visits')
+        $query = DB::table('visits')
             ->whereIn('domain_id', $domainIds)
-            ->where('visited_at', '>=', now()->subMinutes(max(1, $minutes)))
-            ->count();
+            ->where('visited_at', '>=', now()->subMinutes(max(1, $minutes)));
+
+        if ($paidOnly) {
+            if (Schema::hasColumn('visits', 'is_paid_traffic')) {
+                $query->where(function ($group): void {
+                    $group->where('is_paid_traffic', true)
+                        ->orWhere(function ($inner): void {
+                            GoogleClickAttribution::applyHasClickIdFilter($inner);
+                        });
+                });
+            } else {
+                GoogleClickAttribution::applyHasClickIdFilter($query);
+            }
+        }
+
+        return (int) $query->count();
     }
 
     /**
@@ -1092,6 +1129,19 @@ class PageAnalyticsAggregator
                 'form_fill', 'form_start', 'tel_click', 'begin_checkout', 'sale', 'order', 'transaction',
             ]);
 
+        $paidSessionIds = collect($filters['paid_session_ids'] ?? [])
+            ->map(fn ($id) => trim((string) $id))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+        if ($paidSessionIds !== [] && Schema::hasColumn('visit_behavior_events', 'session_id')) {
+            $query->whereIn('session_id', $paidSessionIds);
+        } elseif (array_key_exists('paid_session_ids', $filters) && $paidSessionIds === []) {
+            // Ads-only build with no paid sessions → no conversion events.
+            return;
+        }
+
         $path = trim((string) ($filters['path'] ?? ''));
         if ($path !== '') {
             $query->where(function ($inner) use ($path): void {
@@ -1150,6 +1200,18 @@ class PageAnalyticsAggregator
             ->whereIn('domain_id', $domainIds)
             ->whereBetween('created_at', [$from, $to]);
 
+        $paidSessionIds = collect($filters['paid_session_ids'] ?? [])
+            ->map(fn ($id) => trim((string) $id))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+        if ($paidSessionIds !== [] && Schema::hasColumn('visit_session_recordings', 'session_id')) {
+            $query->whereIn('session_id', $paidSessionIds);
+        } elseif (array_key_exists('paid_session_ids', $filters) && $paidSessionIds === []) {
+            return $defaults;
+        }
+
         if (Schema::hasColumn('visit_session_recordings', 'cta_clicks')) {
             $sums = (clone $query)->selectRaw('
                 COALESCE(SUM(cta_clicks),0) as cta,
@@ -1163,7 +1225,7 @@ class PageAnalyticsAggregator
 
         // Prefer typed behavior events when available (covers all sessions, not just last N recordings).
         if (Schema::hasTable('visit_behavior_events')) {
-            $eventCounts = DB::table('visit_behavior_events')
+            $eventQuery = DB::table('visit_behavior_events')
                 ->whereIn('domain_id', $domainIds)
                 ->whereBetween('occurred_at', [$from, $to])
                 ->whereIn('event_type', [
@@ -1171,10 +1233,18 @@ class PageAnalyticsAggregator
                     'cta_click', 'phone_click', 'tel_click',
                     'add_to_cart', 'checkout', 'begin_checkout',
                     'purchase', 'sale', 'order', 'transaction',
-                ])
-                ->selectRaw('event_type, COUNT(*) as total')
-                ->groupBy('event_type')
-                ->pluck('total', 'event_type');
+                ]);
+            if ($paidSessionIds !== [] && Schema::hasColumn('visit_behavior_events', 'session_id')) {
+                $eventQuery->whereIn('session_id', $paidSessionIds);
+            } elseif (array_key_exists('paid_session_ids', $filters) && $paidSessionIds === []) {
+                $eventQuery = null;
+            }
+
+            $eventCounts = $eventQuery
+                ? $eventQuery->selectRaw('event_type, COUNT(*) as total')
+                    ->groupBy('event_type')
+                    ->pluck('total', 'event_type')
+                : collect();
 
             $defaults['forms'] = max(
                 $defaults['forms'],

@@ -424,6 +424,11 @@ class TrafficControlIntelligence
         $allIpChanges = $this->ipChangeRows($deviceRows);
         $allReputation = $this->reputationRows($deviceRows, $ipLogs);
 
+        $sort = strtolower(trim((string) ($filters['sort'] ?? '')));
+        $dir = strtolower(trim((string) ($filters['dir'] ?? 'desc'))) === 'asc' ? 'asc' : 'desc';
+        $allDevices = $this->sortIntelRows($allDevices, $sort, $dir);
+        $allIpChanges = $this->sortIntelRows($allIpChanges, $sort, $dir);
+
         $tab = strtolower(trim((string) ($filters['tab'] ?? 'devices')));
         if (! in_array($tab, ['devices', 'ip_changes', 'reputation', 'ranges'], true)) {
             $tab = 'devices';
@@ -482,8 +487,56 @@ class TrafficControlIntelligence
                 'page' => $page,
                 'per_page' => $perPage,
                 'total' => $pageTotal,
+                'sort' => $sort,
+                'dir' => $dir,
             ],
         ];
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $rows
+     * @return list<array<string, mixed>>
+     */
+    private function sortIntelRows(array $rows, string $sort, string $dir): array
+    {
+        $allowed = [
+            'device_id', 'ip', 'clicks', 'ip_count', 'ip_changes',
+            'conversions', 'device_confidence', 'risk_score', 'last_seen', 'status',
+        ];
+        if ($rows === [] || ! in_array($sort, $allowed, true)) {
+            return $rows;
+        }
+
+        $desc = $dir !== 'asc';
+        usort($rows, static function (array $a, array $b) use ($sort, $desc): int {
+            $av = $a[$sort] ?? null;
+            $bv = $b[$sort] ?? null;
+
+            if ($sort === 'ip') {
+                $av = (string) ($a['ip'] ?? ($a['ips'][0] ?? ''));
+                $bv = (string) ($b['ip'] ?? ($b['ips'][0] ?? ''));
+            }
+
+            if ($av === null && $bv === null) {
+                $cmp = 0;
+            } elseif ($av === null) {
+                $cmp = 1;
+            } elseif ($bv === null) {
+                $cmp = -1;
+            } elseif (is_numeric($av) && is_numeric($bv)) {
+                $cmp = ((float) $av) <=> ((float) $bv);
+            } else {
+                $cmp = strcasecmp((string) $av, (string) $bv);
+            }
+
+            if ($cmp === 0) {
+                return 0;
+            }
+
+            return $desc ? -$cmp : $cmp;
+        });
+
+        return array_values($rows);
     }
 
     /** @param  \Illuminate\Support\Collection<int, object>  $visits */

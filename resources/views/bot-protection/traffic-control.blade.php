@@ -204,6 +204,31 @@
                 text-align: left; font-size: 10px; font-weight: 650; letter-spacing: .04em;
                 text-transform: uppercase; color: rgba(255,255,255,.42); padding: 8px 10px; white-space: nowrap;
             }
+            .tc-th-sort {
+                display: inline-flex; align-items: center; gap: 5px;
+                background: none; border: 0; padding: 0; margin: 0; cursor: pointer;
+                font: inherit; letter-spacing: inherit; text-transform: inherit;
+                color: inherit; color: rgba(255,255,255,.55);
+            }
+            .tc-th-sort:hover { color: #FF6600; }
+            .tc-th-sort.is-active { color: #FF6600; }
+            .tc-th-sort__ico {
+                width: 0; height: 0;
+                border-left: 3.5px solid transparent;
+                border-right: 3.5px solid transparent;
+                border-bottom: 5px solid rgba(255,255,255,.28);
+                opacity: .55;
+            }
+            .tc-th-sort.is-asc .tc-th-sort__ico {
+                border-bottom: 5px solid #FF6600;
+                border-top: 0;
+                opacity: 1;
+            }
+            .tc-th-sort.is-desc .tc-th-sort__ico {
+                border-bottom: 0;
+                border-top: 5px solid #FF6600;
+                opacity: 1;
+            }
             .tc-table td {
                 background: #181818; padding: 12px 10px; font-size: 12px; color: rgba(255,255,255,.88);
                 vertical-align: middle; border-top: 1px solid rgba(255,255,255,.04); border-bottom: 1px solid rgba(255,255,255,.04);
@@ -772,16 +797,76 @@
                         <table class="tc-table">
                             <thead>
                                 <tr>
-                                    <th x-text="(activeTab === 'reputation' || activeTab === 'ip_changes') ? 'IP Address' : 'Device ID'"></th>
-                                    <th x-show="activeTab === 'ip_changes'">Device ID</th>
-                                    <th>Paid Clicks</th>
-                                    <th x-show="activeTab !== 'ip_changes'">IPs</th>
-                                    <th>IP Changes</th>
-                                    <th>Conversions</th>
-                                    <th>Confidence</th>
-                                    <th>Risk</th>
-                                    <th>Last Seen</th>
-                                    <th>Status</th>
+                                    <th>
+                                        <button type="button" class="tc-th-sort" x-show="canSortTab()" @click="toggleSort(activeTab === 'devices' ? 'device_id' : 'ip')" :class="sortClass(activeTab === 'devices' ? 'device_id' : 'ip')">
+                                            <span x-text="(activeTab === 'reputation' || activeTab === 'ip_changes') ? 'IP Address' : 'Device ID'"></span>
+                                            <span class="tc-th-sort__ico" aria-hidden="true"></span>
+                                        </button>
+                                        <span x-show="!canSortTab()" x-text="(activeTab === 'reputation' || activeTab === 'ip_changes') ? 'IP Address' : 'Device ID'"></span>
+                                    </th>
+                                    <th x-show="activeTab === 'ip_changes'">
+                                        <button type="button" class="tc-th-sort" x-show="canSortTab()" @click="toggleSort('device_id')" :class="sortClass('device_id')">
+                                            <span>Device ID</span>
+                                            <span class="tc-th-sort__ico" aria-hidden="true"></span>
+                                        </button>
+                                        <span x-show="!canSortTab()">Device ID</span>
+                                    </th>
+                                    <th>
+                                        <button type="button" class="tc-th-sort" x-show="canSortTab()" @click="toggleSort('clicks')" :class="sortClass('clicks')">
+                                            <span>Paid Clicks</span>
+                                            <span class="tc-th-sort__ico" aria-hidden="true"></span>
+                                        </button>
+                                        <span x-show="!canSortTab()">Paid Clicks</span>
+                                    </th>
+                                    <th x-show="activeTab !== 'ip_changes'">
+                                        <button type="button" class="tc-th-sort" x-show="canSortTab()" @click="toggleSort('ip_count')" :class="sortClass('ip_count')">
+                                            <span>IPs</span>
+                                            <span class="tc-th-sort__ico" aria-hidden="true"></span>
+                                        </button>
+                                        <span x-show="!canSortTab()">IPs</span>
+                                    </th>
+                                    <th>
+                                        <button type="button" class="tc-th-sort" x-show="canSortTab()" @click="toggleSort('ip_changes')" :class="sortClass('ip_changes')">
+                                            <span>IP Changes</span>
+                                            <span class="tc-th-sort__ico" aria-hidden="true"></span>
+                                        </button>
+                                        <span x-show="!canSortTab()">IP Changes</span>
+                                    </th>
+                                    <th>
+                                        <button type="button" class="tc-th-sort" x-show="canSortTab()" @click="toggleSort('conversions')" :class="sortClass('conversions')">
+                                            <span>Conversions</span>
+                                            <span class="tc-th-sort__ico" aria-hidden="true"></span>
+                                        </button>
+                                        <span x-show="!canSortTab()">Conversions</span>
+                                    </th>
+                                    <th>
+                                        <button type="button" class="tc-th-sort" x-show="canSortTab()" @click="toggleSort('device_confidence')" :class="sortClass('device_confidence')">
+                                            <span>Confidence</span>
+                                            <span class="tc-th-sort__ico" aria-hidden="true"></span>
+                                        </button>
+                                        <span x-show="!canSortTab()">Confidence</span>
+                                    </th>
+                                    <th>
+                                        <button type="button" class="tc-th-sort" x-show="canSortTab()" @click="toggleSort('risk_score')" :class="sortClass('risk_score')">
+                                            <span>Risk</span>
+                                            <span class="tc-th-sort__ico" aria-hidden="true"></span>
+                                        </button>
+                                        <span x-show="!canSortTab()">Risk</span>
+                                    </th>
+                                    <th>
+                                        <button type="button" class="tc-th-sort" x-show="canSortTab()" @click="toggleSort('last_seen')" :class="sortClass('last_seen')">
+                                            <span>Last Seen</span>
+                                            <span class="tc-th-sort__ico" aria-hidden="true"></span>
+                                        </button>
+                                        <span x-show="!canSortTab()">Last Seen</span>
+                                    </th>
+                                    <th>
+                                        <button type="button" class="tc-th-sort" x-show="canSortTab()" @click="toggleSort('status')" :class="sortClass('status')">
+                                            <span>Status</span>
+                                            <span class="tc-th-sort__ico" aria-hidden="true"></span>
+                                        </button>
+                                        <span x-show="!canSortTab()">Status</span>
+                                    </th>
                                     <th>Action</th>
                                 </tr>
                             </thead>
@@ -1040,6 +1125,8 @@ function trafficControlIntel() {
         activeTab: 'devices',
         tablePage: 1,
         perPage: 20,
+        sortKey: 'risk_score',
+        sortDir: 'desc',
         kpis: [],
         devices: [],
         ipChanges: [],
@@ -1158,12 +1245,40 @@ function trafficControlIntel() {
             p.set('tab', this.activeTab || 'devices');
             p.set('page', String(this.tablePage || 1));
             p.set('per_page', String(this.perPage || 20));
+            if (this.canSortTab() && this.sortKey) {
+                p.set('sort', this.sortKey);
+                p.set('dir', this.sortDir || 'desc');
+            }
             return p;
+        },
+        canSortTab() {
+            return this.activeTab === 'devices' || this.activeTab === 'ip_changes';
+        },
+        sortClass(key) {
+            if (!this.canSortTab() || this.sortKey !== key) return '';
+            return 'is-active is-' + (this.sortDir === 'asc' ? 'asc' : 'desc');
+        },
+        toggleSort(key) {
+            if (!this.canSortTab() || !key) return;
+            if (this.sortKey === key) {
+                this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                this.sortKey = key;
+                this.sortDir = 'desc';
+            }
+            this.tablePage = 1;
+            this.reload();
         },
         setTab(key) {
             if (this.activeTab === key) return;
             this.activeTab = key;
             this.tablePage = 1;
+            if (key === 'ip_changes' && this.sortKey === 'ip_count') {
+                this.sortKey = 'ip_changes';
+            }
+            if (key === 'devices' && this.sortKey === 'ip') {
+                this.sortKey = 'device_id';
+            }
             if (key !== 'ranges') this.reload();
         },
         changePage(page) {

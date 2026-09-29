@@ -900,6 +900,8 @@ class BotProtectionController extends Controller
                 'tab' => trim((string) $request->query('tab', 'devices')),
                 'page' => (int) $request->query('page', 1),
                 'per_page' => (int) $request->query('per_page', 20),
+                'sort' => trim((string) $request->query('sort', '')),
+                'dir' => trim((string) $request->query('dir', 'desc')),
             ]);
 
             return response()->json($payload);
@@ -927,6 +929,8 @@ class BotProtectionController extends Controller
             'q' => trim((string) $request->query('q', '')),
             'tab' => $tab,
             'paginate' => false,
+            'sort' => trim((string) $request->query('sort', '')),
+            'dir' => trim((string) $request->query('dir', 'desc')),
         ]);
         $filename = 'traffic-control-'.$tab.'-'.$from->toDateString().'-'.$to->toDateString().'.csv';
 

@@ -441,16 +441,6 @@
                 min-height: 42px;
             }
             .figma-bip-title, .figma-gaem-title { margin: 0 0 4px; font-size: 16px; font-weight: 600; color: #2d2d3a; }
-            .figma-gaem-title {
-                display: inline-block;
-                margin: 0;
-                padding: 6px 12px;
-                border-radius: 8px;
-                background: #ea580c;
-                color: #fff !important;
-                font-size: 16px;
-                font-weight: 600;
-            }
             .figma-bip-lead, .figma-gaem-lead { margin: 0; font-size: 11px; color: #6b6578; }
             .figma-bip-head-actions, .figma-gaem-head-actions { display: flex; align-items: center; gap: 8px; }
             .figma-bip-upload, .figma-gaem-bulk {
@@ -470,11 +460,11 @@
             .figma-bip-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
             .figma-bip-field span { font-size: 10px; color: #6b6578; }
             .figma-bip-field input, .figma-bip-field select {
-                height: 34px; border-radius: 8px; border: 1px solid color-mix(in srgb, var(--brand-primary) 55%, transparent);
-                background: var(--brand-primary); color: #fff; padding: 0 10px; font-size: 11px;
+                height: 34px; border-radius: 8px; border: 1px solid #e4dceb;
+                background: #fff; color: #2d2d3a; padding: 0 10px; font-size: 11px;
             }
-            .figma-bip-field input::placeholder { color: rgba(255,255,255,.65); }
-            .figma-bip-field select option { background: var(--brand-primary); color: #fff; }
+            .figma-bip-field input::placeholder { color: #9a93a8; }
+            .figma-bip-field select option { background: #fff; color: #2d2d3a; }
             .figma-bip-add-btn, .figma-gaem-push-btn {
                 height: 34px; border-radius: 8px; border: 0; background: var(--brand-primary);
                 color: #fff; font-size: 11px; font-weight: 600; padding: 0 14px; cursor: pointer;
@@ -519,6 +509,23 @@
                 display: flex;
                 flex-direction: column;
                 gap: 4px;
+            }
+            .figma-gaem-search-input {
+                width: 100%;
+                height: 34px;
+                border-radius: 3px;
+                border: 0;
+                background: #101010;
+                color: #8c8787;
+                padding: 0 10px;
+                font-size: 11px;
+                outline: none;
+                box-shadow: none;
+            }
+            .figma-gaem-search-input::placeholder { color: #8c8787; opacity: 1; }
+            .figma-gaem-search-input:focus {
+                outline: none;
+                box-shadow: 0 0 0 1px rgba(140, 135, 135, 0.45);
             }
             .figma-gaem-quick-left-actions {
                 margin-top: auto;
@@ -567,10 +574,10 @@
             .figma-gaem-campaign-empty { margin: 4px 0 0; font-size: 10px; color: #6b6578; }
             .figma-gaem-ip-input {
                 flex: 1 1 160px; height: 34px; border-radius: 8px;
-                border: 1px solid color-mix(in srgb, var(--brand-primary) 55%, transparent); background: var(--brand-primary);
-                color: #fff; padding: 0 10px; font-size: 11px;
+                border: 1px solid #e4dceb; background: #fff;
+                color: #2d2d3a; padding: 0 10px; font-size: 11px;
             }
-            .figma-gaem-ip-input::placeholder { color: rgba(255,255,255,.65); }
+            .figma-gaem-ip-input::placeholder { color: #9a93a8; }
             .figma-gaem-bulk-box { margin-bottom: 12px; }
             .figma-gaem-bulk-hint { margin: 0 0 6px; font-size: 10px; color: #6b6578; }
             .figma-gaem-status {
@@ -589,8 +596,8 @@
             .figma-gaem-row-btn--primary { background: var(--brand-primary); border-color: var(--brand-primary); color: #fff; }
 
             html.light-mode .figma-dem-title,
-            html.light-mode .figma-bip-title { color: #2d2d3a; }
-            html.light-mode .figma-gaem-title { color: #fff !important; background: #ea580c; }
+            html.light-mode .figma-bip-title,
+            html.light-mode .figma-gaem-title { color: #2d2d3a; }
             html.light-mode .figma-dem-card-title,
             html.light-mode .figma-dem-meta-row strong { color: #fff; }
             html.light-mode .figma-dem-lead,
@@ -608,7 +615,9 @@
             html.light-mode .figma-gaem { background: #fff; border-color: #e4dceb; }
             html.light-mode .figma-bip-field input,
             html.light-mode .figma-bip-field select,
-            html.light-mode .figma-gaem-ip-input,
+            html.light-mode .figma-gaem-ip-input {
+                background: #fff; color: #2d2d3a; border-color: #e4dceb;
+            }
             html.light-mode .figma-dem-action-select {
                 background: var(--brand-primary); color: #fff; border-color: color-mix(in srgb, var(--brand-primary) 55%, transparent);
             }
@@ -650,10 +659,31 @@
                 background: #fff !important;
                 border-color: #e4dceb !important;
             }
-            .figma-bip .figma-bip-title { color: #2d2d3a !important; }
+            .figma-bip .figma-bip-title,
             .figma-gaem .figma-gaem-title {
-                background: #ea580c !important;
-                color: #fff !important;
+                background: transparent !important;
+                color: #2d2d3a !important;
+                padding: 0 !important;
+            }
+            .figma-bip .figma-bip-field input,
+            .figma-bip .figma-bip-field select,
+            .figma-gaem .figma-gaem-ip-input {
+                background: #fff !important;
+                color: #2d2d3a !important;
+                border-color: #e4dceb !important;
+            }
+            .figma-gaem .figma-gaem-search-input {
+                background: #101010 !important;
+                color: #8c8787 !important;
+                border: 0 !important;
+                border-radius: 3px !important;
+            }
+            .figma-gaem .figma-gaem-search-input::placeholder {
+                color: #8c8787 !important;
+            }
+            .figma-bip .figma-bip-field input::placeholder,
+            .figma-gaem .figma-gaem-ip-input::placeholder {
+                color: #9a93a8 !important;
             }
             .figma-bip .figma-bip-lead,
             .figma-gaem .figma-gaem-lead { color: #6b6578 !important; }
@@ -2099,7 +2129,7 @@
                                         <span class="figma-gaem-campaign-label">Search IP</span>
                                         <input
                                             type="search"
-                                            class="w-full rounded-[6px] border border-white/25 bg-black/30 px-[10px] py-[7px] text-[12px] text-white placeholder:text-white/40 focus:border-[var(--brand-primary,#FF6600)] focus:outline-none"
+                                            class="figma-gaem-search-input"
                                             placeholder="Find IP in exclusion list…"
                                             x-model="ipSearch"
                                             autocomplete="off"
