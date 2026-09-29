@@ -140,16 +140,27 @@ class BotProtectionController extends Controller
             $filters['metric_to'] = $reportTo;
             $filters['reporting_tz'] = $reportingTz;
 
+            $adsLinkedDomainIds = Domain::query()
+                ->whereIn('id', $domainIds)
+                ->forPaidMarketing()
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->values()
+                ->all();
+            $adsLinkedDomains = $domains->filter(
+                fn (Domain $d) => in_array((int) $d->id, $adsLinkedDomainIds, true)
+            )->values();
+
             $adsTotals = ['clicks' => 0, 'cost' => 0.0, 'impressions' => 0];
-            if ($domainIds !== [] && Schema::hasTable('google_ads_campaign_daily_metrics')) {
+            if ($adsLinkedDomainIds !== [] && Schema::hasTable('google_ads_campaign_daily_metrics')) {
                 try {
                     $adsTotals = app(GoogleAdsDomainMetricsSync::class)
                         ->clickTotalsForDomainsReporting(
-                            $domainIds,
+                            $adsLinkedDomainIds,
                             $reportFrom,
                             $reportTo,
                             $reportingTz,
-                            $domains,
+                            $adsLinkedDomains,
                         );
                 } catch (\Throwable $e) {
                     report($e);
@@ -169,15 +180,15 @@ class BotProtectionController extends Controller
                         'metric_to' => $prevReportTo,
                     ]);
                     $prevAds = ['clicks' => 0, 'cost' => 0.0, 'impressions' => 0];
-                    if (Schema::hasTable('google_ads_campaign_daily_metrics')) {
+                    if ($adsLinkedDomainIds !== [] && Schema::hasTable('google_ads_campaign_daily_metrics')) {
                         try {
                             $prevAds = app(GoogleAdsDomainMetricsSync::class)
                                 ->clickTotalsForDomainsReporting(
-                                    $domainIds,
+                                    $adsLinkedDomainIds,
                                     $prevReportFrom,
                                     $prevReportTo,
                                     $reportingTz,
-                                    $domains,
+                                    $adsLinkedDomains,
                                 );
                         } catch (\Throwable $e) {
                             report($e);

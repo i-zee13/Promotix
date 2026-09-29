@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\Domain;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -41,6 +42,18 @@ class PageAnalyticsAggregator
             return $this->emptyPayload($currencyCode);
         }
 
+        // Paid Search / Google Ads KPIs only when domain is Ads-linked (same gate as Paid Dashboard).
+        $adsLinkedDomainIds = Domain::query()
+            ->whereIn('id', $domainIds)
+            ->forPaidMarketing()
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+        $adsLinkedSet = array_flip($adsLinkedDomainIds);
+        if ($adsLinkedDomainIds === []) {
+            $adsTotals = ['clicks' => 0, 'cost' => 0.0, 'impressions' => 0];
+        }
+
         $select = [
             'id',
             'domain_id',
@@ -74,7 +87,9 @@ class PageAnalyticsAggregator
             ->whereIn('domain_id', $domainIds)
             ->whereBetween('visited_at', [$from, $to]);
 
-        $this->applyVisitFilters($query, $filters);
+        $this->applyVisitFilters($query, array_merge($filters, [
+            'ads_linked_domain_ids' => $adsLinkedDomainIds,
+        ]));
 
         $rows = $query->orderBy('visited_at')->get($select);
 
@@ -128,14 +143,25 @@ class PageAnalyticsAggregator
         }
 
         foreach ($rows as $row) {
+            $paidEnabled = isset($adsLinkedSet[(int) $row->domain_id]);
             $gclid = property_exists($row, 'gclid') ? ($row->gclid ?? null) : null;
+            $isPaidFlag = $paidEnabled && (bool) $row->is_paid_traffic;
+            $gclidForClass = ($paidEnabled && is_string($gclid) && $gclid !== '') ? $gclid : null;
+            $utmMediumForClass = $row->utm_medium;
+            if (! $paidEnabled) {
+                $medium = strtolower(trim((string) $utmMediumForClass));
+                if (in_array($medium, ['cpc', 'ppc', 'paid', 'paidsearch', 'cpm'], true)) {
+                    $utmMediumForClass = null;
+                }
+            }
             $bucket = TrafficSourceClassifier::bucket(
-                (bool) $row->is_paid_traffic,
-                $row->utm_medium,
+                $isPaidFlag,
+                $utmMediumForClass,
                 $row->utm_source,
                 $row->referrer,
-                is_string($gclid) ? $gclid : null,
+                $gclidForClass,
             );
+            $isPaidVisit = $paidEnabled && ($bucket === 'paid' || $isPaidFlag);
             $deviceKey = TrafficSourceClassifier::deviceBucket($row->device, $row->os);
 
             // Post-query filters that need classification (source/device).
@@ -152,8 +178,8 @@ class PageAnalyticsAggregator
             $buckets[$bucket] = ($buckets[$bucket] ?? 0) + 1;
 
             $platform = TrafficSourceClassifier::platformLabel(
-                (bool) $row->is_paid_traffic,
-                $row->utm_medium,
+                $isPaidFlag,
+                $utmMediumForClass,
                 $row->utm_source,
                 $row->referrer,
             );
@@ -178,31 +204,35 @@ class PageAnalyticsAggregator
             $sid = (string) ($row->session_id ?: ($row->domain_id.'|'.$row->ip) ?: ('v'.$row->id));
             $paths[$path]['sessions'][$sid] = true;
 
-            $term = trim((string) ($row->utm_term ?? ''));
-            if ($term === '' && Schema::hasColumn('visits', 'ad_click_meta') && filled($row->ad_click_meta ?? null)) {
-                $meta = is_string($row->ad_click_meta) ? json_decode($row->ad_click_meta, true) : $row->ad_click_meta;
-                $term = trim((string) (is_array($meta) ? ($meta['keyword'] ?? '') : ''));
-            }
-            if ($term !== '') {
-                $keywordVisits++;
-                $keywords[$term] = ($keywords[$term] ?? 0) + 1;
-                $sidForKw = (string) ($row->session_id ?: ($row->domain_id.'|'.$row->ip) ?: ('v'.$row->id));
-                $keywordSessionMap[$term][$sidForKw] = true;
-            }
+            $term = '';
+            $campaign = '';
+            if ($paidEnabled) {
+                $term = trim((string) ($row->utm_term ?? ''));
+                if ($term === '' && Schema::hasColumn('visits', 'ad_click_meta') && filled($row->ad_click_meta ?? null)) {
+                    $meta = is_string($row->ad_click_meta) ? json_decode($row->ad_click_meta, true) : $row->ad_click_meta;
+                    $term = trim((string) (is_array($meta) ? ($meta['keyword'] ?? '') : ''));
+                }
+                if ($term !== '') {
+                    $keywordVisits++;
+                    $keywords[$term] = ($keywords[$term] ?? 0) + 1;
+                    $sidForKw = (string) ($row->session_id ?: ($row->domain_id.'|'.$row->ip) ?: ('v'.$row->id));
+                    $keywordSessionMap[$term][$sidForKw] = true;
+                }
 
-            $campaign = trim((string) ($row->utm_campaign ?? ''));
-            if ($campaign !== '') {
-                $headlines[$campaign] = ($headlines[$campaign] ?? 0) + 1;
-            }
-            if ($term !== '' || $campaign !== '') {
-                $comboKey = ($term !== '' ? $term : '(no keyword)').' · '.($campaign !== '' ? $campaign : '(no campaign)');
-                $keywordHeadlines[$comboKey] = ($keywordHeadlines[$comboKey] ?? 0) + 1;
+                $campaign = trim((string) ($row->utm_campaign ?? ''));
+                if ($campaign !== '') {
+                    $headlines[$campaign] = ($headlines[$campaign] ?? 0) + 1;
+                }
+                if ($term !== '' || $campaign !== '') {
+                    $comboKey = ($term !== '' ? $term : '(no keyword)').' · '.($campaign !== '' ? $campaign : '(no campaign)');
+                    $keywordHeadlines[$comboKey] = ($keywordHeadlines[$comboKey] ?? 0) + 1;
+                }
             }
 
             $country = strtoupper(trim((string) ($row->country ?? '')));
             if ($country !== '') {
                 $countries[$country] = ($countries[$country] ?? 0) + 1;
-                if ($bucket === 'paid' || (bool) $row->is_paid_traffic) {
+                if ($isPaidVisit) {
                     $adsCountries[$country] = ($adsCountries[$country] ?? 0) + 1;
                 }
             }
@@ -225,7 +255,7 @@ class PageAnalyticsAggregator
                     ];
                 }
                 $performanceBuckets[$bucketKey]['visitors']++;
-                if ($bucket === 'paid' || (bool) $row->is_paid_traffic) {
+                if ($isPaidVisit) {
                     $performanceBuckets[$bucketKey]['clicks']++;
                     $performanceBuckets[$bucketKey]['paid']++;
                 }
@@ -245,7 +275,7 @@ class PageAnalyticsAggregator
                     'browser' => $row->browser ?? null,
                     'os' => $row->os ?? null,
                     'country' => $country !== '' ? $country : null,
-                    'is_paid' => $bucket === 'paid' || (bool) $row->is_paid_traffic,
+                    'is_paid' => $isPaidVisit,
                     'is_valid' => ! (bool) ($row->is_crawler ?? false) && ! (bool) $row->is_invalid_traffic,
                 ];
             }
@@ -260,7 +290,7 @@ class PageAnalyticsAggregator
             if ($row->visited_at > $sessions[$sessionKey]['last_at']) {
                 $sessions[$sessionKey]['last_at'] = $row->visited_at;
             }
-            if ($bucket === 'paid' || (bool) $row->is_paid_traffic) {
+            if ($isPaidVisit) {
                 $sessions[$sessionKey]['is_paid'] = true;
             }
             if (! (bool) ($row->is_crawler ?? false) && ! (bool) $row->is_invalid_traffic) {
@@ -280,12 +310,13 @@ class PageAnalyticsAggregator
                 }
             } else {
                 $human++;
-                if ($bucket === 'paid' || (bool) $row->is_paid_traffic) {
+                if ($isPaidVisit) {
                     $validUsers++;
                     if ($visitedAt) {
+                        $localAt = $visitedAt->copy()->timezone($reportingTz);
                         $bucketKey = $hourly
-                            ? $visitedAt->format('Y-m-d H:00:00')
-                            : $visitedAt->toDateString();
+                            ? $localAt->format('Y-m-d H:00:00')
+                            : $localAt->toDateString();
                         $performanceBuckets[$bucketKey]['valid'] = ($performanceBuckets[$bucketKey]['valid'] ?? 0) + 1;
                     }
                 }
@@ -413,8 +444,11 @@ class PageAnalyticsAggregator
         // Total Conversions = every conversion-funnel action (call, CTA, form, cart, checkout, purchase).
         $totalConversions = $telClicks + $ctaClicks + $formFills + $carts + $checkouts + $purchases;
 
-        // Valid Users = ad visitors who are not invalid/crawler. Fallback to human when no paid traffic.
-        if ($validUsers === 0 && $human > 0 && ($buckets['paid'] ?? 0) === 0) {
+        // Valid Users = ad visitors who are not invalid/crawler.
+        // Only count / fall back when Google Ads is linked on the selected domain(s).
+        if ($adsLinkedDomainIds === []) {
+            $validUsers = 0;
+        } elseif ($validUsers === 0 && $human > 0 && ($buckets['paid'] ?? 0) === 0) {
             $validUsers = $human;
         }
 
@@ -988,7 +1022,16 @@ class PageAnalyticsAggregator
     {
         $source = strtolower(trim((string) ($filters['traffic_source'] ?? '')));
         if (in_array($source, ['paid', 'google_ads', 'ads'], true) && Schema::hasColumn('visits', 'is_paid_traffic')) {
-            $query->where('is_paid_traffic', true);
+            $adsLinkedIds = collect($filters['ads_linked_domain_ids'] ?? [])
+                ->map(fn ($id) => (int) $id)
+                ->filter()
+                ->values()
+                ->all();
+            if ($adsLinkedIds === []) {
+                $query->whereRaw('1 = 0');
+            } else {
+                $query->whereIn('domain_id', $adsLinkedIds)->where('is_paid_traffic', true);
+            }
         }
 
         $campaign = trim((string) ($filters['campaign'] ?? ''));

@@ -41,22 +41,28 @@ class DashboardNotifications
                 ->whereBetween('visited_at', [$todayStart, $todayEnd]);
             $invalidToday = (int) $invalidQuery->count();
 
-            $paidQuery = DB::table('visits')
-                ->whereIn('domain_id', $domainIds)
-                ->whereBetween('visited_at', [$todayStart, $todayEnd]);
-            GoogleClickAttribution::applyHasClickIdFilter($paidQuery);
-            $paidVisitsToday = (int) $paidQuery->count();
-        }
-
-        if ($paidVisitsToday === 0 && Schema::hasTable('google_ads_campaign_daily_metrics') && $domainIds->isNotEmpty()) {
-            $paidVisitsToday = (int) DB::table('google_ads_campaign_daily_metrics')
-                ->whereIn('domain_id', $domainIds)
-                ->whereDate('metric_date', $today)
-                ->sum('clicks');
+            $paidDomainIds = Domain::query()
+                ->where('user_id', $userId)
+                ->forPaidMarketing()
+                ->pluck('id');
+            if ($paidDomainIds->isNotEmpty()) {
+                $paidQuery = DB::table('visits')
+                    ->whereIn('domain_id', $paidDomainIds)
+                    ->whereBetween('visited_at', [$todayStart, $todayEnd]);
+                GoogleClickAttribution::applyHasClickIdFilter($paidQuery);
+                $paidVisitsToday = (int) $paidQuery->count();
+            }
         }
 
         $manualDomains = Domain::query()->where('user_id', $userId)->forBotProtection()->get();
         $paidDomains = Domain::query()->where('user_id', $userId)->forPaidMarketing()->get();
+
+        if ($paidVisitsToday === 0 && Schema::hasTable('google_ads_campaign_daily_metrics') && $paidDomains->isNotEmpty()) {
+            $paidVisitsToday = (int) DB::table('google_ads_campaign_daily_metrics')
+                ->whereIn('domain_id', $paidDomains->pluck('id'))
+                ->whereDate('metric_date', $today)
+                ->sum('clicks');
+        }
 
         $botReady = $manualDomains->contains(fn (Domain $d) => (bool) $d->bot_mitigation_connected);
         $paidReady = $paidDomains->isNotEmpty();

@@ -751,12 +751,25 @@ class DashboardController extends Controller
                 $select[] = DB::raw('NULL as avg_risk');
             }
 
+            $adsLinkedIds = Domain::query()
+                ->where('user_id', $user->id)
+                ->forPaidMarketing()
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
             $rows = Domain::query()
                 ->where('user_id', $user->id)
                 ->when($search !== '', fn ($q) => $q->where('hostname', 'like', '%' . $search . '%'))
-                ->leftJoin('visits', function ($join) use ($from, $to): void {
+                ->leftJoin('visits', function ($join) use ($from, $to, $adsLinkedIds): void {
                     $join->on('domains.id', '=', 'visits.domain_id')
                         ->whereBetween('visits.visited_at', [$from, $to]);
+                    // Paid click counts only for Ads-linked domains.
+                    if ($adsLinkedIds === []) {
+                        $join->whereRaw('1 = 0');
+                    } else {
+                        $join->whereIn('domains.id', $adsLinkedIds);
+                    }
                 })
                 ->select($select)
                 ->groupBy('domains.id', 'domains.hostname', 'domains.tag_connected', 'domains.status')
@@ -1119,6 +1132,13 @@ class DashboardController extends Controller
             return $empty;
         }
 
+        $adsLinkedDomainIds = Domain::query()
+            ->whereIn('id', $domainIds)
+            ->forPaidMarketing()
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->values();
+
         $visitBase = Schema::hasTable('visits')
             ? $this->applyVisitFilters(
                 DB::table('visits')->whereIn('domain_id', $domainIds)->whereBetween('visited_at', [$from, $to]),
@@ -1127,48 +1147,58 @@ class DashboardController extends Controller
             )
             : null;
 
-        // Paid card: click-ID / is_paid_traffic (same attribution as Paid Dashboard).
+        // Paid card: Ads-linked domains only (same gate as Paid Dashboard — no gclid leftovers).
         $paidBase = null;
-        if ($visitBase) {
-            $paidBase = clone $visitBase;
+        if ($visitBase && $adsLinkedDomainIds->isNotEmpty()) {
+            $paidBase = $this->applyVisitFilters(
+                DB::table('visits')->whereIn('domain_id', $adsLinkedDomainIds)->whereBetween('visited_at', [$from, $to]),
+                $request,
+                applyTrafficSource: false
+            );
             GoogleClickAttribution::applyHasClickIdFilter($paidBase);
             $paidBase = $this->applyVisitFilters($paidBase, $request, applyTrafficSource: true);
         }
 
-        $paidVisits = $paidBase
-            ? (int) (clone $paidBase)->count()
-            : (int) PaidMarketingVisit::query()->whereIn('domain_id', $domainIds)->whereBetween('last_click_at', [$from, $to])->sum('visits');
-
-        // Same paid attribution as Paid Dashboard: distinct click IDs for valid/invalid.
-        $trackedClicks = $paidBase
-            ? GoogleClickAttribution::countDistinctClickIds(clone $paidBase)
-            : $paidVisits;
-        $invalidEventVisits = $paidBase
-            ? (int) (clone $paidBase)->where('is_invalid_traffic', true)->count()
-            : (int) PaidMarketingVisit::query()
-                ->whereIn('domain_id', $domainIds)
-                ->whereNotNull('threat_group')
-                ->whereBetween('last_click_at', [$from, $to])
-                ->count();
-        $uniqueInvalidPaidClicks = $paidBase
-            ? GoogleClickAttribution::countDistinctClickIds(
-                (clone $paidBase)->where('is_invalid_traffic', true)
-            )
-            : $invalidEventVisits;
-        $uniqueValidPaidClicks = max(0, $trackedClicks - $uniqueInvalidPaidClicks);
-
-        // Total Clicks on Overview must match Paid Dashboard "Total Google Ads Clicks".
-        $reportingTz = UserTimezone::reportingTimezoneForUser($user);
-        [$metricFrom, $metricTo] = UserTimezone::calendarDateRangeFromRequest($request, $user, 6, $reportingTz);
+        $paidVisits = 0;
+        $trackedClicks = 0;
+        $invalidEventVisits = 0;
+        $uniqueInvalidPaidClicks = 0;
+        $uniqueValidPaidClicks = 0;
         $googleAdsClicks = 0;
-        if (Schema::hasTable('google_ads_campaign_daily_metrics') && $domainIds->isNotEmpty()) {
-            $domains = Domain::query()
-                ->whereIn('id', $domainIds)
-                ->with('googleAdsAccount')
-                ->get();
-            $googleAds = app(\App\Services\GoogleAdsDomainMetricsSync::class)
-                ->clickTotalsForDomainsReporting($domainIds, $metricFrom, $metricTo, $reportingTz, $domains);
-            $googleAdsClicks = (int) ($googleAds['clicks'] ?? 0);
+
+        if ($adsLinkedDomainIds->isNotEmpty()) {
+            $paidVisits = $paidBase
+                ? (int) (clone $paidBase)->count()
+                : (int) PaidMarketingVisit::query()->whereIn('domain_id', $adsLinkedDomainIds)->whereBetween('last_click_at', [$from, $to])->sum('visits');
+
+            $trackedClicks = $paidBase
+                ? GoogleClickAttribution::countDistinctClickIds(clone $paidBase)
+                : $paidVisits;
+            $invalidEventVisits = $paidBase
+                ? (int) (clone $paidBase)->where('is_invalid_traffic', true)->count()
+                : (int) PaidMarketingVisit::query()
+                    ->whereIn('domain_id', $adsLinkedDomainIds)
+                    ->whereNotNull('threat_group')
+                    ->whereBetween('last_click_at', [$from, $to])
+                    ->count();
+            $uniqueInvalidPaidClicks = $paidBase
+                ? GoogleClickAttribution::countDistinctClickIds(
+                    (clone $paidBase)->where('is_invalid_traffic', true)
+                )
+                : $invalidEventVisits;
+            $uniqueValidPaidClicks = max(0, $trackedClicks - $uniqueInvalidPaidClicks);
+
+            $reportingTz = UserTimezone::reportingTimezoneForUser($user);
+            [$metricFrom, $metricTo] = UserTimezone::calendarDateRangeFromRequest($request, $user, 6, $reportingTz);
+            if (Schema::hasTable('google_ads_campaign_daily_metrics')) {
+                $domains = Domain::query()
+                    ->whereIn('id', $adsLinkedDomainIds)
+                    ->with('googleAdsAccount')
+                    ->get();
+                $googleAds = app(\App\Services\GoogleAdsDomainMetricsSync::class)
+                    ->clickTotalsForDomainsReporting($adsLinkedDomainIds, $metricFrom, $metricTo, $reportingTz, $domains);
+                $googleAdsClicks = (int) ($googleAds['clicks'] ?? 0);
+            }
         }
 
         $paidInvalidVisits = $uniqueInvalidPaidClicks;
@@ -1180,12 +1210,7 @@ class DashboardController extends Controller
         $botTotalVisits = 0;
         if ($visitBase) {
             $organicBase = clone $visitBase;
-            $paidDomainIds = Domain::query()
-                ->whereIn('id', $domainIds)
-                ->forPaidMarketing()
-                ->pluck('id')
-                ->map(fn ($id) => (int) $id)
-                ->all();
+            $paidDomainIds = $adsLinkedDomainIds->all();
             GoogleClickAttribution::excludeClickIdsForPaidDomains($organicBase, $paidDomainIds);
             $botTotalVisits = (int) (clone $organicBase)->count();
             $botInvalidVisits = (int) (clone $organicBase)->where('is_invalid_traffic', true)->count();
@@ -1200,19 +1225,22 @@ class DashboardController extends Controller
             ->where('user_id', $user->id)
             ->where('tag_connected', true)
             ->count();
-        $campaignCount = $paidBase
-            ? (int) (clone $paidBase)->where(function ($q): void {
+        $campaignCount = 0;
+        if ($paidBase) {
+            $campaignCount = (int) (clone $paidBase)->where(function ($q): void {
                 $q->whereNotNull('utm_campaign');
                 if (Schema::hasColumn('visits', 'campaign_name')) {
                     $q->orWhereNotNull('campaign_name');
                 }
-            })->distinct()->count(Schema::hasColumn('visits', 'campaign_name') ? 'campaign_name' : 'utm_campaign')
-            : PaidMarketingClick::query()
-                ->whereHas('visit.domain', fn ($q) => $q->where('user_id', $user->id))
+            })->distinct()->count(Schema::hasColumn('visits', 'campaign_name') ? 'campaign_name' : 'utm_campaign');
+        } elseif ($adsLinkedDomainIds->isNotEmpty()) {
+            $campaignCount = (int) PaidMarketingClick::query()
+                ->whereHas('visit', fn ($q) => $q->whereIn('domain_id', $adsLinkedDomainIds))
                 ->whereBetween('clicked_at', [$from, $to])
                 ->whereNotNull('campaign')
                 ->distinct()
                 ->count('campaign');
+        }
 
         $tagHealthy = $connectedDomains > 0;
         $protectionRate = $trackedClicks > 0 ? round(($paidInvalidVisits / $trackedClicks) * 100, 2) : 0;
@@ -1242,7 +1270,7 @@ class DashboardController extends Controller
             $lastEventAt = Domain::query()->where('user_id', $user->id)->max('last_seen_at');
         }
 
-        $avgCpc = $this->avgGoogleCpcForOverview($request, $domainIds, $from, $to);
+        $avgCpc = $this->avgGoogleCpcForOverview($request, $adsLinkedDomainIds, $from, $to);
         $costSaved = round($avgCpc * $paidInvalidVisits, 2);
 
         $googleConnection = GoogleConnection::query()
