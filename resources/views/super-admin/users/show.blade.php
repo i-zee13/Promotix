@@ -32,7 +32,7 @@
             <div class="figma-sa-user-detail-topbar-actions">
                 <form method="POST" action="{{ route('super-admin.users.impersonate', $user) }}">
                     @csrf
-                    <button type="submit" class="figma-sa-user-detail-top-btn" @disabled($user->is_super_admin)>Login as user</button>
+                    <button type="submit" class="figma-sa-user-detail-top-btn" @disabled($user->isSuperAdmin())>Login as user</button>
                 </form>
                 <form method="POST" action="{{ route('super-admin.users.reset-password', $user) }}" onsubmit="return confirm('Reset password for this user?')">
                     @csrf
@@ -65,7 +65,7 @@
             <dl class="figma-sa-user-detail-meta-strip">
                 <div>
                     <dt>Role</dt>
-                    <dd>{{ $user->role?->name ?? ($user->is_super_admin ? 'Super Admin' : '—') }}</dd>
+                    <dd>{{ $user->role?->name ?? ($user->isSuperAdmin() ? 'Super Admin' : '—') }}</dd>
                 </div>
                 <div>
                     <dt>Verified</dt>
@@ -144,9 +144,18 @@
                                 @endforeach
                             </select>
                         </div>
+                    @else
+                        <input type="hidden" name="role_id" value="{{ $user->role_id }}">
                     @endif
-                    <input type="hidden" name="is_admin" value="{{ $user->is_admin ? '1' : '0' }}">
-                    <input type="hidden" name="is_super_admin" value="{{ $user->is_super_admin ? '1' : '0' }}">
+                    <label class="mt-2 flex items-start gap-2 text-[12px] text-white/75">
+                        <input type="hidden" name="is_super_admin" value="0">
+                        <input type="checkbox" name="is_super_admin" value="1" class="mt-[2px]" @checked(old('is_super_admin', $user->isSuperAdmin())) @disabled((int) $user->id === (int) auth()->id() && $user->isSuperAdmin())>
+                        <span>
+                            <strong class="text-white">Super Admin access</strong>
+                            <span class="block text-white/45">Full Super Admin panel — same access as the primary platform admin.</span>
+                        </span>
+                    </label>
+                    <input type="hidden" name="is_admin" value="{{ $user->is_admin || $user->isSuperAdmin() ? '1' : '0' }}">
                     <button type="submit" class="figma-sa-user-detail-primary-btn figma-sa-user-detail-submit">Save changes</button>
                 </form>
             </section>
@@ -174,7 +183,7 @@
                 <div class="figma-sa-user-detail-quick-grid">
                     <form method="POST" action="{{ route('super-admin.users.impersonate', $user) }}">
                         @csrf
-                        <button type="submit" class="figma-sa-user-detail-quick-btn" @disabled($user->is_super_admin)>Login as user</button>
+                        <button type="submit" class="figma-sa-user-detail-quick-btn" @disabled($user->isSuperAdmin())>Login as user</button>
                     </form>
                     <form method="POST" action="{{ route('super-admin.users.reset-password', $user) }}" onsubmit="return confirm('Reset password?')">
                         @csrf

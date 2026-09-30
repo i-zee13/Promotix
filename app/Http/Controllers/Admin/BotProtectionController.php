@@ -263,6 +263,31 @@ class BotProtectionController extends Controller
         }
     }
 
+    /**
+     * Lightweight Ads-only live visitor count for the Live Visitors KPI throttle poll.
+     */
+    public function liveVisitors(Request $request): JsonResponse
+    {
+        try {
+            $domainIds = $this->scopedDomainIds($request);
+            $filters = $this->pageAnalyticsFilters($request);
+            $count = app(PageAnalyticsAggregator::class)->liveVisitorCount($domainIds, 5, $filters);
+
+            return response()->json([
+                'live_visitors' => $count,
+                'window_minutes' => 5,
+                'polled_at' => now()->toIso8601String(),
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'live_visitors' => 0,
+                'error' => 'Could not load live visitors.',
+            ], 500);
+        }
+    }
+
     public function pageAnalyticsExport(Request $request)
     {
         try {

@@ -84,7 +84,10 @@ class UsersController extends Controller
                     return;
                 }
                 if ($role === 'super-admin') {
-                    $query->where('is_super_admin', true);
+                    $query->where(function ($q): void {
+                        $q->where('is_super_admin', true)
+                            ->orWhereHas('role', fn ($rq) => $rq->where('slug', 'super-admin'));
+                    });
 
                     return;
                 }
@@ -253,7 +256,24 @@ class UsersController extends Controller
         ]);
 
         $oldRoleId = $user->role_id;
-        $user->update(['role_id' => $data['role_id'] ?? null]);
+        $roleId = $data['role_id'] ?? null;
+        $roleSlug = $roleId ? Role::query()->whereKey($roleId)->value('slug') : null;
+
+        if ($roleSlug === 'super-admin') {
+            $user->applySuperAdminAccess(true);
+        } else {
+            if ($user->isSuperAdmin() && (int) $user->id === (int) $request->user()->id) {
+                return back()->withErrors(['role_id' => 'You cannot remove your own Super Admin access.']);
+            }
+            $user->role_id = $roleId;
+            if ($user->is_super_admin) {
+                $user->applySuperAdminAccess(false);
+                if ($roleId) {
+                    $user->role_id = $roleId;
+                }
+            }
+        }
+        $user->save();
 
         if ($oldRoleId !== $user->role_id) {
             RoleChange::query()->create([
@@ -598,7 +618,10 @@ class UsersController extends Controller
             : Role::query()->where('slug', 'default-user')->first();
         $roleId = $data['role_id'] ?? $defaultRole?->id;
 
-        $user = DB::transaction(function () use ($data, $roleId, $workspaceOwner) {
+        $user = DB::transaction(function () use ($data, $roleId, $workspaceOwner, $request) {
+            $roleSlug = $roleId ? Role::query()->whereKey($roleId)->value('slug') : null;
+            $wantSuper = ! $workspaceOwner && ($request->boolean('is_super_admin') || $roleSlug === 'super-admin');
+
             $payload = [
                 'name' => $data['name'],
                 'email' => $data['email'],
@@ -616,8 +639,13 @@ class UsersController extends Controller
             $user = User::query()->create($payload);
             $user->forceFill(['email_verified_at' => now()])->save();
 
+            if ($wantSuper) {
+                $user->applySuperAdminAccess(true);
+                $user->save();
+            }
+
             // Optional plan attach — portal members inherit owner billing; skip when adding to workspace.
-            if (! $workspaceOwner && ! empty($data['plan_id'])) {
+            if (! $workspaceOwner && ! $wantSuper && ! empty($data['plan_id'])) {
                 $plan = Plan::query()->whereKey($data['plan_id'])->where('is_active', true)->first();
                 if ($plan) {
                     Subscription::query()->create([
@@ -719,15 +747,35 @@ class UsersController extends Controller
         ]);
 
         $oldRoleId = $user->role_id;
+        $roleId = array_key_exists('role_id', $data) ? ($data['role_id'] ?? null) : $user->role_id;
+        $roleSlug = $roleId ? Role::query()->whereKey($roleId)->value('slug') : null;
+        $wantSuper = $request->boolean('is_super_admin') || $roleSlug === 'super-admin';
 
-        $user->update([
+        if (! $wantSuper && $user->isSuperAdmin() && (int) $user->id === (int) $request->user()->id) {
+            return back()->withErrors(['is_super_admin' => 'You cannot remove your own Super Admin access.']);
+        }
+
+        $user->fill([
             'name' => $data['name'],
             'email' => $data['email'],
             'status' => $data['status'],
-            'role_id' => $data['role_id'] ?? null,
-            'is_admin' => (bool) ($data['is_admin'] ?? false),
-            'is_super_admin' => (bool) ($data['is_super_admin'] ?? false),
+            'role_id' => $roleId,
         ]);
+
+        if ($wantSuper) {
+            $user->applySuperAdminAccess(true);
+        } else {
+            $user->applySuperAdminAccess(false);
+            // Keep the role chosen in the form after clearing SA.
+            if (array_key_exists('role_id', $data)) {
+                $user->role_id = $roleId;
+            }
+            if ($request->has('is_admin')) {
+                $user->is_admin = $request->boolean('is_admin');
+            }
+        }
+
+        $user->save();
 
         $newRoleId = $user->role_id;
         if ($oldRoleId !== $newRoleId) {
@@ -739,7 +787,9 @@ class UsersController extends Controller
             ]);
         }
 
-        return back()->with('status', 'User updated.');
+        return back()->with('status', $wantSuper
+            ? 'User updated with full Super Admin access.'
+            : 'User updated.');
     }
 
     public function status(Request $request, User $user): RedirectResponse
@@ -773,7 +823,7 @@ class UsersController extends Controller
         if ($user->id === $request->user()->id) {
             return back()->withErrors(['user' => 'You are already this user.']);
         }
-        if ($user->is_super_admin) {
+        if ($user->isSuperAdmin()) {
             return back()->withErrors(['user' => 'You cannot impersonate another super admin.']);
         }
 

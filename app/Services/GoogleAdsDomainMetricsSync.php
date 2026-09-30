@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Domain;
 use App\Models\GoogleAdsAccount;
 use App\Models\GoogleAdsCampaignDailyMetric;
+use App\Support\AccountCurrency;
 use App\Support\UserTimezone;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -365,6 +366,7 @@ class GoogleAdsDomainMetricsSync
                 'from' => $reportingFrom,
                 'to' => $reportingTo,
                 'used_stored_bounds' => false,
+                'bundles' => [],
             ];
         }
 
@@ -441,7 +443,64 @@ class GoogleAdsDomainMetricsSync
             'from' => $googleFrom,
             'to' => $googleTo,
             'used_stored_bounds' => false,
+            'bundles' => $this->currencyCostBundles($byAccount, $noAccount),
         ];
+    }
+
+    /**
+     * Per-account cost/click bundles with native Ads currency (for FX conversion).
+     *
+     * @param  array<int, list<array{clicks: int, cost: float, impressions: int}>>  $byAccount
+     * @param  list<array{clicks: int, cost: float, impressions: int}>  $noAccount
+     * @return list<array{currency_code: string, clicks: int, cost: float}>
+     */
+    private function currencyCostBundles(array $byAccount, array $noAccount): array
+    {
+        $bundles = [];
+        $accounts = \App\Models\GoogleAdsAccount::query()
+            ->whereIn('id', array_keys($byAccount))
+            ->get(['id', 'currency_code'])
+            ->keyBy('id');
+
+        foreach ($byAccount as $accountId => $entries) {
+            $uniqueFingerprints = collect($entries)
+                ->map(fn ($e) => $e['clicks'].'|'.round($e['cost'], 2).'|'.$e['impressions'])
+                ->unique()
+                ->count();
+            if (count($entries) > 1 && $uniqueFingerprints === 1) {
+                $clicks = $entries[0]['clicks'];
+                $cost = $entries[0]['cost'];
+            } else {
+                $clicks = 0;
+                $cost = 0.0;
+                foreach ($entries as $entry) {
+                    $clicks += $entry['clicks'];
+                    $cost += $entry['cost'];
+                }
+            }
+            $currency = AccountCurrency::normalize((string) ($accounts->get($accountId)?->currency_code ?: 'USD'));
+            $bundles[] = [
+                'currency_code' => $currency,
+                'clicks' => $clicks,
+                'cost' => round($cost, 2),
+            ];
+        }
+
+        if ($noAccount !== []) {
+            $clicks = 0;
+            $cost = 0.0;
+            foreach ($noAccount as $entry) {
+                $clicks += $entry['clicks'];
+                $cost += $entry['cost'];
+            }
+            $bundles[] = [
+                'currency_code' => 'USD',
+                'clicks' => $clicks,
+                'cost' => round($cost, 2),
+            ];
+        }
+
+        return $bundles;
     }
 
     /**

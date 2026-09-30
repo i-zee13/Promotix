@@ -236,8 +236,12 @@
                     @if ($user?->canInviteTeamMembers())
                         <button type="button" @click="userMenuOpen = false; window.dispatchEvent(new CustomEvent('open-portal-team-invite'))" class="block w-full px-4 py-2 text-left text-sm text-white/75 hover:bg-[#6400B2] hover:text-white">Invite teammate</button>
                     @endif
-                    <a href="{{ route('profile.edit') }}" class="block px-4 py-2 text-sm text-white/75 hover:bg-[#6400B2] hover:text-white">Account settings</a>
-                    @if ($user?->is_super_admin)
+                    <button
+                        type="button"
+                        @click="userMenuOpen = false; window.dispatchEvent(new CustomEvent('open-promotix-settings', { detail: { tab: 'account' } }))"
+                        class="block w-full px-4 py-2 text-left text-sm text-white/75 hover:bg-[#6400B2] hover:text-white"
+                    >Account settings</button>
+                    @if ($user?->isSuperAdmin())
                         <a href="{{ route('super-admin.dashboard') }}" class="block px-4 py-2 text-sm text-white/75 hover:bg-[#6400B2] hover:text-white">Super Admin</a>
                     @endif
                     <form method="POST" action="{{ route('logout') }}">

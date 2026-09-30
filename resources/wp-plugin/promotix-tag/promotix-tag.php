@@ -1,12 +1,12 @@
 <?php
 /**
- * Plugin Name: Promotix Tag
- * Plugin URI: https://promotix.app/
- * Description: Installs the Promotix tracking tag on your WordPress site.
+ * Plugin Name: Clickronix Tag
+ * Plugin URI: https://clickronix.com/
+ * Description: Installs the Clickronix tracking tag on your WordPress site.
  * Version: 0.1.0
  * Requires at least: 5.6
  * Requires PHP: 7.4
- * Author: Promotix
+ * Author: Clickronix
  * License: GPLv2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: promotix-tag
@@ -97,8 +97,8 @@ function promotix_tag_sanitize_settings($input) {
 
 function promotix_tag_admin_menu() {
     add_options_page(
-        'Promotix Tag',
-        'Promotix Tag',
+        'Clickronix Tag',
+        'Clickronix Tag',
         'manage_options',
         'promotix-tag',
         'promotix_tag_render_settings_page'
@@ -113,8 +113,8 @@ function promotix_tag_render_settings_page() {
     $s = promotix_tag_get_settings();
     ?>
     <div class="wrap">
-        <h1>Promotix Tag</h1>
-        <p>Paste your keys from the Promotix dashboard. This plugin injects the tracking tag on the public site (no client-side IP blocking).</p>
+        <h1>Clickronix Tag</h1>
+        <p>Paste your keys from the Clickronix dashboard. This plugin injects the tracking tag on the public site (block page branding comes from the Clickronix tag).</p>
 
         <form method="post" action="options.php">
             <?php settings_fields('promotix_tag'); ?>
@@ -123,8 +123,8 @@ function promotix_tag_render_settings_page() {
                     <th scope="row"><label for="promotix_server_url">Server URL</label></th>
                     <td>
                         <input name="<?php echo esc_attr(PROMOTIX_TAG_OPTION_KEY); ?>[server_url]" id="promotix_server_url" type="url" class="regular-text"
-                               value="<?php echo esc_attr($s['server_url']); ?>" placeholder="https://your-promotix-app.com" />
-                        <p class="description">Your Promotix app base URL (where /tag/... lives).</p>
+                               value="<?php echo esc_attr($s['server_url']); ?>" placeholder="https://your-clickronix-app.com" />
+                        <p class="description">Your Clickronix app base URL (where /tag/... lives).</p>
                     </td>
                 </tr>
                 <tr>

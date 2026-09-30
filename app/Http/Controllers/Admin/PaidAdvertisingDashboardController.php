@@ -18,6 +18,7 @@ use App\Support\GoogleClickAttribution;
 use App\Support\GoogleInvalidClickReconciler;
 use App\Support\GoogleVerifiedPaidTraffic;
 use App\Support\AccountCurrency;
+use App\Support\CurrencyConverter;
 use App\Support\UserTimezone;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -246,11 +247,16 @@ class PaidAdvertisingDashboardController extends Controller
             ? (int) round(min(100, ($uniqueValidPaidClicks / $googleClicks) * 100))
             : ($uniqueValidPaidClicks > 0 ? 100 : 0);
 
-        $googleCost = (float) ($googleAds['cost'] ?? 0);
+        $currencyCode = AccountCurrency::resolveForRequest($request, $domains);
+        $googleCost = (float) (is_array($googleAds) ? ($googleAds['cost'] ?? 0) : 0);
+        $bundles = is_array($googleAds) && is_array($googleAds['bundles'] ?? null) ? $googleAds['bundles'] : [];
+        if ($bundles !== []) {
+            $converted = CurrencyConverter::sumBundlesInCurrency($bundles, $currencyCode);
+            $googleCost = $converted['cost'];
+        }
         $invalidForSavings = $uniqueInvalidPaidClicks > 0 ? $uniqueInvalidPaidClicks : $invalid;
         $avgCpc = $googleClicks > 0 ? ($googleCost / $googleClicks) : 0.0;
         $costSaved = round($avgCpc * $invalidForSavings, 2);
-        $currencyCode = AccountCurrency::resolveForRequest($request, $domains);
 
         $selectedDomain = $request->filled('domain_id') && $domains->count() === 1
             ? $domains->first()
@@ -3274,8 +3280,16 @@ class PaidAdvertisingDashboardController extends Controller
         $domains ??= $this->scopedDomains($request, $domainIds);
         $googleAds = app(\App\Services\GoogleAdsDomainMetricsSync::class)
             ->clickTotalsForDomainsReporting($domainIds, $metricFrom, $metricTo, $reportingTz, $domains);
-        $clicks = (int) ($googleAds['clicks'] ?? 0);
-        $cost = (float) ($googleAds['cost'] ?? 0);
+        $currencyCode = AccountCurrency::resolveForRequest($request, $domains);
+        $bundles = is_array($googleAds['bundles'] ?? null) ? $googleAds['bundles'] : [];
+        if ($bundles !== []) {
+            $converted = CurrencyConverter::sumBundlesInCurrency($bundles, $currencyCode);
+            $clicks = $converted['clicks'];
+            $cost = $converted['cost'];
+        } else {
+            $clicks = (int) ($googleAds['clicks'] ?? 0);
+            $cost = (float) ($googleAds['cost'] ?? 0);
+        }
 
         return $clicks > 0 ? ($cost / $clicks) : 0.0;
     }

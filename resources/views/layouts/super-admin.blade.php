@@ -18,7 +18,7 @@
     $user = auth()->user();
     $menu = config('super-admin.menu', []);
     // Team/department agents only see Support System — not the full Super Admin menu.
-    if ($user && ! ($user->is_super_admin ?? false) && $user->isSupportDeskStaff()) {
+    if ($user && ! $user->isSuperAdmin() && $user->isSupportDeskStaff()) {
         $menu = array_intersect_key($menu, array_flip(['tickets']));
     }
     $navGroups = collect(config('super-admin.groups', []))
@@ -33,7 +33,7 @@
         ->filter(fn ($group) => count($group['items']) > 0)
         ->values()
         ->all();
-    $brandRoute = ($user && ! ($user->is_super_admin ?? false) && $user->isSupportDeskStaff())
+    $brandRoute = ($user && ! $user->isSuperAdmin() && $user->isSupportDeskStaff())
         ? 'super-admin.tickets.queue'
         : 'super-admin.dashboard';
 @endphp
@@ -86,7 +86,7 @@
 
     <header class="figma-header flex items-center justify-between px-[10px] sm:px-[14px]">
         <div class="flex min-w-0 items-center gap-[13px] pb-[15px] text-white/85">
-            @if ($user?->is_super_admin)
+            @if ($user?->isSuperAdmin())
                 <a href="{{ route('integrations') }}" class="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[4px] hover:bg-white/10 sm:flex" aria-label="Connections">
                     <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M10 13a5 5 0 007.07 0l2.12-2.12a5 5 0 00-7.07-7.07L11 4.93"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M14 11a5 5 0 00-7.07 0L4.8 13.12a5 5 0 007.07 7.07L13 19.07"/></svg>
                 </a>
@@ -94,7 +94,7 @@
         </div>
 
         <div class="relative flex items-center gap-[8px] pb-[15px]" x-data="{ userMenuOpen: false }" @click.outside="userMenuOpen = false">
-            @if ($user?->is_super_admin)
+            @if ($user?->isSuperAdmin())
                 @include('partials.portal-switch')
             @endif
             @include('partials.header-timezone')
@@ -105,7 +105,7 @@
                 <button type="button" @click="userMenuOpen = ! userMenuOpen" class="inline-flex h-full items-center truncate px-[10px] pl-[4px] text-left text-[11px] font-medium leading-none sm:pr-[12px]">{{ $user?->name ?: $user?->email }}</button>
             </div>
             <div x-show="userMenuOpen" x-cloak class="figma-user-menu absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-[#6400B2]/60 bg-[#111111] py-1 shadow-card-lg">
-                @if ($user?->is_super_admin)
+                @if ($user?->isSuperAdmin())
                     <a href="{{ route('super-admin.settings.index') }}" class="block px-4 py-2 text-sm text-white/75 hover:bg-[#6400B2] hover:text-white">System settings</a>
                     <a href="{{ route('dashboard') }}" class="block px-4 py-2 text-sm text-white/75 hover:bg-[#6400B2] hover:text-white">Customer portal</a>
                 @endif

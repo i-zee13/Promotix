@@ -12,7 +12,13 @@ class AdminIntegrationCatalog
     public const AD_PLATFORM_NAMES = ['meta-ads', 'microsoft-ads'];
 
     /** Optional tenant-facing integrations toggled from Super Admin → Integrations. */
-    public const TENANT_OPTIONAL_NAMES = ['cross-domain', 'audience-exclusion', 'guidance-chatbot'];
+    public const TENANT_OPTIONAL_NAMES = [
+        'cross-domain',
+        'audience-exclusion',
+        'placement-exclusion',
+        'pixel-guard',
+        'guidance-chatbot',
+    ];
 
     public static function ensureForUser(int $userId): void
     {
@@ -25,13 +31,19 @@ class AdminIntegrationCatalog
             ['name' => 'microsoft-ads', 'display_name' => 'Microsoft Ads', 'provider' => 'microsoft'],
             ['name' => 'cross-domain', 'display_name' => 'Cross-domain intelligence', 'provider' => 'promotix'],
             ['name' => 'audience-exclusion', 'display_name' => 'Audience Exclusion', 'provider' => 'promotix'],
+            ['name' => 'placement-exclusion', 'display_name' => 'Placement Exclusion', 'provider' => 'promotix'],
+            ['name' => 'pixel-guard', 'display_name' => 'Pixel Guard', 'provider' => 'promotix'],
             ['name' => 'guidance-chatbot', 'display_name' => 'Guidance chatbot / KB sync', 'provider' => 'guidance'],
         ] as $row) {
             $defaults = [
                 'user_id' => $userId,
                 'status' => 'not_configured',
-                // Audience Exclusion stays on for existing workspaces until Super Admin turns it off.
-                'enabled' => $row['name'] === 'audience-exclusion',
+                // Portal features stay on until Super Admin turns them off.
+                'enabled' => in_array($row['name'], [
+                    'audience-exclusion',
+                    'placement-exclusion',
+                    'pixel-guard',
+                ], true),
             ];
             AdminIntegrationSetting::query()->firstOrCreate(
                 ['user_id' => $userId, 'name' => $row['name']],
@@ -70,7 +82,9 @@ class AdminIntegrationCatalog
             'microsoft-ads' => 5,
             'cross-domain' => 6,
             'audience-exclusion' => 7,
-            'guidance-chatbot' => 8,
+            'placement-exclusion' => 8,
+            'pixel-guard' => 9,
+            'guidance-chatbot' => 10,
         ];
 
         return AdminIntegrationSetting::query()
@@ -126,7 +140,7 @@ class AdminIntegrationCatalog
      * when enabled in Super Admin → Integrations.
      * Cross-domain / Audience Exclusion also require their plan flags when a user is provided.
      *
-     * @return array{cross_domain: bool, audience_exclusion: bool, chatbot: bool}
+     * @return array{cross_domain: bool, audience_exclusion: bool, placement_exclusion: bool, pixel_guard: bool, chatbot: bool}
      */
     public static function enabledTenantIntegrations(?\App\Models\User $user = null): array
     {
@@ -149,6 +163,8 @@ class AdminIntegrationCatalog
         return [
             'cross_domain' => $crossDomain,
             'audience_exclusion' => $audienceExclusion,
+            'placement_exclusion' => self::tenantOptionalEnabled('placement-exclusion', defaultIfMissing: true),
+            'pixel_guard' => self::tenantOptionalEnabled('pixel-guard', defaultIfMissing: true),
             'chatbot' => self::integrationEnabledForTenants('guidance-chatbot'),
         ];
     }
@@ -185,6 +201,26 @@ class AdminIntegrationCatalog
             $user,
             \App\Support\WorkspacePlanFeatures::AUDIENCE_EXCLUSION
         );
+    }
+
+    /** Super Admin → Integrations → Placement Exclusion toggle. */
+    public static function placementExclusionAvailableForUser(?\App\Models\User $user): bool
+    {
+        if ($user === null) {
+            return false;
+        }
+
+        return self::tenantOptionalEnabled('placement-exclusion', defaultIfMissing: true);
+    }
+
+    /** Super Admin → Integrations → Pixel Guard toggle. */
+    public static function pixelGuardAvailableForUser(?\App\Models\User $user): bool
+    {
+        if ($user === null) {
+            return false;
+        }
+
+        return self::tenantOptionalEnabled('pixel-guard', defaultIfMissing: true);
     }
 
     /**
@@ -309,6 +345,16 @@ class AdminIntegrationCatalog
                 'subtitle' => 'Show Audience Exclusion setup / apply on customer Integrations (Google Ads). Off = hidden everywhere in the portal.',
                 'connected_label' => 'Enabled for tenants',
             ],
+            'placement-exclusion' => [
+                'icon' => 'P',
+                'subtitle' => 'Show Placement Exclusions on customer Integrations (Google Ads). Off = hidden everywhere in the portal.',
+                'connected_label' => 'Enabled for tenants',
+            ],
+            'pixel-guard' => [
+                'icon' => 'G',
+                'subtitle' => 'Show Open Pixel Guard on customer Integrations (Google Ads). Off = hidden everywhere in the portal.',
+                'connected_label' => 'Enabled for tenants',
+            ],
             'guidance-chatbot' => [
                 'icon' => 'C',
                 'subtitle' => 'Clickronix Copilot — answers from local knowledge bank (no OpenAI key). Optional Guidance articles add extra coverage.',
@@ -389,6 +435,12 @@ class AdminIntegrationCatalog
                 ['name' => 'cross_sessions_30d', 'label' => 'Cross-domain hits (30d)', 'type' => 'text', 'secret' => false, 'readonly' => true],
             ],
             'audience-exclusion' => [
+                ['name' => 'note', 'label' => 'Portal visibility', 'type' => 'text', 'secret' => false, 'readonly' => true],
+            ],
+            'placement-exclusion' => [
+                ['name' => 'note', 'label' => 'Portal visibility', 'type' => 'text', 'secret' => false, 'readonly' => true],
+            ],
+            'pixel-guard' => [
                 ['name' => 'note', 'label' => 'Portal visibility', 'type' => 'text', 'secret' => false, 'readonly' => true],
             ],
             'guidance-chatbot' => [

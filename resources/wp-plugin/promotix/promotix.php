@@ -1,9 +1,9 @@
 <?php
 /**
- * Plugin Name: Promotix Tag
- * Description: Installs the Promotix tracking tag on your WordPress site.
+ * Plugin Name: Clickronix Tag
+ * Description: Installs the Clickronix tracking tag on your WordPress site.
  * Version: 0.1.0
- * Author: Promotix
+ * Author: Clickronix
  * License: GPLv2 or later
  */
 
@@ -49,8 +49,8 @@ function promotix_tag_sanitize_settings($input) {
 
 function promotix_tag_admin_menu() {
     add_options_page(
-        'Promotix Tag',
-        'Promotix Tag',
+        'Clickronix Tag',
+        'Clickronix Tag',
         'manage_options',
         'promotix-tag',
         'promotix_tag_render_settings_page'
@@ -65,8 +65,8 @@ function promotix_tag_render_settings_page() {
     $s = promotix_tag_get_settings();
     ?>
     <div class="wrap">
-        <h1>Promotix Tag</h1>
-        <p>Paste your keys from the Promotix dashboard. This plugin injects the tracking tag on the public site (no client-side IP blocking).</p>
+        <h1>Clickronix Tag</h1>
+        <p>Paste your keys from the Clickronix dashboard. This plugin injects the tracking tag on the public site (block page branding comes from the Clickronix tag).</p>
 
         <form method="post" action="options.php">
             <?php settings_fields('promotix_tag'); ?>
@@ -76,7 +76,7 @@ function promotix_tag_render_settings_page() {
                     <td>
                         <input name="<?php echo esc_attr(PROMOTIX_TAG_OPTION_KEY); ?>[server_url]" id="promotix_server_url" type="url" class="regular-text"
                                value="<?php echo esc_attr($s['server_url']); ?>" placeholder="https://your-promotix-app.com" />
-                        <p class="description">Your Promotix app base URL (where /tag/... lives).</p>
+                        <p class="description">Your Clickronix app base URL (where /tag/... lives).</p>
                     </td>
                 </tr>
                 <tr>
@@ -140,7 +140,7 @@ function promotix_tag_inject_head() {
     $tagUrl = promotix_tag_build_tag_url($s['server_url'], $s['domain_key']);
     if ($tagUrl === '') return;
 
-    echo "\n<!-- Promotix Tag -->\n";
+    echo "\n<!-- Clickronix Tag -->\n";
     echo '<script async defer src="' . esc_url($tagUrl) . '" class="pm_tag"></script>' . "\n";
 }
 add_action('wp_head', 'promotix_tag_inject_head', 1);

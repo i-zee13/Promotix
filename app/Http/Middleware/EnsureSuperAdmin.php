@@ -12,7 +12,7 @@ class EnsureSuperAdmin
     {
         $user = $request->user();
 
-        abort_unless($user && (bool) ($user->is_super_admin ?? false), 403);
+        abort_unless($user && $user->isSuperAdmin(), 403);
         abort_if(in_array((string) ($user->status ?? 'active'), ['suspended', 'banned'], true), 403, 'Your account is not active.');
 
         return $next($request);

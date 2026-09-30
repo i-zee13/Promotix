@@ -186,6 +186,8 @@ Route::middleware(['auth', 'super-admin'])
         Route::post('/guidance', [\App\Http\Controllers\SuperAdmin\GuidanceController::class, 'store'])->name('guidance.store');
         Route::put('/guidance/{guidance}', [\App\Http\Controllers\SuperAdmin\GuidanceController::class, 'update'])->name('guidance.update');
         Route::delete('/guidance/{guidance}', [\App\Http\Controllers\SuperAdmin\GuidanceController::class, 'destroy'])->name('guidance.destroy');
+        Route::resource('currency-rates', \App\Http\Controllers\SuperAdmin\CurrencyRatesController::class)
+            ->only(['index', 'store', 'update', 'destroy']);
         Route::get('/traffic-bot-logs/cross-domain', [SuperAdminSupportPagesController::class, 'crossDomainIntel'])->name('traffic.cross-domain');
         Route::post('/feature-flags', [SuperAdminSupportPagesController::class, 'storeFeatureFlag'])->name('feature-flags.store');
         Route::patch('/feature-flags/{featureFlag}/toggle', [SuperAdminSupportPagesController::class, 'toggleFeatureFlag'])->name('feature-flags.toggle');
@@ -403,6 +405,7 @@ Route::middleware('auth')->group(function () {
     Route::put('/detection/{domain}/marketing-rules', [PaidMarketingController::class, 'updateMarketingRulesApi']);
 
     Route::get('/bot-protection/page-analytics', [BotProtectionController::class, 'pageAnalytics']);
+    Route::get('/bot-protection/live-visitors', [BotProtectionController::class, 'liveVisitors']);
     Route::get('/bot-protection/page-analytics/export', [BotProtectionController::class, 'pageAnalyticsExport']);
     Route::get('/bot-protection/traffic-control/sessions', [BotProtectionController::class, 'trafficControlSessions']);
     Route::get('/bot-protection/traffic-control/intelligence', [BotProtectionController::class, 'trafficControlIntelligence']);

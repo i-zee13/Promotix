@@ -202,9 +202,62 @@ class User extends Authenticatable
         return $this->domainsUsed() < $limit;
     }
 
+    /**
+     * Platform super admin — full Super Admin panel (flag and/or Super Admin role).
+     */
+    public function isSuperAdmin(): bool
+    {
+        if ((bool) ($this->is_super_admin ?? false)) {
+            return true;
+        }
+
+        $this->loadMissing('role:id,slug');
+
+        return ($this->role?->slug ?? '') === 'super-admin';
+    }
+
+    /**
+     * Grant or revoke full Super Admin access (flag + role stay in sync).
+     */
+    public function applySuperAdminAccess(bool $enabled): void
+    {
+        if ($enabled) {
+            $superRoleId = Role::query()->where('slug', 'super-admin')->value('id');
+            $payload = [
+                'is_super_admin' => true,
+                'is_admin' => true,
+                'status' => in_array((string) ($this->status ?? 'active'), ['suspended', 'banned'], true)
+                    ? $this->status
+                    : 'active',
+            ];
+            if ($superRoleId) {
+                $payload['role_id'] = (int) $superRoleId;
+            }
+            // Platform staff are not portal seats under a customer workspace.
+            if (\Illuminate\Support\Facades\Schema::hasColumn('users', 'team_owner_id') && $this->team_owner_id !== null) {
+                $payload['team_owner_id'] = null;
+                $payload['allowed_page_slugs'] = null;
+                $payload['allowed_domain_ids'] = null;
+            }
+            $this->forceFill($payload);
+
+            return;
+        }
+
+        $payload = [
+            'is_super_admin' => false,
+            'is_admin' => false,
+        ];
+        $this->loadMissing('role:id,slug');
+        if (($this->role?->slug ?? '') === 'super-admin') {
+            $payload['role_id'] = Role::query()->where('slug', 'default-user')->value('id');
+        }
+        $this->forceFill($payload);
+    }
+
     public function canInviteTeamMembers(): bool
     {
-        if ($this->is_admin || ($this->is_super_admin ?? false)) {
+        if ($this->is_admin || $this->isSuperAdmin()) {
             return true;
         }
 
@@ -225,7 +278,7 @@ class User extends Authenticatable
      */
     public function homeRouteName(): string
     {
-        if ($this->is_super_admin ?? false) {
+        if ($this->isSuperAdmin()) {
             return 'super-admin.dashboard';
         }
 
@@ -314,7 +367,7 @@ class User extends Authenticatable
      */
     public function bypassesPlanLimits(): bool
     {
-        return (bool) ($this->is_admin || $this->is_super_admin);
+        return (bool) ($this->is_admin || $this->isSuperAdmin());
     }
 
     /**
@@ -334,7 +387,7 @@ class User extends Authenticatable
      */
     public function canAccessSupportDesk(): bool
     {
-        return (bool) ($this->is_super_admin ?? false) || $this->isSupportDeskStaff();
+        return $this->isSuperAdmin() || $this->isSupportDeskStaff();
     }
 
     /**
@@ -373,7 +426,7 @@ class User extends Authenticatable
      */
     public function canAccess(string $permissionSlugOrRouteName): bool
     {
-        if ($this->is_admin || ($this->is_super_admin ?? false)) {
+        if ($this->is_admin || $this->isSuperAdmin()) {
             return true;
         }
 

@@ -78,7 +78,7 @@ class TwoFactorChallengeController extends Controller
         LoginHistoryLogger::record($user, $request);
         UserTimezone::captureForUser($user, $request);
 
-        if ($user->is_super_admin ?? false) {
+        if ($user->isSuperAdmin()) {
             return redirect()->intended(route('super-admin.dashboard', [], false));
         }
 

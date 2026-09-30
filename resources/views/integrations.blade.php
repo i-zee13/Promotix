@@ -181,6 +181,8 @@ document.addEventListener('DOMContentLoaded', () => {
         'audienceListsUrl' => route('integrations.google.audience-lists'),
         'audienceExclusionExportUrl' => route('integrations.google.audience-exclusion-export'),
         'audienceExclusionAvailable' => \App\Support\AdminIntegrationCatalog::audienceExclusionAvailableForUser(auth()->user()),
+        'placementExclusionAvailable' => \App\Support\AdminIntegrationCatalog::placementExclusionAvailableForUser(auth()->user()),
+        'pixelGuardAvailable' => \App\Support\AdminIntegrationCatalog::pixelGuardAvailableForUser(auth()->user()),
         'ga4StatusUrl' => route('integrations.google.ga4-status'),
         'createAudienceUrl' => route('integrations.google.create-audience'),
         'applyAudienceUrl' => route('integrations.google.apply-audience'),
@@ -1284,13 +1286,17 @@ document.addEventListener('DOMContentLoaded', () => {
                                                     <button type="button" class="figma-platform-menu-item w-full text-left" @click="openConnectGoogleModal()">Account details</button>
                                                     <button type="button" class="figma-platform-menu-item w-full text-left" @click="openProtectionCenter()">Protection Center</button>
                                                     <button type="button" class="figma-platform-menu-item w-full text-left" @click="openIpExclusionsModal()">IP exclusions</button>
-                                                    <button type="button" class="figma-platform-menu-item w-full text-left" @click="openPlacementModal()">Placement exclusions</button>
+                                                    @if (\App\Support\AdminIntegrationCatalog::placementExclusionAvailableForUser(auth()->user()))
+                                                        <button type="button" class="figma-platform-menu-item w-full text-left" @click="openPlacementModal()">Placement exclusions</button>
+                                                    @endif
                                                     @if (\App\Support\AdminIntegrationCatalog::audienceExclusionAvailableForUser(auth()->user()))
                                                         <button type="button" class="figma-platform-menu-item w-full text-left" @click="openAudienceMethodModal()">Audience Exclusion</button>
                                                         <button type="button" class="figma-platform-menu-item w-full text-left" @click="openCreateAudienceModal()">Create GA4 audience</button>
                                                         <button type="button" class="figma-platform-menu-item w-full text-left" @click="openApplyAudienceModal()">Apply audience exclusion</button>
                                                     @endif
-                                                    <button type="button" class="figma-platform-menu-item w-full text-left" @click="openPixelGuardModal()">Pixel Guard</button>
+                                                    @if (\App\Support\AdminIntegrationCatalog::pixelGuardAvailableForUser(auth()->user()))
+                                                        <button type="button" class="figma-platform-menu-item w-full text-left" @click="openPixelGuardModal()">Pixel Guard</button>
+                                                    @endif
                                                     <button type="button" class="figma-platform-menu-item w-full text-left" @click="openTrackingTemplateModal()">Tracking template</button>
                                                     <button type="button" class="figma-platform-menu-item w-full text-left" @click="openSyncPreview()">Campaign Sync preview</button>
                                                     <button type="button" class="figma-platform-menu-item w-full text-left" @click="$dispatch('platform-menu', { action: 'copy-tracking' })">Copy Tracking Link</button>
@@ -1740,6 +1746,14 @@ function platformIntegrations(config) {
                 { id: 'pixel', label: 'Pixel Guard' },
             ],
         },
+        get protectionCenterTabs() {
+            return (this.protectionCenter.tabs || []).filter((tab) => {
+                if (tab.id === 'audience') return this.audienceExclusionAvailable;
+                if (tab.id === 'placement') return this.placementExclusionAvailable;
+                if (tab.id === 'pixel') return this.pixelGuardAvailable;
+                return true;
+            });
+        },
         audienceMethodModal: {
             open: false,
             method: 'ga4',
@@ -1851,6 +1865,8 @@ function platformIntegrations(config) {
         audienceAssociationsByDomain: config.audienceAssociationsByDomain || {},
         audienceListsByDomain: config.audienceListsByDomain || {},
         audienceExclusionAvailable: Boolean(config.audienceExclusionAvailable),
+        placementExclusionAvailable: Boolean(config.placementExclusionAvailable),
+        pixelGuardAvailable: Boolean(config.pixelGuardAvailable),
         get trackingInstallation() {
             const id = String(this.selectedDomainId || '');
             if (id && this.trackingInstallationByDomain[id]) {
@@ -3851,6 +3867,10 @@ ${memberRowsHtml}
             });
         },
         openPixelGuardModal() {
+            if (!this.pixelGuardAvailable) {
+                this.showMenuToast('Pixel Guard is disabled for this workspace.', 'error');
+                return;
+            }
             this.pixelGuardModal.google_tag_id = this.trackingInstallation.google_tag?.id && this.trackingInstallation.google_tag.id !== '—'
                 ? this.trackingInstallation.google_tag.id
                 : (this.googleAdsSummary.google_tag_id && this.googleAdsSummary.google_tag_id !== '—'
@@ -3954,6 +3974,10 @@ ${memberRowsHtml}
             this.showMenuToast(removed ? `${removed} selected row(s) removed from view.` : 'Select rows first.', removed ? 'success' : 'info');
         },
         openPlacementModal() {
+            if (!this.placementExclusionAvailable) {
+                this.showMenuToast('Placement Exclusion is disabled for this workspace.', 'error');
+                return;
+            }
             this.placementModal.open = true;
             this.lockSpecModal();
         },

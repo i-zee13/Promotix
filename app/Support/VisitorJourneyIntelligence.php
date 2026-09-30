@@ -25,7 +25,7 @@ class VisitorJourneyIntelligence
             return $this->emptyPayload();
         }
 
-        $cacheKey = 'vj:intel:v7:'.md5(json_encode([
+        $cacheKey = 'vj:intel:v8:'.md5(json_encode([
             'domains' => array_values($domainIds),
             'from' => $from->toIso8601String(),
             'to' => $to->toIso8601String(),
@@ -348,9 +348,19 @@ class VisitorJourneyIntelligence
 
             $detail = is_array($row['event_detail'] ?? null) ? $row['event_detail'] : [];
             $timeline = is_array($detail['timeline'] ?? null) ? $detail['timeline'] : [];
-            $existingTypes = collect($timeline)->pluck('type')->map(fn ($t) => strtolower((string) $t))->all();
-            $hasRich = count(array_filter($existingTypes, fn ($t) => ! in_array($t, ['page', 'page_view', 'exit', ''], true))) > 0;
-            if ($hasRich && count($timeline) >= 4) {
+            $existingKeys = [];
+            foreach ($timeline as $tev) {
+                if (! is_array($tev)) {
+                    continue;
+                }
+                $existingKeys[$this->behaviorEventDedupeKey($tev)] = true;
+            }
+            // Only skip when the session already has a rich mid-session trail.
+            $actionTypes = collect($timeline)->pluck('type')->map(fn ($t) => strtolower((string) $t))->all();
+            $actionCount = count(array_filter($actionTypes, fn ($t) => in_array($t, [
+                'cta', 'cta_click', 'phone', 'phone_click', 'tel_click', 'form', 'form_submit', 'form_start', 'scroll',
+            ], true)));
+            if ($actionCount >= 3 && count($timeline) >= 6) {
                 continue;
             }
 
@@ -376,7 +386,12 @@ class VisitorJourneyIntelligence
                 if ($path === '' && ! empty($ev->page_url)) {
                     $path = TrafficSourceClassifier::pathFromUrl((string) $ev->page_url);
                 }
-                $elapsed = (int) max(0, (int) round(((int) ($ev->relative_ms ?? 0)) / 1000));
+                $relativeMs = (int) ($ev->relative_ms ?? 0);
+                $elapsed = (int) max(0, (int) round($relativeMs / 1000));
+                // Sub-second actions still need a visible slot (short-session UI hid t=0 markers).
+                if ($elapsed === 0 && $relativeMs > 0) {
+                    $elapsed = 1;
+                }
                 if ($elapsed === 0 && $start && ! empty($ev->occurred_at)) {
                     try {
                         $elapsed = max(0, (int) $start->diffInSeconds(Carbon::parse((string) $ev->occurred_at), true));
@@ -387,7 +402,7 @@ class VisitorJourneyIntelligence
                 $label = match ($type) {
                     'scroll' => 'Scroll',
                     'cta_click' => trim((string) ($ev->element_text ?? '')) ?: 'CTA click',
-                    'phone_click', 'tel_click' => 'Call click',
+                    'phone_click', 'tel_click' => trim((string) ($ev->element_text ?? '')) ?: 'Phone click',
                     'form_start' => 'Form start',
                     'form_submit', 'form_fill' => 'Form submit',
                     'add_to_cart' => 'Add to cart',
@@ -405,24 +420,32 @@ class VisitorJourneyIntelligence
                 };
                 $normType = match ($type) {
                     'page_view', 'page_change' => 'page',
-                    'phone_click', 'tel_click' => 'cta',
+                    'phone_click', 'tel_click' => 'phone',
                     'form_start', 'form_submit', 'form_fill' => 'form',
                     'cta_click' => 'cta',
                     'scroll' => 'scroll',
                     default => $kind === 'commerce' ? 'cta' : 'page',
                 };
 
-                $added[] = [
+                $candidate = [
                     'type' => $normType,
                     'kind' => $kind,
                     'label' => $label,
                     'detail' => $label,
                     'page' => $path !== '' ? $path : '/',
                     'path' => $path !== '' ? $path : '/',
-                    't' => (int) ($ev->relative_ms ?? ($elapsed * 1000)),
+                    't' => $relativeMs > 0 ? $relativeMs : ($elapsed * 1000),
                     'elapsed_sec' => $elapsed,
                     'at' => (string) ($ev->occurred_at ?? ''),
+                    'element_text' => trim((string) ($ev->element_text ?? '')) ?: null,
+                    'href' => trim((string) ($ev->href ?? '')) ?: null,
                 ];
+                $dedupe = $this->behaviorEventDedupeKey($candidate);
+                if (isset($existingKeys[$dedupe])) {
+                    continue;
+                }
+                $existingKeys[$dedupe] = true;
+                $added[] = $candidate;
 
                 if ($type === 'cta_click') {
                     $cta++;
@@ -539,8 +562,22 @@ class VisitorJourneyIntelligence
 
         $durationSec = $this->sessionDurationSeconds($row);
         $timelineMax = 0;
+        $tlCta = 0;
+        $tlTel = 0;
+        $tlForm = 0;
+        $tlScroll = 0;
         foreach ($timeline as $ev) {
             $timelineMax = max($timelineMax, (int) ($ev['elapsed_sec'] ?? 0));
+            $t = strtolower((string) ($ev['type'] ?? ''));
+            if ($t === 'cta') {
+                $tlCta++;
+            } elseif ($t === 'phone') {
+                $tlTel++;
+            } elseif ($t === 'form') {
+                $tlForm++;
+            } elseif ($t === 'scroll') {
+                $tlScroll++;
+            }
         }
         // Bounce / same-second visits often report 00:00:00 while the timeline has a real span.
         if ($durationSec <= 0 && $timelineMax > 0) {
@@ -548,6 +585,38 @@ class VisitorJourneyIntelligence
         }
         // Duration label can be correct while exit is still stuck at 0:00 — pin exit to duration.
         $timeline = $this->syncExitToDuration($timeline, $durationSec, $row);
+
+        // Lift action chips from the same timeline Individual Sessions renders.
+        if ($tlTel > 0 || $tlCta > 0 || $tlForm > 0) {
+            $actions = [];
+            if ($tlTel > 0) {
+                $actions[] = ['label' => $tlTel === 1 ? 'phone click' : $tlTel.' phone clicks', 'tone' => 'action'];
+            }
+            if ($tlCta > 0) {
+                $actions[] = ['label' => $tlCta === 1 ? 'cta click' : $tlCta.' cta clicks', 'tone' => 'action'];
+            }
+            if ($tlForm > 0) {
+                $actions[] = ['label' => $tlForm === 1 ? 'form submit' : $tlForm.' form submits', 'tone' => 'form'];
+            }
+            $purchases = ($row['purchase'] ?? 'No') === 'Yes' || (int) ($row['form_submits'] ?? 0) > 0 || $tlForm > 0;
+            if ($purchases) {
+                $outcome = ['label' => 'Lead confirmed', 'tone' => 'lead'];
+            } else {
+                $outcome = ['label' => 'Pending', 'tone' => 'pending'];
+            }
+            $pathChips = [];
+            foreach (array_slice($pages, 0, 4) as $p) {
+                $pathChips[] = ['label' => $p, 'tone' => 'page'];
+            }
+            foreach (array_slice($actions, 0, 2) as $a) {
+                $pathChips[] = $a;
+            }
+        }
+
+        $ctaClicks = max((int) ($row['cta_clicks'] ?? 0), $tlCta);
+        $telClicks = max((int) ($row['tel_clicks'] ?? 0), $tlTel);
+        $formSubmits = max((int) ($row['form_submits'] ?? 0) + (int) ($row['form_fills'] ?? 0), $tlForm);
+
         $durationLabel = $this->friendlyDuration(sprintf(
             '%02d:%02d:%02d',
             intdiv($durationSec, 3600),
@@ -596,10 +665,7 @@ class VisitorJourneyIntelligence
             'duration_raw' => sprintf('%02d:%02d:%02d', intdiv($durationSec, 3600), intdiv($durationSec % 3600, 60), $durationSec % 60),
             'duration_sec' => $durationSec,
             'path_chips' => $pathChips,
-            'path_footer' => array_values(array_merge(
-                array_map(fn ($p) => ['label' => $p, 'tone' => 'page'], array_slice($pages, 0, 3)),
-                [['label' => 'Exit', 'tone' => 'exit']],
-            )),
+            'path_footer' => $this->buildPathFooter($timeline, $pages),
             'outcome' => $outcome,
             'landing_page' => $this->shortPath((string) ($row['landing_page'] ?? '/')),
             'exit_page' => $this->shortPath((string) ($row['exit_page'] ?? '—')),
@@ -609,9 +675,10 @@ class VisitorJourneyIntelligence
                 $row['event_actions'] ?? [],
                 fn ($ev) => is_array($ev) && filled($ev['key'] ?? null),
             )),
-            'cta_clicks' => (int) ($row['cta_clicks'] ?? 0) + (int) ($row['tel_clicks'] ?? 0),
-            'tel_clicks' => (int) ($row['tel_clicks'] ?? 0),
-            'form_submits' => (int) ($row['form_submits'] ?? 0) + (int) ($row['form_fills'] ?? 0),
+            'cta_clicks' => $ctaClicks,
+            'tel_clicks' => $telClicks,
+            'form_submits' => $formSubmits,
+            'scroll_events' => max((int) ($row['scroll_events'] ?? 0), $tlScroll),
             'gclid_captured' => filled($row['gclid'] ?? null)
                 || str_contains(strtolower((string) ($row['source_platform'] ?? '')), 'google')
                 || (bool) ($row['is_paid'] ?? false),
@@ -625,11 +692,56 @@ class VisitorJourneyIntelligence
         ];
     }
 
+    /**
+     * Footer chips for Individual Sessions — pages + mid-session actions + Exit.
+     *
+     * @param  list<array<string, mixed>>  $timeline
+     * @param  list<string>  $pages
+     * @return list<array{label: string, tone: string}>
+     */
+    private function buildPathFooter(array $timeline, array $pages): array
+    {
+        $chips = [];
+        $seenPage = [];
+        foreach ($timeline as $ev) {
+            if (! is_array($ev)) {
+                continue;
+            }
+            $type = strtolower((string) ($ev['type'] ?? ''));
+            if ($type === 'page') {
+                $p = $this->shortPath((string) ($ev['page'] ?? $ev['label'] ?? ''));
+                if ($p === '' || $p === '—' || isset($seenPage[$p])) {
+                    continue;
+                }
+                $seenPage[$p] = true;
+                $chips[] = ['label' => $p, 'tone' => 'page'];
+            } elseif ($type === 'phone') {
+                $chips[] = ['label' => 'Phone click', 'tone' => 'action'];
+            } elseif ($type === 'cta') {
+                $chips[] = ['label' => 'CTA click', 'tone' => 'action'];
+            } elseif ($type === 'form') {
+                $chips[] = ['label' => 'Form', 'tone' => 'form'];
+            }
+        }
+        if ($chips === []) {
+            foreach (array_slice($pages, 0, 3) as $p) {
+                $chips[] = ['label' => $this->shortPath((string) $p), 'tone' => 'page'];
+            }
+        }
+        $chips[] = ['label' => 'Exit', 'tone' => 'exit'];
+
+        return array_values(array_slice($chips, 0, 8));
+    }
+
     /** @param  list<array<string, mixed>>  $timeline */
     private function sessionAlert(array $timeline): string
     {
         foreach ($timeline as $ev) {
-            if (($ev['type'] ?? '') === 'cta' && filled($ev['note'] ?? null)) {
+            $type = (string) ($ev['type'] ?? '');
+            if ($type === 'phone' && filled($ev['note'] ?? null)) {
+                return 'Phone click recorded · '.trim((string) $ev['note']);
+            }
+            if ($type === 'cta' && filled($ev['note'] ?? null)) {
                 return 'Call click recorded · '.trim((string) $ev['note']);
             }
         }
@@ -743,6 +855,8 @@ class VisitorJourneyIntelligence
                 ]);
             }
             if ($out !== []) {
+                $out = $this->supplementTimelineFromCounts($out, $row, $sessionDur, $base, $pages);
+
                 return $this->finalizeTimelineExits($out, $row, $sessionDur, $base);
             }
         }
@@ -770,52 +884,113 @@ class VisitorJourneyIntelligence
                 'status' => 'Page viewed',
             ]);
         }
-        if ((int) ($row['scroll_events'] ?? 0) > 0 && $sessionDur > 0) {
+        $out = $this->supplementTimelineFromCounts($out, $row, $sessionDur, $base, $pages);
+
+        usort($out, static fn ($a, $b) => ((int) ($a['elapsed_sec'] ?? 0)) <=> ((int) ($b['elapsed_sec'] ?? 0)));
+
+        return $this->finalizeTimelineExits($out, $row, $sessionDur, $base);
+    }
+
+    /**
+     * When the recorder only left page/exit stubs, lift CTA / phone / form / scroll
+     * markers from denormalized session counts so Event Timeline is not empty.
+     *
+     * @param  list<array<string, mixed>>  $out
+     * @param  array<string, mixed>  $row
+     * @param  list<string>  $pages
+     * @return list<array<string, mixed>>
+     */
+    private function supplementTimelineFromCounts(array $out, array $row, int $sessionDur, int $base, array $pages): array
+    {
+        $types = collect($out)->pluck('type')->map(fn ($t) => strtolower((string) $t))->all();
+        $has = static fn (string $needle) => in_array($needle, $types, true);
+        $pageSlice = array_values(array_filter(array_map(
+            fn ($p) => $this->shortPath((string) $p),
+            $pages !== [] ? $pages : [(string) ($row['landing_page'] ?? '/')]
+        )));
+        if ($pageSlice === []) {
+            $pageSlice = ['/'];
+        }
+        $n = count($pageSlice);
+        $pageAt = static fn (float $ratio) => $pageSlice[min($n - 1, max(0, (int) floor(($n - 1) * $ratio)))];
+
+        if ((int) ($row['scroll_events'] ?? 0) > 0 && ! $has('scroll') && $sessionDur > 0) {
             $scrollAt = min($sessionDur, max(1, (int) round($sessionDur * 0.25)));
-            array_splice($out, min(1, count($out)), 0, [$this->timelineEvent([
+            $out[] = $this->timelineEvent([
                 'type' => 'scroll',
                 'label' => 'Scroll',
                 'event' => 'scroll',
                 'kind' => 'Scroll',
                 'time' => $this->formatClock($base + $scrollAt),
                 'elapsed_sec' => $scrollAt,
-                'page' => $pageSlice[0],
+                'page' => $pageAt(0.25),
                 'note' => '',
                 'status' => 'Scroll recorded',
-            ])]);
+            ]);
         }
-        if ((int) ($row['form_starts'] ?? 0) > 0 || (int) ($row['form_submits'] ?? 0) > 0) {
-            $formAt = $sessionDur > 0 ? min($sessionDur, max(1, (int) round($sessionDur * 0.55))) : 0;
+        if (((int) ($row['form_starts'] ?? 0) > 0 || (int) ($row['form_submits'] ?? 0) > 0 || (int) ($row['form_fills'] ?? 0) > 0)
+            && ! $has('form')) {
+            $formAt = $sessionDur > 0 ? min($sessionDur, max(1, (int) round($sessionDur * 0.55))) : 1;
             $out[] = $this->timelineEvent([
                 'type' => 'form',
-                'label' => 'availability check',
-                'event' => 'availability_check',
+                'label' => ((int) ($row['form_submits'] ?? $row['form_fills'] ?? 0) > 0) ? 'Form submit' : 'Form start',
+                'event' => 'form_submit',
                 'kind' => 'Form submit',
                 'time' => $this->formatClock($base + $formAt),
                 'elapsed_sec' => $formAt,
-                'page' => $pageSlice[min(1, $n - 1)],
+                'page' => $pageAt(0.55),
                 'note' => '',
                 'status' => 'Submitted',
             ]);
         }
-        if ((int) ($row['cta_clicks'] ?? 0) > 0 || (int) ($row['tel_clicks'] ?? 0) > 0) {
-            $ctaAt = $sessionDur > 0 ? min($sessionDur, max(1, (int) round($sessionDur * 0.7))) : 0;
+        if ((int) ($row['tel_clicks'] ?? 0) > 0 && ! $has('phone')) {
+            $telAt = $sessionDur > 0 ? min($sessionDur, max(1, (int) round($sessionDur * 0.65))) : 1;
+            $out[] = $this->timelineEvent([
+                'type' => 'phone',
+                'label' => 'Phone click',
+                'event' => 'phone_click',
+                'kind' => 'Phone click',
+                'time' => $this->formatClock($base + $telAt),
+                'elapsed_sec' => $telAt,
+                'page' => $pageAt(0.65),
+                'note' => '',
+                'status' => 'Click recorded',
+            ]);
+        }
+        if ((int) ($row['cta_clicks'] ?? 0) > 0 && ! $has('cta')) {
+            $ctaAt = $sessionDur > 0 ? min($sessionDur, max(1, (int) round($sessionDur * 0.75))) : 1;
             $out[] = $this->timelineEvent([
                 'type' => 'cta',
-                'label' => 'Call click',
-                'event' => 'call_button_click',
+                'label' => 'CTA click',
+                'event' => 'cta_click',
                 'kind' => 'CTA click',
                 'time' => $this->formatClock($base + $ctaAt),
                 'elapsed_sec' => $ctaAt,
-                'page' => $pageSlice[min(1, $n - 1)],
-                'note' => 'Call outcome unavailable.',
+                'page' => $pageAt(0.75),
+                'note' => '',
                 'status' => 'Click recorded',
             ]);
         }
 
         usort($out, static fn ($a, $b) => ((int) ($a['elapsed_sec'] ?? 0)) <=> ((int) ($b['elapsed_sec'] ?? 0)));
 
-        return $this->finalizeTimelineExits($out, $row, $sessionDur, $base);
+        return $out;
+    }
+
+    /**
+     * @param  array<string, mixed>  $ev
+     */
+    private function behaviorEventDedupeKey(array $ev): string
+    {
+        $type = strtolower((string) ($ev['type'] ?? $ev['kind'] ?? ''));
+        $label = strtolower(trim((string) ($ev['label'] ?? $ev['detail'] ?? $ev['event'] ?? '')));
+        $elapsed = (int) ($ev['elapsed_sec'] ?? 0);
+        if ($elapsed <= 0) {
+            $raw = (int) ($ev['t'] ?? 0);
+            $elapsed = $raw >= 1000 ? (int) floor($raw / 1000) : $raw;
+        }
+
+        return $type.'|'.$elapsed.'|'.$label;
     }
 
     /**
@@ -1125,7 +1300,9 @@ class VisitorJourneyIntelligence
         $rawT = (int) ($ev['t'] ?? 0);
         if ($rawT > 0) {
             // Recorder may send ms (>= 1000 for multi-second) or seconds.
-            return $rawT >= 1000 ? (int) floor($rawT / 1000) : $rawT;
+            $sec = $rawT >= 1000 ? (int) floor($rawT / 1000) : $rawT;
+            // Keep sub-second actions visible on the lane (short sessions hid t=0).
+            return $sec > 0 ? $sec : 1;
         }
         if ($sessionStartTs !== null && ! empty($ev['at'])) {
             $at = $this->parseFlexibleUnix((string) $ev['at']);
@@ -1166,7 +1343,8 @@ class VisitorJourneyIntelligence
     {
         return match ($type) {
             'scroll' => 'Scroll',
-            'cta' => 'Call button clicked',
+            'cta' => 'CTA clicked',
+            'phone' => 'Phone click',
             'form' => (str_contains(strtolower($label), 'availability') ? 'Availability checked' : 'Form submitted'),
             'exit' => 'Session ended',
             default => (str_starts_with($label, '/') ? 'Page viewed' : ($label !== '' ? $label : 'Page viewed')),
@@ -1182,7 +1360,8 @@ class VisitorJourneyIntelligence
 
         return match ($type) {
             'scroll' => 'scroll',
-            'cta' => 'call_button_click',
+            'cta' => 'cta_click',
+            'phone' => 'phone_click',
             'form' => 'form_submit',
             'exit' => 'session_end',
             default => 'page_view',
@@ -1191,18 +1370,28 @@ class VisitorJourneyIntelligence
 
     private function normalizeEventType(string $raw): string
     {
-        $s = strtolower($raw);
+        $s = strtolower(trim($raw));
+        if ($s === '') {
+            return 'page';
+        }
+        // Phone before generic "click" (phone_click contains "click").
+        if (preg_match('/\b(phone|tel_click|tel:|callto|sms:|call_click|call click|call now)\b/', $s)
+            || str_starts_with($s, 'phone')
+            || str_contains($s, 'phone_click')
+            || str_contains($s, 'tel_click')) {
+            return 'phone';
+        }
         if (str_contains($s, 'scroll')) {
             return 'scroll';
-        }
-        if (str_contains($s, 'cta') || str_contains($s, 'call') || str_contains($s, 'click')) {
-            return 'cta';
         }
         if (str_contains($s, 'form') || str_contains($s, 'submit') || str_contains($s, 'availability')) {
             return 'form';
         }
-        if (str_contains($s, 'exit') || str_contains($s, 'end') || str_contains($s, 'session_end')) {
+        if (str_contains($s, 'exit') || str_contains($s, 'session_end') || $s === 'end') {
             return 'exit';
+        }
+        if (str_contains($s, 'cta') || str_contains($s, 'click') || str_contains($s, 'commerce') || str_contains($s, 'cart') || str_contains($s, 'purchase')) {
+            return 'cta';
         }
 
         return 'page';
@@ -1213,6 +1402,7 @@ class VisitorJourneyIntelligence
         return match ($type) {
             'scroll' => 'Scroll',
             'cta' => 'CTA click',
+            'phone' => 'Phone click',
             'form' => 'Form submit',
             'exit' => 'Exit',
             default => 'Page view',
@@ -1223,7 +1413,7 @@ class VisitorJourneyIntelligence
     {
         return match ($type) {
             'scroll' => 'Scroll recorded',
-            'cta' => 'Click recorded',
+            'cta', 'phone' => 'Click recorded',
             'form' => 'Submitted',
             'exit' => 'Session ended',
             default => 'Page viewed',
@@ -1233,11 +1423,14 @@ class VisitorJourneyIntelligence
     private function shortEventLabel(string $label, string $type): string
     {
         $label = trim($label);
+        if ($type === 'phone') {
+            return 'Phone click';
+        }
         if ($type === 'cta') {
-            return 'Call click';
+            return strlen($label) > 0 && ! preg_match('/^(cta|call)/i', $label) ? mb_substr($label, 0, 24) : 'CTA click';
         }
         if ($type === 'form') {
-            return strlen($label) > 18 ? 'Form submit' : $label;
+            return strlen($label) > 18 ? 'Form submit' : ($label !== '' ? $label : 'Form submit');
         }
         if ($type === 'exit') {
             return 'Exit';

@@ -10,10 +10,19 @@ class SessionClickClassifier
     public static function isTelHref(string $href): bool
     {
         $href = strtolower(trim($href));
+        if ($href === '') {
+            return false;
+        }
+        // Accept tel: / callto: / sms: even with whitespace or // after the scheme.
+        if (preg_match('/^(tel|callto|sms):/i', $href)) {
+            return true;
+        }
+        // Some builders put the scheme mid-string or wrap it.
+        if (preg_match('/(?:^|[\\"\'\\s])(tel|callto|sms):\\+?\\d/i', $href)) {
+            return true;
+        }
 
-        return str_starts_with($href, 'tel:')
-            || str_starts_with($href, 'callto:')
-            || str_starts_with($href, 'sms:');
+        return false;
     }
 
     /**

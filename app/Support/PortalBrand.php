@@ -10,7 +10,7 @@ class PortalBrand
     {
         $brand = self::match($host);
 
-        return $brand['name'] ?? (string) config('app.name', 'Digital Promotix');
+        return $brand['name'] ?? (string) config('app.name', 'Clickronix');
     }
 
     public static function slug(?string $host = null): string
@@ -20,7 +20,7 @@ class PortalBrand
             return Str::slug((string) $brand['name']);
         }
 
-        return 'promotix';
+        return 'clickronix';
     }
 
     /**

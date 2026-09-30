@@ -10,7 +10,7 @@ class BillingAccess
 {
     public static function hasProtectionAccess(User $user): bool
     {
-        if ($user->is_super_admin || $user->is_admin) {
+        if ($user->isSuperAdmin() || $user->is_admin) {
             return true;
         }
 

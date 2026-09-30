@@ -46,6 +46,18 @@ class AccountCurrency
         if ($tz === 'Asia/Karachi' || str_contains(strtoupper($tz), 'KARACHI')) {
             return 'PKR';
         }
+        // UAE (Dubai / Abu Dhabi / Muscat Gulf hubs) → AED.
+        if (
+            str_starts_with($tz, 'Asia/Dubai')
+            || str_starts_with($tz, 'Asia/Muscat')
+            || str_contains(strtoupper($tz), 'DUBAI')
+            || str_contains(strtoupper($tz), 'ABU_DHABI')
+        ) {
+            return 'AED';
+        }
+        if (str_starts_with($tz, 'Asia/Riyadh') || str_contains(strtoupper($tz), 'RIYADH')) {
+            return 'SAR';
+        }
         if (str_starts_with($tz, 'Europe/London') || $tz === 'GB') {
             return 'GBP';
         }

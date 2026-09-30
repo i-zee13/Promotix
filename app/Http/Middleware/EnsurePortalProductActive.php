@@ -51,7 +51,7 @@ class EnsurePortalProductActive
         }
 
         $user = $request->user();
-        if ($user && ($user->is_super_admin ?? false)) {
+        if ($user && $user->isSuperAdmin()) {
             return $next($request);
         }
 

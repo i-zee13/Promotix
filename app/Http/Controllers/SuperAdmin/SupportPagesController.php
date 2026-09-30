@@ -704,6 +704,16 @@ class SupportPagesController extends Controller
                     'note' => 'Toggle Off hides Audience Exclusion in the customer portal',
                 ]);
             }
+            if ($row['name'] === 'placement-exclusion') {
+                $row['settings'] = array_merge($row['settings'] ?? [], [
+                    'note' => 'Toggle Off hides Placement Exclusions in the customer portal',
+                ]);
+            }
+            if ($row['name'] === 'pixel-guard') {
+                $row['settings'] = array_merge($row['settings'] ?? [], [
+                    'note' => 'Toggle Off hides Open Pixel Guard in the customer portal',
+                ]);
+            }
 
             return array_merge($row, $meta);
         })->values()->all();

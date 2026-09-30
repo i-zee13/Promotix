@@ -23,6 +23,7 @@ class AdminUserSeeder extends Seeder
                 'email' => 'admin@example.com',
                 'password' => Hash::make('password'),
                 'is_admin' => true,
+                'is_super_admin' => true,
                 'role_id' => $superAdmin?->id,
             ]
         );

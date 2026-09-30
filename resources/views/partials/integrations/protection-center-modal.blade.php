@@ -16,7 +16,7 @@
             </button>
         </header>
         <div class="flex shrink-0 flex-wrap gap-[4px] border-b border-white/10 px-[16px] pt-[8px]">
-            <template x-for="tab in protectionCenter.tabs" :key="tab.id">
+            <template x-for="tab in protectionCenterTabs" :key="tab.id">
                 <button type="button" class="rounded-t-[8px] px-[14px] py-[10px] text-[12px] font-semibold"
                     :class="protectionCenter.tab === tab.id ? 'bg-[var(--brand-primary)] text-white' : 'text-white/55 hover:text-white'"
                     @click="protectionCenter.tab = tab.id" x-text="tab.label"></button>
@@ -32,16 +32,16 @@
                     <p class="text-[13px] font-semibold">Audience exclusion</p>
                     <p class="mt-[6px] text-[11px] text-white/55">GA4 custom-event audience wizard — method → rule → apply.</p>
                 </button>
-                <button type="button" class="rounded-[10px] border border-white/15 bg-[#0d0d0d] p-[14px] text-left hover:border-[var(--brand-primary)]/50" @click="closeProtectionCenter(); openPlacementModal()">
+                <button type="button" class="rounded-[10px] border border-white/15 bg-[#0d0d0d] p-[14px] text-left hover:border-[var(--brand-primary)]/50" x-show="placementExclusionAvailable" @click="closeProtectionCenter(); openPlacementModal()">
                     <p class="text-[13px] font-semibold">Placement exclusions</p>
                     <p class="mt-[6px] text-[11px] text-white/55">Recommend and apply placement blocks with allowlist rules.</p>
                 </button>
-                <button type="button" class="rounded-[10px] border border-white/15 bg-[#0d0d0d] p-[14px] text-left hover:border-[var(--brand-primary)]/50" @click="closeProtectionCenter(); openPixelGuardModal()">
+                <button type="button" class="rounded-[10px] border border-white/15 bg-[#0d0d0d] p-[14px] text-left hover:border-[var(--brand-primary)]/50" x-show="pixelGuardAvailable" @click="closeProtectionCenter(); openPixelGuardModal()">
                     <p class="text-[13px] font-semibold">Pixel Guard</p>
                     <p class="mt-[6px] text-[11px] text-white/55">Consent-gated conversion / event firing policy.</p>
                 </button>
             </div>
-            <div x-show="protectionCenter.tab === 'pixel'" x-cloak class="space-y-[12px]">
+            <div x-show="protectionCenter.tab === 'pixel' && pixelGuardAvailable" x-cloak class="space-y-[12px]">
                 <p class="text-[12px] text-white/70">Pixel Guard blocks conversion / remarketing pixels when traffic is confirmed invalid and consent allows analytics/ad storage.</p>
                 <ul class="list-disc space-y-[6px] pl-[18px] text-[12px] text-white/65">
                     <li>Never fire conversions on invalid verdicts</li>
@@ -70,7 +70,7 @@
                 <button type="button" class="rounded-[6px] border border-white/30 px-[16px] py-[8px] text-[13px]" x-show="audienceExclusionAvailable" @click="closeProtectionCenter(); openCreateAudienceModal()">Create GA4 audience</button>
                 <button type="button" class="rounded-[6px] border border-white/30 px-[16px] py-[8px] text-[13px]" x-show="audienceExclusionAvailable" @click="closeProtectionCenter(); openApplyAudienceModal()">Apply audience exclusion</button>
             </div>
-            <div x-show="protectionCenter.tab === 'placement'" x-cloak>
+            <div x-show="protectionCenter.tab === 'placement' && placementExclusionAvailable" x-cloak>
                 <button type="button" class="rounded-[6px] bg-[var(--brand-primary)] px-[16px] py-[8px] text-[13px] font-semibold" @click="closeProtectionCenter(); openPlacementModal()">Open Placement exclusions</button>
             </div>
         </div>

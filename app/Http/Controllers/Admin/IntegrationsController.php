@@ -3118,6 +3118,14 @@ class IntegrationsController extends Controller
 
     public function pixelGuardGet(Request $request): JsonResponse
     {
+        if (! AdminIntegrationCatalog::pixelGuardAvailableForUser($request->user())) {
+            return response()->json([
+                'accounts' => [],
+                'mappings' => [],
+                'message' => 'Pixel Guard is disabled for this workspace.',
+            ], 403);
+        }
+
         $userId = $request->user()->id;
 
         $accounts = GoogleAdsAccount::query()
@@ -3139,6 +3147,13 @@ class IntegrationsController extends Controller
 
     public function pixelGuardSave(Request $request): JsonResponse
     {
+        if (! AdminIntegrationCatalog::pixelGuardAvailableForUser($request->user())) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Pixel Guard is disabled for this workspace.',
+            ], 403);
+        }
+
         $data = $request->validate([
             'account_id' => ['required', 'integer'],
             'google_tag_id' => ['required', 'string', 'max:120'],

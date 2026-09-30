@@ -459,10 +459,9 @@ class PageAnalyticsAggregator
             $transactions = max($transactions, $purchases);
             $conversionRate = round(($purchases / $sessionCount) * 100, 2);
         }
-        // Ambiguous lead paths: journey "CTA / Form" — split so neither step stays empty.
+        // Ambiguous lead paths → CTA only (do not invent Form Fills on formless sites).
         if ($formFills === 0 && $ctaClicks === 0 && $pathHits['cta_or_form'] > 0) {
-            $formFills = (int) ceil($pathHits['cta_or_form'] / 2);
-            $ctaClicks = (int) floor($pathHits['cta_or_form'] / 2);
+            $ctaClicks = $pathHits['cta_or_form'];
         } elseif ($formFills > 0 && $ctaClicks === 0 && $pathHits['cta_or_form'] > $formFills) {
             $ctaClicks = $pathHits['cta_or_form'] - $formFills;
         }
@@ -475,7 +474,7 @@ class PageAnalyticsAggregator
             $validUsers = $human;
         }
 
-        $liveVisitors = $this->countLiveVisitors($domainIds, 5, true);
+        $liveVisitors = $this->countLiveVisitors($domainIds, 5, true, $filters);
         $inactiveVisitors = max(0, $total - $liveVisitors);
 
         $googleClicks = (int) ($adsTotals['clicks'] ?? 0);
@@ -599,6 +598,8 @@ class PageAnalyticsAggregator
                 'tel' => $telClicks,
                 'forms' => $formFills,
                 'cta' => $ctaClicks,
+                'carts' => $carts,
+                'checkouts' => $checkouts,
             ])),
             'conversion_summary' => [
                 'rate' => number_format($conversionRate, 2).'%',
@@ -801,12 +802,36 @@ class PageAnalyticsAggregator
     }
 
 
+    /**
+     * Live Ads visitors in the recent window (Page Analytics Live Visitors card).
+     *
+     * @param  list<int>  $domainIds
+     * @param  array<string, mixed>  $filters
+     */
+    public function liveVisitorCount(array $domainIds, int $minutes = 5, array $filters = []): int
+    {
+        return $this->countLiveVisitors($domainIds, $minutes, true, $filters);
+    }
+
     /** @param  list<int>  $domainIds */
-    private function countLiveVisitors(array $domainIds, int $minutes = 5, bool $paidOnly = false): int
+    private function countLiveVisitors(array $domainIds, int $minutes = 5, bool $paidOnly = false, array $filters = []): int
     {
         if ($domainIds === [] || ! Schema::hasTable('visits')) {
             return 0;
         }
+
+        $domainIds = collect($domainIds)->map(fn ($id) => (int) $id)->filter()->values()->all();
+        $adsLinkedDomainIds = Domain::query()
+            ->whereIn('id', $domainIds)
+            ->forPaidMarketing()
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+        if ($adsLinkedDomainIds === []) {
+            return 0;
+        }
+        $domainIds = $adsLinkedDomainIds;
 
         $query = DB::table('visits')
             ->whereIn('domain_id', $domainIds)
@@ -823,6 +848,17 @@ class PageAnalyticsAggregator
             } else {
                 GoogleClickAttribution::applyHasClickIdFilter($query);
             }
+        }
+
+        $this->applyVisitFilters($query, array_merge($filters, [
+            'ads_linked_domain_ids' => $domainIds,
+        ]));
+
+        // Prefer distinct sessions when available (true “live visitors”).
+        if (Schema::hasColumn('visits', 'session_id')) {
+            return (int) $query->clone()
+                ->selectRaw("COUNT(DISTINCT COALESCE(NULLIF(session_id, ''), CONCAT('ip:', ip))) as c")
+                ->value('c');
         }
 
         return (int) $query->count();
@@ -1695,35 +1731,61 @@ class PageAnalyticsAggregator
             ->all();
     }
 
-    /** @param  array{purchases:int,revenue:float,transactions:int,trend:list<int>,cta:int,tel:int,forms:int,carts:int,checkouts:int,product_views:int}  $stats */
+    /** @param  array{purchases?:int,revenue?:float,transactions?:int,trend?:list<int>,cta?:int,tel?:int,forms?:int,carts?:int,checkouts?:int,product_views?:int}  $stats */
     private function buildFunnel(int $total, array $stats): array
     {
-        $views = max(1, (int) ($stats['product_views'] ?? $total));
+        $productViews = (int) ($stats['product_views'] ?? 0);
+        $views = $productViews > 0 ? $productViews : max(0, $total);
         $cart = (int) ($stats['carts'] ?? 0);
         $checkout = (int) ($stats['checkouts'] ?? 0);
         $purchase = (int) ($stats['purchases'] ?? 0);
         $forms = (int) ($stats['forms'] ?? 0);
         $cta = (int) ($stats['cta'] ?? 0);
-
-        // Keep funnel monotonic where possible for the ecommerce spine.
-        if ($checkout > $cart && $cart === 0) {
-            $cart = $checkout;
-        }
-        if ($purchase > $checkout && $checkout === 0) {
-            $checkout = $purchase;
-        }
-
         $tel = (int) ($stats['tel'] ?? 0);
-        $steps = [
-            ['key' => 'views', 'label' => 'Product Views', 'value' => $views],
-            ['key' => 'cart', 'label' => 'Add to Cart', 'value' => $cart],
-            ['key' => 'checkout', 'label' => 'Initiated Checkout', 'value' => $checkout],
-            ['key' => 'purchase', 'label' => 'Purchases', 'value' => $purchase],
-            ['key' => 'form', 'label' => 'Form Fills', 'value' => $forms],
-            ['key' => 'cta', 'label' => 'CTA Clicks', 'value' => $cta],
-            ['key' => 'tel', 'label' => 'Call Clicks', 'value' => $tel],
+
+        // Only shape an ecommerce spine when this domain actually has commerce activity.
+        $hasCommerce = $cart > 0 || $checkout > 0 || $purchase > 0;
+        if ($hasCommerce) {
+            if ($checkout > $cart && $cart === 0) {
+                $cart = $checkout;
+            }
+            if ($purchase > $checkout && $checkout === 0) {
+                $checkout = $purchase;
+            }
+        }
+
+        $candidates = [
+            [
+                'key' => 'views',
+                'label' => ($hasCommerce || $productViews > 0) ? 'Product Views' : 'Visitors',
+                'value' => $views,
+            ],
         ];
-        $max = max(1, $steps[0]['value']);
+        if ($hasCommerce) {
+            $candidates[] = ['key' => 'cart', 'label' => 'Add to Cart', 'value' => $cart];
+            $candidates[] = ['key' => 'checkout', 'label' => 'Initiated Checkout', 'value' => $checkout];
+            $candidates[] = ['key' => 'purchase', 'label' => 'Purchases', 'value' => $purchase];
+        }
+        // Domain-specific lead steps — omit zeros so formless sites never show Form Fills, etc.
+        if ($forms > 0) {
+            $candidates[] = ['key' => 'form', 'label' => 'Form Fills', 'value' => $forms];
+        }
+        if ($cta > 0) {
+            $candidates[] = ['key' => 'cta', 'label' => 'CTA Clicks', 'value' => $cta];
+        }
+        if ($tel > 0) {
+            $candidates[] = ['key' => 'tel', 'label' => 'Call Clicks', 'value' => $tel];
+        }
+
+        $steps = array_values(array_filter(
+            $candidates,
+            static fn (array $s): bool => (int) ($s['value'] ?? 0) > 0
+        ));
+        if ($steps === []) {
+            return [];
+        }
+
+        $max = max(1, (int) $steps[0]['value']);
 
         return array_map(fn ($s) => [
             ...$s,

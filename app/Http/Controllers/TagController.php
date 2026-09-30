@@ -46,12 +46,9 @@ class TagController extends Controller
         $collectUrlJson = $this->json($collectUrl);
         $sessionRecordingUrlJson = $this->json($sessionRecordingUrl);
         $ipCheckUrlJson = $this->json($ipCheckUrl);
-        $brandNameJson = $this->json(\App\Support\PortalBrand::name());
-        $portalLogos = \App\Support\PortalBrand::logoUrls();
-        // Dark overlay → light (white) logo mark
-        $brandLogoUrlJson = $this->json(
-            ($portalLogos['light'] ?? null) ?: \App\Support\Branding::logoAsset('light')
-        );
+        // Customer-facing block page always uses Clickronix (not host/APP_NAME PromoTix).
+        $brandNameJson = $this->json('Clickronix');
+        $brandLogoUrlJson = $this->json(\App\Support\Branding::logoAsset('light'));
 
         $js = <<<JS
 (function(){
@@ -171,8 +168,9 @@ class TagController extends Controller
       overlay.id = 'pm-block-overlay';
       overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483646;background:#0d0d0d;color:#fff;display:flex;align-items:center;justify-content:center;font:16px/1.4 system-ui,sans-serif;text-align:center;padding:24px;';
       var name = brandName || 'Clickronix';
-      var logo = brandLogoUrl
-        ? '<img src="'+String(brandLogoUrl).replace(/"/g,'&quot;')+'" alt="'+String(name).replace(/"/g,'&quot;')+'" width="180" height="48" style="display:block;margin:0 auto 20px;max-width:min(220px,70vw);height:auto;">'
+      var logoUrl = brandLogoUrl || '';
+      var logo = logoUrl
+        ? '<img src="'+String(logoUrl).replace(/"/g,'&quot;')+'" alt="'+String(name).replace(/"/g,'&quot;')+'" width="180" height="48" decoding="async" referrerpolicy="no-referrer" style="display:block;margin:0 auto 20px;max-width:min(220px,70vw);height:auto;">'
         : '';
       overlay.innerHTML = '<div>'+logo+'<p style="font-size:20px;font-weight:600;margin:0 0 8px;">Access restricted</p><p style="opacity:.75;margin:0;">This visit was blocked by '+String(name).replace(/</g,'&lt;')+' protection.</p></div>';
       (document.body || document.documentElement).appendChild(overlay);
@@ -196,8 +194,13 @@ class TagController extends Controller
       if (document.getElementById('pm-block-overlay')) return;
       var overlay = document.createElement('div');
       overlay.id = 'pm-block-overlay';
-      overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483646;background:#111;color:#fff;display:flex;align-items:center;justify-content:center;font:16px/1.4 system-ui,sans-serif;text-align:center;padding:24px;';
-      overlay.innerHTML = '<div><p style="font-size:42px;font-weight:700;margin:0 0 8px;">403</p><p style="opacity:.75;margin:0;">Forbidden</p></div>';
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483646;background:#0d0d0d;color:#fff;display:flex;align-items:center;justify-content:center;font:16px/1.4 system-ui,sans-serif;text-align:center;padding:24px;';
+      var name = brandName || 'Clickronix';
+      var logoUrl = brandLogoUrl || '';
+      var logo = logoUrl
+        ? '<img src="'+String(logoUrl).replace(/"/g,'&quot;')+'" alt="'+String(name).replace(/"/g,'&quot;')+'" width="180" height="48" decoding="async" referrerpolicy="no-referrer" style="display:block;margin:0 auto 16px;max-width:min(220px,70vw);height:auto;">'
+        : '';
+      overlay.innerHTML = '<div>'+logo+'<p style="font-size:42px;font-weight:700;margin:0 0 8px;">403</p><p style="opacity:.75;margin:0;">Forbidden — blocked by '+String(name).replace(/</g,'&lt;')+' protection.</p></div>';
       (document.body || document.documentElement).appendChild(overlay);
       document.documentElement.style.overflow = 'hidden';
     } catch (e) {}
@@ -530,7 +533,16 @@ class TagController extends Controller
     }
 
     function closestActionEl(el){
+      // Prefer any ancestor that is a tel/callto/sms link (nested icon/span clicks).
       var node = el;
+      while (node && node !== document && node !== document.documentElement) {
+        if (node.getAttribute) {
+          var telHref = readHref(node);
+          if (isTelHref(telHref) || isTelDataAttr(node)) return node;
+        }
+        node = node.parentElement;
+      }
+      node = el;
       while (node && node !== document && node !== document.documentElement) {
         if (!node.tagName) { node = node.parentElement; continue; }
         var tag = String(node.tagName).toUpperCase();
@@ -542,13 +554,53 @@ class TagController extends Controller
       return el;
     }
 
+    function readHref(el){
+      if (!el) return '';
+      try {
+        var attr = el.getAttribute && el.getAttribute('href');
+        if (attr != null && String(attr).trim() !== '') return String(attr).trim();
+      } catch (eAttr) {}
+      try {
+        var prop = el.href;
+        if (prop == null) return '';
+        // SVG <a href> exposes SVGAnimatedString, not a plain string.
+        if (typeof prop === 'object' && prop.baseVal != null) return String(prop.baseVal || '').trim();
+        return String(prop).trim();
+      } catch (eProp) {}
+      return '';
+    }
+
     function isTelHref(href){
       var h = String(href || '').trim().toLowerCase();
-      return h.indexOf('tel:') === 0 || h.indexOf('callto:') === 0 || h.indexOf('sms:') === 0;
+      if (!h) return false;
+      if (/^(tel|callto|sms):/i.test(h)) return true;
+      // Rare builders inject scheme after quotes/spaces.
+      if (/(?:^|[\\"\'\\s])(tel|callto|sms):\+?\d/i.test(h)) return true;
+      return false;
+    }
+
+    function isTelDataAttr(el){
+      if (!el || !el.getAttribute) return false;
+      try {
+        var keys = ['data-tel', 'data-phone', 'data-call', 'data-href', 'data-number', 'href'];
+        for (var i = 0; i < keys.length; i++) {
+          var v = el.getAttribute(keys[i]);
+          if (v && isTelHref(String(v))) return true;
+          if (v && keys[i] !== 'href' && looksLikePhoneNumber(String(v))) return true;
+        }
+      } catch (eData) {}
+      return false;
+    }
+
+    function looksLikePhoneNumber(text){
+      var t = String(text || '').replace(/[\\s().+-]/g, '');
+      if (!t) return false;
+      // 7–15 digits, optional leading country code marker already stripped.
+      return /^\\d{7,15}$/.test(t);
     }
 
     function telNumberFromHref(href){
-      return String(href || '').replace(/^(tel|callto|sms):/i, '').trim().slice(0, 64);
+      return String(href || '').replace(/^(tel|callto|sms):\\/*/i, '').trim().slice(0, 64);
     }
 
     function elementText(el){
@@ -558,15 +610,19 @@ class TagController extends Controller
     function isCallLabel(text){
       var t = String(text || '').toLowerCase();
       if (!t || t.length > 80) return false;
-      return /\\b(call\\s*(us|now|today|me|back)?|click\\s*to\\s*call|tap\\s*to\\s*call|phone\\s*(us|now|call)?|dial\\s*(us|now)?|talk\\s*to\\s*(an?\\s*)?(expert|agent|specialist|rep|us)|speak\\s*(to|with)\\s*(an?\\s*)?(expert|agent|specialist|rep|us)|request\\s*(a\\s*)?callback|schedule\\s*(a\\s*)?call)\\b/.test(t);
+      if (/\\b(call\\s*(us|now|today|me|back)?|click\\s*to\\s*call|tap\\s*to\\s*call|phone\\s*(us|now|call)?|dial\\s*(us|now)?|talk\\s*to\\s*(an?\\s*)?(expert|agent|specialist|rep|us)|speak\\s*(to|with)\\s*(an?\\s*)?(expert|agent|specialist|rep|us)|request\\s*(a\\s*)?callback|schedule\\s*(a\\s*)?call)\\b/.test(t)) return true;
+      // Bare phone number as the link/button label (common on ISP lead-gen sites).
+      if (looksLikePhoneNumber(t)) return true;
+      return false;
     }
 
     function isCallEl(el){
       if (!el || !el.tagName) return false;
+      if (isTelDataAttr(el)) return true;
       if (el.getAttribute && (el.getAttribute('data-call') != null || el.getAttribute('data-phone') != null || /^(call|phone|tel)$/i.test(String(el.getAttribute('data-action') || '')))) return true;
       var cls = String(el.className || '').toLowerCase();
       var id = String(el.id || '').toLowerCase();
-      if (/\\b(click[_-]?to[_-]?call|call[_-]?now|call[_-]?btn|call[_-]?button|phone[_-]?btn|phone[_-]?button|tel[_-]?btn|tel[_-]?link|calltracker|callrail|whatconverts)\\b/.test(cls + ' ' + id)) return true;
+      if (/\\b(click[_-]?to[_-]?call|call[_-]?now|call[_-]?btn|call[_-]?button|phone[_-]?btn|phone[_-]?button|phone[_-]?number|tel[_-]?btn|tel[_-]?link|calltracker|callrail|whatconverts)\\b/.test(cls + ' ' + id)) return true;
       return isCallLabel(elementText(el));
     }
 
@@ -620,11 +676,13 @@ class TagController extends Controller
     }
 
     function elementMeta(target){
-      var href = '';
+      var href = readHref(target);
+      if (!href && target && target.getAttribute) {
+        try {
+          href = String(target.getAttribute('data-tel') || target.getAttribute('data-phone') || target.getAttribute('data-href') || '').trim();
+        } catch (eDataHref) { href = href || ''; }
+      }
       var text = '';
-      try {
-        href = String((target && (target.href || (target.getAttribute && target.getAttribute('href')))) || '');
-      } catch (err) { href = ''; }
       try {
         text = String((target && (target.innerText || target.textContent || target.value || '')) || '').replace(/\\s+/g, ' ').trim().slice(0, 120);
       } catch (err2) { text = ''; }
@@ -649,15 +707,17 @@ class TagController extends Controller
     function onClick(e){
       var target = closestActionEl(e.target);
       var meta = elementMeta(target);
-      var tel = isTelHref(meta.href) || isCallEl(target);
+      var tel = isTelHref(meta.href) || isTelDataAttr(target) || isCallEl(target);
       var commerce = !tel && commerceKind(target);
       var cta = !tel && !commerce && isCtaEl(target);
 
       if (tel) {
         push('phone_click', Object.assign({}, meta, {
-          tel_number: telNumberFromHref(meta.href),
+          tel_number: telNumberFromHref(meta.href) || (looksLikePhoneNumber(meta.element_text) ? String(meta.element_text).replace(/[^\\d+]/g, '').slice(0, 64) : ''),
           link_type: 'tel'
         }));
+        // Dialer freezes/unloads the page before pagehide on many mobiles — flush now.
+        finishRecording();
       } else if (commerce) {
         push(commerce, Object.assign({}, meta, {
           product_name: meta.element_text || undefined
@@ -892,19 +952,26 @@ class TagController extends Controller
       } catch (histRestoreErr) {}
       window.__pmRecording = false;
       try {
+        var body = JSON.stringify({
+          domainKey: domainKey,
+          session_id: sessionId(),
+          visitor_id: visitorId(),
+          visit_id: meta.visit_id || null,
+          page_url: String(location.href || ''),
+          duration_ms: Date.now() - started,
+          threat_group: meta.threat_group || null,
+          events: events
+        });
+        if (navigator.sendBeacon) {
+          try {
+            var blob = new Blob([body], { type: 'application/json' });
+            if (navigator.sendBeacon(sessionRecordingUrl, blob)) return;
+          } catch (eBeacon) {}
+        }
         fetch(sessionRecordingUrl, {
           method: 'POST',
           headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({
-            domainKey: domainKey,
-            session_id: sessionId(),
-            visitor_id: visitorId(),
-            visit_id: meta.visit_id || null,
-            page_url: String(location.href || ''),
-            duration_ms: Date.now() - started,
-            threat_group: meta.threat_group || null,
-            events: events
-          }),
+          body: body,
           mode: 'cors',
           credentials: 'omit',
           keepalive: true

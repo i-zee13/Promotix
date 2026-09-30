@@ -25,9 +25,11 @@
     <button type="button" class="figma-platform-menu-item w-full text-left" @click="$dispatch('platform-menu', { action: 'copy-tracking' })" title="Copy Promotix tag script URL to clipboard">
         Copy Tracking Link
     </button>
-    <button type="button" class="figma-platform-menu-item w-full text-left" @click="openPixelGuardModal()">
-        Open Pixel Guard
-    </button>
+    @if (\App\Support\AdminIntegrationCatalog::pixelGuardAvailableForUser(auth()->user()))
+        <button type="button" class="figma-platform-menu-item w-full text-left" @click="openPixelGuardModal()">
+            Open Pixel Guard
+        </button>
+    @endif
     @if (\App\Support\AdminIntegrationCatalog::audienceExclusionAvailableForUser(auth()->user()))
         <button type="button" class="figma-platform-menu-item w-full text-left" @click="openAudienceMethodModal()">
             Open Audience Exclusion / Connect platforms
@@ -39,9 +41,11 @@
     <button type="button" class="figma-platform-menu-item w-full text-left" @click="openIpExclusionsModal()">
         IP exclusions
     </button>
-    <button type="button" class="figma-platform-menu-item w-full text-left" @click="openPlacementModal()">
-        Placement exclusions
-    </button>
+    @if (\App\Support\AdminIntegrationCatalog::placementExclusionAvailableForUser(auth()->user()))
+        <button type="button" class="figma-platform-menu-item w-full text-left" @click="openPlacementModal()">
+            Placement exclusions
+        </button>
+    @endif
     <button type="button" class="figma-platform-menu-item w-full text-left" @click="openTrackingTemplateModal()">
         Tracking template
     </button>

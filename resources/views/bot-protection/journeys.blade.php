@@ -522,6 +522,7 @@
             .vj-ev-icon.is-page { color:#38BDF8; }
             .vj-ev-icon.is-scroll { color:#A78BFA; }
             .vj-ev-icon.is-cta { color:#F59E0B; }
+            .vj-ev-icon.is-phone { color:#34D399; }
             .vj-ev-icon.is-form { color:#22C55E; }
             .vj-ev-icon.is-exit { color:#F43F5E; }
             .vj-tooltip {
@@ -643,18 +644,31 @@
                 width:14px; height:14px; border-radius:999px; background:var(--brand-primary, #FF6600); border:2px solid #121212;
                 z-index:1; margin-top:3px; box-shadow:0 0 0 2px rgba(255,102,0,.25);
             }
-            .vj-sj-node.is-exit { background:rgba(255,255,255,.55); box-shadow:none; border-radius:3px; }
+            .vj-sj-node.is-exit { background:rgba(244,63,94,.9); box-shadow:none; border-radius:3px; }
+            .vj-sj-node.is-page { background:#38BDF8; box-shadow:0 0 0 2px rgba(56,189,248,.25); }
+            .vj-sj-node.is-scroll { background:#A78BFA; box-shadow:0 0 0 2px rgba(167,139,250,.25); }
+            .vj-sj-node.is-cta { background:#F59E0B; box-shadow:0 0 0 2px rgba(245,158,11,.25); }
+            .vj-sj-node.is-phone { background:#34D399; box-shadow:0 0 0 2px rgba(52,211,153,.25); }
+            .vj-sj-node.is-form { background:#22C55E; box-shadow:0 0 0 2px rgba(34,197,94,.25); }
             .vj-sj-gap {
                 grid-column:1 / -1; text-align:center; font-size:10px; color:rgba(255,255,255,.3);
                 padding:2px 0 6px 90px;
             }
-            .vj-sj-body__title { font-size:13px; font-weight:650; color:#fff; }
+            .vj-sj-body__title { font-size:13px; font-weight:650; color:#fff; display:flex; align-items:center; gap:6px; }
+            .vj-sj-body__title .vj-ev-icon { width:14px; height:14px; flex:0 0 auto; }
             .vj-sj-body__page { font-size:11px; color:rgba(255,255,255,.45); margin-top:2px; }
+            .vj-sj-body__note { font-size:11px; color:rgba(255,255,255,.55); margin-top:3px; }
             .vj-sj-tag {
                 display:inline-flex; margin-top:6px; border-radius:6px; border:1px solid rgba(255,255,255,.12);
                 background:rgba(255,255,255,.04); color:rgba(255,255,255,.55); font-size:10px;
                 font-family:ui-monospace,Menlo,monospace; padding:2px 7px;
             }
+            .vj-sj-tag.is-phone { background:rgba(52,211,153,.12); color:#6ee7b7; border-color:rgba(52,211,153,.35); }
+            .vj-sj-tag.is-cta { background:rgba(245,158,11,.12); color:#fbbf24; border-color:rgba(245,158,11,.35); }
+            .vj-sj-tag.is-form { background:rgba(34,197,94,.12); color:#4ade80; border-color:rgba(34,197,94,.35); }
+            .vj-sj-tag.is-scroll { background:rgba(167,139,250,.12); color:#c4b5fd; border-color:rgba(167,139,250,.35); }
+            .vj-sj-tag.is-exit { background:rgba(244,63,94,.12); color:#fb7185; border-color:rgba(244,63,94,.35); }
+            .vj-sj-tag.is-page { background:rgba(56,189,248,.12); color:#7dd3fc; border-color:rgba(56,189,248,.35); }
             .vj-sj-footer {
                 margin-top:16px; padding-top:12px; border-top:1px solid rgba(255,255,255,.08);
             }
@@ -837,6 +851,7 @@
             html.light-mode .vj-ev-icon.is-page { color:#0284C7 !important; }
             html.light-mode .vj-ev-icon.is-scroll { color:#7C3AED !important; }
             html.light-mode .vj-ev-icon.is-cta { color:#D97706 !important; }
+            html.light-mode .vj-ev-icon.is-phone { color:#059669 !important; }
             html.light-mode .vj-ev-icon.is-form { color:#16A34A !important; }
             html.light-mode .vj-ev-icon.is-exit { color:#E11D48 !important; }
             html.light-mode .vj-mini-filters select {
@@ -1552,8 +1567,16 @@
                                                         <span x-text="selected.page_views || 0"></span> page views
                                                     </span>
                                                     <span>
-                                                        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.6" d="M5 9l7 4 7-4M5 15l7 4 7-4M5 5l7 4 7-4"/></svg>
-                                                        <span x-text="selected.cta_clicks || 0"></span> CTA click
+                                                        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.6" d="M9 11l3 8 1.5-4.5L18 13z"/><path stroke-width="1.6" d="M4 4l5.5 5.5"/></svg>
+                                                        <span x-text="selected.cta_clicks || 0"></span> CTA
+                                                    </span>
+                                                    <span>
+                                                        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.6" d="M6.5 3.5l2.2 1.1a1.5 1.5 0 01.8 1.7l-.6 2.3a1.5 1.5 0 00.4 1.4l2.4 2.4a1.5 1.5 0 001.4.4l2.3-.6a1.5 1.5 0 011.7.8l1.1 2.2a1.5 1.5 0 01-.8 1.9c-2.1 1-5.8.4-9-2.8s-3.8-6.9-2.8-9a1.5 1.5 0 011.9-.8z"/></svg>
+                                                        <span x-text="selected.tel_clicks || 0"></span> phone
+                                                    </span>
+                                                    <span>
+                                                        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="1.6" d="M8 4h8a2 2 0 012 2v14l-4-2-4 2V6a2 2 0 012-2z"/></svg>
+                                                        <span x-text="selected.form_submits || 0"></span> forms
                                                     </span>
                                                     <span>
                                                         <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" stroke-width="1.6"/><path stroke-width="1.6" d="M12 8v4l2.5 1.5"/></svg>
@@ -1563,26 +1586,30 @@
                                             </div>
 
                                             <div class="vj-sj-tl">
-                                                <template x-for="(ev, idx) in (selected.timeline || [])" :key="'sj-'+ev.id">
+                                                <template x-for="(ev, idx) in sessionJourneyEvents(selected)" :key="'sj-'+ev.id">
                                                     <div>
-                                                        <div class="vj-sj-gap" x-show="idx > 0" x-text="gapLabel(selected.timeline[idx-1], ev)"></div>
+                                                        <div class="vj-sj-gap" x-show="idx > 0" x-text="gapLabel(sessionJourneyEvents(selected)[idx-1], ev)"></div>
                                                         <div class="vj-sj-item">
                                                             <div class="vj-sj-time">
                                                                 <div x-text="ev.time || '—'"></div>
                                                                 <small x-text="'+' + (ev.elapsed || '00:00')"></small>
                                                             </div>
                                                             <div class="vj-sj-rail">
-                                                                <div class="vj-sj-node" :class="{ 'is-exit': ev.type === 'exit' }"></div>
+                                                                <div class="vj-sj-node" :class="'is-' + (ev.type || 'page')"></div>
                                                             </div>
                                                             <div>
-                                                                <div class="vj-sj-body__title" x-text="ev.title || ev.label"></div>
-                                                                <div class="vj-sj-body__page" x-show="ev.type === 'exit'" x-text="'Last page: ' + (ev.page || selected.exit_page || '—')"></div>
-                                                                <div class="vj-sj-body__page" x-show="ev.type !== 'exit'" x-text="ev.page || ''"></div>
-                                                                <span class="vj-sj-tag" x-text="ev.tag || ev.event || ev.type"></span>
+                                                                <div class="vj-sj-body__title">
+                                                                    <span class="vj-ev-icon" :class="'is-' + (ev.type || 'page')" x-html="eventTypeIconSvg(ev.type || 'page')"></span>
+                                                                    <span x-text="sessionJourneyTitle(ev)"></span>
+                                                                </div>
+                                                                <div class="vj-sj-body__page" x-text="sessionJourneyDetail(ev, selected)"></div>
+                                                                <div class="vj-sj-body__note" x-show="ev.note" x-text="ev.note"></div>
+                                                                <span class="vj-sj-tag" :class="'is-' + (ev.type || 'page')" x-text="sessionJourneyTag(ev)"></span>
                                                             </div>
                                                         </div>
                                                     </div>
                                                 </template>
+                                                <div class="vj-empty" style="padding:18px 8px" x-show="!sessionJourneyEvents(selected).length">No activity recorded for this session.</div>
                                             </div>
 
                                             <div class="vj-sj-footer">
@@ -1645,7 +1672,9 @@
                                                 <div class="vj-meta-grid">
                                                     <div class="vj-meta-row"><span>Page views</span><strong x-text="selected.page_views || 0"></strong></div>
                                                     <div class="vj-meta-row"><span>CTA clicks</span><strong x-text="selected.cta_clicks || 0"></strong></div>
+                                                    <div class="vj-meta-row"><span>Phone clicks</span><strong x-text="selected.tel_clicks || 0"></strong></div>
                                                     <div class="vj-meta-row"><span>Form submissions</span><strong x-text="selected.form_submits || 0"></strong></div>
+                                                    <div class="vj-meta-row"><span>Scroll events</span><strong x-text="selected.scroll_events || 0"></strong></div>
                                                 </div>
                                             </div>
 
@@ -2032,10 +2061,11 @@ function visitorJourneyPage() {
             { key: 'page', label: 'Page view' },
             { key: 'scroll', label: 'Scroll' },
             { key: 'cta', label: 'CTA click' },
+            { key: 'phone', label: 'Phone click' },
             { key: 'form', label: 'Form submit' },
             { key: 'exit', label: 'Exit' },
         ],
-        enabledEventTypes: ['page', 'scroll', 'cta', 'form', 'exit'],
+        enabledEventTypes: ['page', 'scroll', 'cta', 'phone', 'form', 'exit'],
         timeScale: '30',
         selectedEvent: null,
         hoverEvent: null,
@@ -2373,7 +2403,8 @@ function visitorJourneyPage() {
                 this.selectedEvent = null;
                 return;
             }
-            const preferred = this.selected.timeline.find((e) => e.type === 'cta')
+            const preferred = this.selected.timeline.find((e) => e.type === 'phone' || e.type === 'phone_click')
+                || this.selected.timeline.find((e) => e.type === 'cta' || e.type === 'cta_click')
                 || this.selected.timeline.find((e) => e.type === 'form')
                 || this.selected.timeline[1]
                 || this.selected.timeline[0];
@@ -2424,15 +2455,26 @@ function visitorJourneyPage() {
 
             rawList.forEach((ev, idx) => {
                 if (!ev || typeof ev !== 'object') return;
-                let type = String(ev.type || '').toLowerCase();
+                let type = String(ev.type || ev.kind || '').toLowerCase();
                 if (type === 'session_exit' || type === 'session_end') type = 'exit';
+                else if (['phone_click', 'tel_click', 'call_click', 'phone'].includes(type)) type = 'phone';
+                else if (type === 'cta_click' || type === 'cta') type = 'cta';
+                else if (['form_submit', 'form_start', 'form_fill', 'form'].includes(type)) type = 'form';
+                else if (['page_view', 'page_change', 'meta', 'page'].includes(type)) type = 'page';
+                else if (type === 'scroll') type = 'scroll';
                 let sec = Math.max(0, Number(ev.elapsed_sec || 0));
                 if (type === 'exit') {
                     if (exitSeen) return;
                     exitSeen = true;
                     if (dur > 0 && sec < dur) sec = dur;
                 }
-                const label = String(ev.label || ev.event || type || 'event');
+                // Prefer a readable action label over raw path for mid-session markers.
+                let label = String(ev.label || ev.event || type || 'event');
+                if (type === 'phone' && (!label || label === 'phone' || label.startsWith('/'))) label = 'Phone click';
+                if (type === 'cta' && (!label || label === 'cta' || label.startsWith('/'))) label = 'CTA click';
+                if (type === 'form' && (!label || label === 'form' || label.startsWith('/'))) label = 'Form submit';
+                if (type === 'scroll' && (!label || label.startsWith('/'))) label = 'Scroll';
+                if (type === 'exit') label = 'Exit';
                 const key = type + '|' + sec + '|' + label.toLowerCase();
                 if (seen.has(key)) return;
                 seen.add(key);
@@ -2474,15 +2516,15 @@ function visitorJourneyPage() {
 
             events.sort((a, b) => a.elapsed_sec - b.elapsed_sec);
 
-            // Short sessions (1–29s): hide the 0:00 starting page marker so Exit (e.g. 0:07)
-            // is not covered by overlapping start labels/times.
+            // Short sessions: hide only the 0:00 landing page marker so Exit isn't covered.
+            // Keep CTA / phone / form / scroll even when they fire in the first second.
             let visible = events;
             if (dur > 0 && dur < 30) {
                 visible = events.filter((e) => {
                     if (e.type === 'exit') return true;
+                    if (['cta', 'phone', 'form', 'scroll'].includes(e.type)) return true;
                     return Number(e.elapsed_sec || 0) > 0;
                 });
-                // If everything was at 0:00 except we filtered them out, keep Exit only.
                 if (!visible.length && events.length) {
                     const exit = events.find((e) => e.type === 'exit') || events[events.length - 1];
                     visible = exit ? [exit] : [];
@@ -2531,8 +2573,12 @@ function visitorJourneyPage() {
             const list = row.timeline || [];
             const enabled = Array.isArray(this.enabledEventTypes) ? this.enabledEventTypes : [];
             return list.filter((e) => {
-                let t = String(e.type || '').toLowerCase();
+                let t = String(e.type || e.kind || '').toLowerCase();
                 if (t === 'session_exit' || t === 'session_end') t = 'exit';
+                else if (['phone_click', 'tel_click', 'call_click', 'phone'].includes(t)) t = 'phone';
+                else if (t === 'cta_click') t = 'cta';
+                else if (['form_submit', 'form_start', 'form_fill'].includes(t)) t = 'form';
+                else if (['page_view', 'page_change', 'meta'].includes(t)) t = 'page';
                 if (enabled.length && !enabled.includes(t)) return false;
                 if (this.eventFilter === 'all') return true;
                 return t === this.eventFilter;
@@ -2549,6 +2595,9 @@ function visitorJourneyPage() {
             }
             if (k === 'cta') {
                 return `<svg ${common}><path d="M9 11l3 8 1.5-4.5L18 13z"/><path d="M4 4l5.5 5.5"/></svg>`;
+            }
+            if (k === 'phone') {
+                return `<svg ${common}><path d="M6.5 3.5l2.2 1.1a1.5 1.5 0 01.8 1.7l-.6 2.3a1.5 1.5 0 00.4 1.4l2.4 2.4a1.5 1.5 0 001.4.4l2.3-.6a1.5 1.5 0 011.7.8l1.1 2.2a1.5 1.5 0 01-.8 1.9c-2.1 1-5.8.4-9-2.8s-3.8-6.9-2.8-9a1.5 1.5 0 011.9-.8z"/></svg>`;
             }
             if (k === 'form') {
                 return `<svg ${common}><path d="M8 4h8a2 2 0 012 2v14l-4-2-4 2V6a2 2 0 012-2z"/><path d="M10 9h4M10 13h4"/></svg>`;
@@ -2574,7 +2623,7 @@ function visitorJourneyPage() {
             }
         },
         resetEventTypes() {
-            this.enabledEventTypes = ['page', 'scroll', 'cta', 'form', 'exit'];
+            this.enabledEventTypes = ['page', 'scroll', 'cta', 'phone', 'form', 'exit'];
             this.eventFilter = 'all';
         },
         eventLeftPct(ev, row = null) {
@@ -2613,6 +2662,73 @@ function visitorJourneyPage() {
             if (d <= 0) return '';
             if (d < 60) return d + 's';
             return Math.floor(d / 60) + 'm ' + String(d % 60).padStart(2, '0') + 's';
+        },
+        sessionJourneyEvents(row) {
+            if (!row) return [];
+            const list = Array.isArray(row.timeline) ? row.timeline : [];
+            return list.map((ev, idx) => {
+                let type = String(ev?.type || ev?.kind || '').toLowerCase();
+                if (type === 'session_exit' || type === 'session_end') type = 'exit';
+                else if (['phone_click', 'tel_click', 'call_click', 'phone'].includes(type)) type = 'phone';
+                else if (type === 'cta_click' || type === 'cta') type = 'cta';
+                else if (['form_submit', 'form_start', 'form_fill', 'form'].includes(type)) type = 'form';
+                else if (type === 'scroll') type = 'scroll';
+                else if (['page_view', 'page_change', 'meta', 'page'].includes(type)) type = 'page';
+                const sec = Math.max(0, Number(ev?.elapsed_sec || 0));
+                return Object.assign({}, ev, {
+                    id: String(ev?.id || (type + '-' + sec + '-' + idx)),
+                    type,
+                    elapsed_sec: sec,
+                    elapsed: ev?.elapsed || this.formatClockPad(sec),
+                    time: ev?.time || '',
+                    note: ev?.note || '',
+                    page: ev?.page || '',
+                    label: ev?.label || '',
+                    title: ev?.title || '',
+                    tag: ev?.tag || '',
+                    event: ev?.event || '',
+                });
+            });
+        },
+        sessionJourneyTitle(ev) {
+            const type = String(ev?.type || '').toLowerCase();
+            if (type === 'phone') return 'Phone click';
+            if (type === 'cta') return String(ev?.title || ev?.label || 'CTA click');
+            if (type === 'form') return String(ev?.title || ev?.label || 'Form submit');
+            if (type === 'scroll') return 'Scroll';
+            if (type === 'exit') return 'Session ended';
+            if (type === 'page') return String(ev?.title || 'Page viewed');
+            return String(ev?.title || ev?.label || 'Activity');
+        },
+        sessionJourneyDetail(ev, row) {
+            const type = String(ev?.type || '').toLowerCase();
+            const page = String(ev?.page || '').trim();
+            if (type === 'exit') return 'Last page: ' + (page || row?.exit_page || '—');
+            if (type === 'phone') {
+                const tel = String(ev?.tel_number || ev?.note || ev?.event || '').trim();
+                if (tel && tel !== 'phone_click' && !tel.startsWith('/')) {
+                    return (page ? page + ' · ' : '') + tel;
+                }
+                return page || 'Click-to-call';
+            }
+            if (type === 'cta' || type === 'form') {
+                const label = String(ev?.label || ev?.event || '').trim();
+                if (label && !label.startsWith('/') && label !== type) {
+                    return (page ? page + ' · ' : '') + label;
+                }
+                return page || '';
+            }
+            return page || '';
+        },
+        sessionJourneyTag(ev) {
+            const type = String(ev?.type || '').toLowerCase();
+            if (type === 'phone') return 'phone_click';
+            if (type === 'cta') return 'cta_click';
+            if (type === 'form') return 'form_submit';
+            if (type === 'scroll') return 'scroll';
+            if (type === 'exit') return 'session_end';
+            if (type === 'page') return 'page_view';
+            return String(ev?.tag || ev?.event || type || 'event');
         },
         deviceIcon(device) {
             const d = String(device || '').toLowerCase();
@@ -2835,57 +2951,8 @@ function visitorJourneyPage() {
             this.$nextTick(() => { this.flowDrawTick++; });
         },
         pathCatalog(colKey) {
-            // Action / outcome: always list essential options (incl. Call CTA) so operators can see them.
-            if (colKey === 'action') {
-                const essential = [
-                    'Page viewed',
-                    'CTA clicked',
-                    'Call button clicked',
-                    'Form submitted',
-                    'Pricing viewed',
-                    'Add to cart',
-                    'Checkout started',
-                    'Payment started',
-                    'Exit',
-                ];
-                const fromData = (this.flowColumn(colKey).nodes || [])
-                    .filter((n) => Number(n.value || 0) > 0)
-                    .map((n) => n.label)
-                    .filter(Boolean);
-                const seen = {};
-                const out = [];
-                essential.concat(fromData).forEach((label) => {
-                    const key = String(label || '').toLowerCase();
-                    if (!key || seen[key]) return;
-                    seen[key] = true;
-                    out.push(label);
-                });
-                return out;
-            }
-            if (colKey === 'outcome') {
-                const essential = [
-                    'Lead confirmed',
-                    'Call connected',
-                    'Form completed',
-                    'Purchase completed',
-                    'Awaiting outcome',
-                    'Exited',
-                ];
-                const fromData = (this.flowColumn(colKey).nodes || [])
-                    .filter((n) => Number(n.value || 0) > 0)
-                    .map((n) => n.label)
-                    .filter(Boolean);
-                const seen = {};
-                const out = [];
-                essential.concat(fromData).forEach((label) => {
-                    const key = String(label || '').toLowerCase();
-                    if (!key || seen[key]) return;
-                    seen[key] = true;
-                    out.push(label);
-                });
-                return out;
-            }
-            // Landing / next: menu = only labels that have real data for this domain/range.
+            // Menu = only labels that have real traffic on this domain/range
+            // (next pages audience hit; actions/outcomes their site actually fired).
             const nodes = (this.flowColumn(colKey).nodes || [])
                 .filter((n) => Number(n.value || 0) > 0)
                 .slice()
@@ -2919,18 +2986,12 @@ function visitorJourneyPage() {
             return false;
         },
         pathOptionActive(col, option) {
-            if ((col?.nodes || []).some((n) => this.pathOptionMatches(n.label, option))) {
-                return true;
-            }
-            // Action / outcome catalogs are always chart-eligible (0 until data arrives).
-            return this.actionOptions.includes(option) || this.outcomeOptions.includes(option);
+            // Only options present in live flow data (count > 0) are selectable.
+            return (col?.nodes || []).some((n) => Number(n.value || 0) > 0 && this.pathOptionMatches(n.label, option));
         },
         pathOptionCount(col, option) {
-            const node = (col?.nodes || []).find((n) => this.pathOptionMatches(n.label, option));
+            const node = (col?.nodes || []).find((n) => this.pathOptionMatches(n.label, option) && Number(n.value || 0) > 0);
             if (node) return Number(node.value || 0).toLocaleString();
-            if (this.actionOptions.includes(option) || this.outcomeOptions.includes(option)) {
-                return '0';
-            }
             return '';
         },
         isUrlPathLabel(label, colKey) {

@@ -12,7 +12,7 @@ class RedirectSuperAdminFromLegacyAdmin
     {
         $user = $request->user();
 
-        if ($user && ($user->is_super_admin ?? false)) {
+        if ($user && $user->isSuperAdmin()) {
             $routeName = $request->route()?->getName();
             $target = config("super-admin.legacy_route_redirects.{$routeName}");
 

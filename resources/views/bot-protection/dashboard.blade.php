@@ -1444,6 +1444,8 @@ function botProtectionFigma(config = {}) {
         },
         countries: [],
         pageAnalytics: null,
+        liveVisitorPollTimer: null,
+        liveVisitorPollMs: 10000,
         keywordHeadlineSource: 'ads',
         perfMenuOpen: false,
         perfMetricCatalog: [
@@ -2245,6 +2247,36 @@ function botProtectionFigma(config = {}) {
             clearTimeout(this.reloadTimer);
             this.reloadTimer = setTimeout(() => this.reload(), this.debounceMs);
         },
+        stopLiveVisitorPoll() {
+            if (this.liveVisitorPollTimer) {
+                clearTimeout(this.liveVisitorPollTimer);
+                this.liveVisitorPollTimer = null;
+            }
+        },
+        startLiveVisitorPoll() {
+            this.stopLiveVisitorPoll();
+            if (this.useDemo) return;
+            const tick = async () => {
+                await this.refreshLiveVisitors();
+                this.liveVisitorPollTimer = setTimeout(tick, this.liveVisitorPollMs || 10000);
+            };
+            // Throttle: first Ads live refresh after 10s, then every 10s.
+            this.liveVisitorPollTimer = setTimeout(tick, this.liveVisitorPollMs || 10000);
+        },
+        async refreshLiveVisitors() {
+            if (this.useDemo || !this.pageAnalytics) return;
+            try {
+                const res = await fetch(`/bot-protection/live-visitors?${this.qs()}`, {
+                    headers: { 'Accept': 'application/json' },
+                    credentials: 'same-origin',
+                });
+                const data = await this.parseJson(res);
+                if (!res.ok || typeof data.live_visitors !== 'number') return;
+                if (!this.pageAnalytics.kpis) this.pageAnalytics.kpis = {};
+                // Append/replace Live Visitors card with the fresh Ads live count.
+                this.pageAnalytics.kpis.live_visitors = Number(data.live_visitors) || 0;
+            } catch (e) {}
+        },
         syncHeaderDates() {
             try {
                 const r = JSON.parse(localStorage.getItem('promotix-date-range') || '{}');
@@ -2410,6 +2442,7 @@ function botProtectionFigma(config = {}) {
         async reload() {
             window.promotixPageLoader?.show('Loading Analytics…');
             this.loadError = '';
+            this.stopLiveVisitorPoll();
             try {
                 if (this.useDemo) {
                     this.applyDemoPayload();
@@ -2468,6 +2501,9 @@ function botProtectionFigma(config = {}) {
                     this.loadError = 'Add a domain and install the tracking tag to see Analytics data.';
                 }
                 this.$nextTick(() => this.renderCharts());
+                if (this.pageAnalytics?.kpis) {
+                    this.startLiveVisitorPoll();
+                }
             } catch (e) {
                 console.error(e);
                 this.loadError = 'Could not load Analytics. Check the network tab and retry.';

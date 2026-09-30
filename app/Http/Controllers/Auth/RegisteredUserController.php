@@ -150,6 +150,11 @@ class RegisteredUserController extends Controller
 
             if ($invite->role_id) {
                 $user->update(['role_id' => $invite->role_id]);
+                $user->load('role:id,slug');
+                if (($user->role?->slug ?? '') === 'super-admin') {
+                    $user->applySuperAdminAccess(true);
+                    $user->save();
+                }
             }
 
             if (! $invite->plan_id) {
