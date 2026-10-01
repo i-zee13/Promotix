@@ -16,6 +16,8 @@ class SessionBehaviorTimeline
     {
         $rows = [];
         $scrollMarks = [25 => false, 50 => false, 75 => false, 90 => false, 100 => false];
+        $scrollRawCount = 0;
+        $clickRawCount = 0;
 
         foreach ($events as $raw) {
             if (! is_array($raw)) {
@@ -84,15 +86,24 @@ class SessionBehaviorTimeline
 
             if ($type === 'scroll') {
                 $depth = isset($raw['depth']) ? (int) $raw['depth'] : null;
+                $page = (string) ($raw['page_url'] ?? $raw['path'] ?? '');
                 if ($depth !== null && isset($scrollMarks[$depth]) && ! $scrollMarks[$depth]) {
                     $scrollMarks[$depth] = true;
-                    $page = (string) ($raw['page_url'] ?? '');
                     $rows[] = array_merge($base, [
                         'label' => 'Scroll',
                         'detail' => $depth.'%'.($page !== '' ? ' on '.$page : ''),
                         'kind' => 'scroll',
                         'type' => 'scroll',
                         'scroll_depth' => $depth,
+                    ]);
+                } elseif ($depth === null && $scrollRawCount < 3) {
+                    // Position-only scroll samples from the tag — keep a few so timeline isn't empty.
+                    $scrollRawCount++;
+                    $rows[] = array_merge($base, [
+                        'label' => 'Scroll',
+                        'detail' => $page !== '' ? 'on '.$page : 'scroll',
+                        'kind' => 'scroll',
+                        'type' => 'scroll',
                     ]);
                 }
 
@@ -129,6 +140,22 @@ class SessionBehaviorTimeline
                     'type' => 'phone_click',
                     'link_type' => 'tel',
                     'tel_number' => $tel !== '' ? $tel : null,
+                    'element_text' => $text !== '' ? $text : null,
+                    'href' => $href !== '' ? $href : null,
+                ]);
+
+                continue;
+            }
+
+            if ($type === 'click' && $clickRawCount < 8) {
+                $clickRawCount++;
+                $text = trim((string) ($raw['element_text'] ?? $raw['text'] ?? $raw['tag'] ?? ''));
+                $href = trim((string) ($raw['href'] ?? ''));
+                $rows[] = array_merge($base, [
+                    'label' => 'Click',
+                    'detail' => ($text !== '' ? $text : 'click').($href !== '' ? ' → '.$href : ''),
+                    'kind' => 'cta',
+                    'type' => 'cta_click',
                     'element_text' => $text !== '' ? $text : null,
                     'href' => $href !== '' ? $href : null,
                 ]);

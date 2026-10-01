@@ -967,6 +967,27 @@
             <span> of your Google Ads–linked domains (this account only), converted to USD: </span>
             <span class="text-white/75" x-text="includedDomainsList.map((d) => d.hostname + (d.currency_code ? ' · ' + d.currency_code : '')).join(' · ')"></span>
         </p>
+        <div
+            x-show="!filters.domain_id && costSavedBreakdown.length"
+            x-cloak
+            class="mb-[14px] overflow-hidden rounded-[8px] border border-white/10 bg-white/[0.03] text-[11px] text-white/70"
+        >
+            <div class="border-b border-white/10 px-[12px] py-[8px] text-[10px] font-semibold uppercase tracking-wide text-white/45">
+                Waste prevented breakdown (native → USD)
+            </div>
+            <div class="divide-y divide-white/8">
+                <template x-for="row in costSavedBreakdown" :key="'fx-' + row.id">
+                    <div class="flex flex-wrap items-center justify-between gap-[8px] px-[12px] py-[8px]">
+                        <span class="text-white/85" x-text="row.hostname + ' · ' + row.currency_code"></span>
+                        <span>
+                            <span class="text-white/55" x-text="row.cost_saved_native_label"></span>
+                            <span class="mx-[6px] text-white/30">→</span>
+                            <span class="font-semibold text-white" x-text="'$' + Number(row.cost_saved_usd || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })"></span>
+                        </span>
+                    </div>
+                </template>
+            </div>
+        </div>
 
         {{-- KPI cards (mockup row 3) — no second filter toolbar row --}}
         <div class="pm-adv-kpi-grid">
@@ -1984,6 +2005,7 @@
             statCards: [],
             kpiCards: [],
             includedDomainsList: [],
+            costSavedBreakdown: [],
             chartThreat: { items: [], gradient: '', total_label: '0', center_label: 'Invalid Clicks' },
             chartRisk: { items: [], gradient: '', total_label: '0', center_label: 'Unique IPs' },
             chartCountries: [],
@@ -2976,6 +2998,7 @@
                             if (! this.isFetchCurrent(generation)) return;
                             this.kpiCards = this.kpiCardsFromSummary(summary || {});
                             this.includedDomainsList = Array.isArray(summary?.included_domains) ? summary.included_domains : [];
+                            this.costSavedBreakdown = Array.isArray(summary?.cost_saved_breakdown) ? summary.cost_saved_breakdown : [];
                             if (summary?.timezone_context?.reporting_timezone) {
                                 this.reportingTimezone = summary.timezone_context.reporting_timezone;
                                 this.timezoneContext = summary.timezone_context;

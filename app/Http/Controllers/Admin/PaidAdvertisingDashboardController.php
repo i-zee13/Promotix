@@ -257,6 +257,25 @@ class PaidAdvertisingDashboardController extends Controller
         $invalidForSavings = $uniqueInvalidPaidClicks > 0 ? $uniqueInvalidPaidClicks : $invalid;
         $avgCpc = $googleClicks > 0 ? ($googleCost / $googleClicks) : 0.0;
         $costSaved = round($avgCpc * $invalidForSavings, 2);
+        $costSavedBreakdown = [];
+
+        // All Domains: per-domain waste → convert each to USD → sum (never mix raw PKR+USD).
+        $isAllDomains = ! $request->filled('domain_id');
+        if ($isAllDomains && $adsLinkedDomainIds->count() > 1) {
+            $fx = $this->allDomainsWasteInUsd(
+                $request,
+                $adsLinkedDomainIds,
+                $domains,
+                $metricFrom,
+                $metricTo,
+                $reportingTz,
+            );
+            $googleCost = $fx['google_cost_usd'];
+            $avgCpc = $fx['avg_cpc_usd'];
+            $costSaved = $fx['cost_saved_usd'];
+            $costSavedBreakdown = $fx['breakdown'];
+            $currencyCode = 'USD';
+        }
 
         $selectedDomain = $request->filled('domain_id') && $domains->count() === 1
             ? $domains->first()
@@ -304,6 +323,7 @@ class PaidAdvertisingDashboardController extends Controller
             'avg_cpc' => round($avgCpc, 4),
             'cost_saved' => $costSaved,
             'cost_saved_label' => AccountCurrency::formatAmount($costSaved, $currencyCode),
+            'cost_saved_breakdown' => $costSavedBreakdown,
             'currency_code' => $currencyCode,
             'currency_label' => AccountCurrency::label($currencyCode),
             'currency_symbol' => AccountCurrency::symbol($currencyCode),
@@ -3279,6 +3299,105 @@ class PaidAdvertisingDashboardController extends Controller
             $account->refresh();
             $domain->setRelation('googleAdsAccount', $account);
         }
+    }
+
+    /**
+     * All Domains waste: per-domain CPC × invalid in native currency, then FX → USD and sum.
+     *
+     * @param  \Illuminate\Support\Collection<int, int>  $adsLinkedDomainIds
+     * @param  \Illuminate\Support\Collection<int, Domain>  $domains
+     * @return array{
+     *     google_cost_usd: float,
+     *     avg_cpc_usd: float,
+     *     cost_saved_usd: float,
+     *     breakdown: list<array<string, mixed>>
+     * }
+     */
+    private function allDomainsWasteInUsd(
+        Request $request,
+        $adsLinkedDomainIds,
+        $domains,
+        string $metricFrom,
+        string $metricTo,
+        string $reportingTz,
+    ): array {
+        $sync = app(GoogleAdsDomainMetricsSync::class);
+        $domainsById = $domains->keyBy('id');
+        $invalidByDomain = [];
+
+        if (Schema::hasTable('visits') && $adsLinkedDomainIds->isNotEmpty()) {
+            $base = $this->scopedVisitsQuery($request, $adsLinkedDomainIds, $metricFrom, $metricTo)
+                ->where('is_invalid_traffic', true);
+            $rows = (clone $base)
+                ->selectRaw('domain_id, COUNT(*) as events')
+                ->groupBy('domain_id')
+                ->get();
+            foreach ($rows as $row) {
+                $invalidByDomain[(int) $row->domain_id] = (int) $row->events;
+            }
+            // Prefer distinct click IDs when available (same as summary cards).
+            if (Schema::hasColumn('visits', 'gclid') || Schema::hasColumn('visits', 'gbraid')) {
+                foreach ($adsLinkedDomainIds as $domainId) {
+                    $domainId = (int) $domainId;
+                    $invalidByDomain[$domainId] = GoogleClickAttribution::countDistinctClickIds(
+                        (clone $base)->where('domain_id', $domainId)
+                    );
+                }
+            }
+        }
+
+        $costUsd = 0.0;
+        $clicksTotal = 0;
+        $savedUsd = 0.0;
+        $breakdown = [];
+
+        foreach ($adsLinkedDomainIds as $domainId) {
+            $domainId = (int) $domainId;
+            $domain = $domainsById->get($domainId);
+            if (! $domain) {
+                continue;
+            }
+
+            $googleTz = UserTimezone::isValid($domain->googleAdsAccount?->time_zone)
+                ? $domain->googleAdsAccount->time_zone
+                : $reportingTz;
+            [$fromDate, $toDate] = UserTimezone::googleMetricDateBounds($metricFrom, $metricTo, $reportingTz, $googleTz);
+            $totals = $sync->clickTotalsForDomain($domainId, $fromDate, $toDate);
+            $clicks = (int) ($totals['clicks'] ?? 0);
+            $costNative = (float) ($totals['cost'] ?? 0);
+            $currency = AccountCurrency::fromDomain($domain);
+            $invalid = (int) ($invalidByDomain[$domainId] ?? 0);
+            $cpcNative = $clicks > 0 ? ($costNative / $clicks) : 0.0;
+            $wasteNative = round($cpcNative * $invalid, 2);
+            $costUsdDomain = CurrencyConverter::convert($costNative, $currency, 'USD');
+            $wasteUsdDomain = CurrencyConverter::convert($wasteNative, $currency, 'USD');
+
+            $costUsd += $costUsdDomain;
+            $clicksTotal += $clicks;
+            $savedUsd += $wasteUsdDomain;
+
+            $breakdown[] = [
+                'id' => $domainId,
+                'hostname' => (string) $domain->hostname,
+                'currency_code' => $currency,
+                'google_clicks' => $clicks,
+                'google_cost_native' => round($costNative, 2),
+                'google_cost_usd' => round($costUsdDomain, 2),
+                'invalid_clicks' => $invalid,
+                'avg_cpc_native' => round($cpcNative, 4),
+                'cost_saved_native' => $wasteNative,
+                'cost_saved_native_label' => AccountCurrency::formatAmount($wasteNative, $currency),
+                'cost_saved_usd' => round($wasteUsdDomain, 2),
+                'fx_units_per_usd' => CurrencyConverter::unitsPerUsd($currency),
+            ];
+        }
+
+        return [
+            'google_cost_usd' => round($costUsd, 2),
+            'avg_cpc_usd' => $clicksTotal > 0 ? round($costUsd / $clicksTotal, 4) : 0.0,
+            'cost_saved_usd' => round($savedUsd, 2),
+            'breakdown' => $breakdown,
+        ];
     }
 
     /**

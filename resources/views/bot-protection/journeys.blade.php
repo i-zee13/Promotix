@@ -2516,13 +2516,21 @@ function visitorJourneyPage() {
 
             events.sort((a, b) => a.elapsed_sec - b.elapsed_sec);
 
-            // Short sessions: hide only the 0:00 landing page marker so Exit isn't covered.
-            // Keep CTA / phone / form / scroll even when they fire in the first second.
+            // Short sessions: keep landing page when there are no mid-session actions,
+            // otherwise Exit-only lanes look empty. Still hide duplicate 0:00 page when
+            // CTA/phone/form/scroll already mark activity.
             let visible = events;
             if (dur > 0 && dur < 30) {
+                const hasMid = events.some((e) => ['cta', 'phone', 'form', 'scroll'].includes(e.type));
+                const hasPageChange = events.some((e) => e.type === 'page' && Number(e.elapsed_sec || 0) > 0);
                 visible = events.filter((e) => {
                     if (e.type === 'exit') return true;
                     if (['cta', 'phone', 'form', 'scroll'].includes(e.type)) return true;
+                    if (e.type === 'page' && Number(e.elapsed_sec || 0) > 0) return true;
+                    // Keep the 0:00 landing page when nothing else (besides exit) would show.
+                    if (e.type === 'page' && Number(e.elapsed_sec || 0) === 0) {
+                        return !hasMid && !hasPageChange;
+                    }
                     return Number(e.elapsed_sec || 0) > 0;
                 });
                 if (!visible.length && events.length) {

@@ -66,7 +66,7 @@ class DashboardResponseCache
 
         return implode(':', [
             'pmdash',
-            'v1',
+            'v2-fx',
             (string) $userId,
             $bucket,
             $this->filterFingerprint($request),

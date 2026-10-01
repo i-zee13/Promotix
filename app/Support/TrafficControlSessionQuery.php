@@ -141,8 +141,9 @@ class TrafficControlSessionQuery
             : collect();
         $landingPages = $this->loadLandingPages($domainIds, $from, $to, $sessionExpr, $sessionKeys);
         $exitPages = $this->loadExitPages($domainIds, $from, $to, $sessionExpr, $sessionKeys);
+        $visitTrails = $this->loadVisitTrails($domainIds, $from, $to, $sessionExpr, $sessionKeys);
 
-        $data = $rows->map(function ($row) use ($recordings, $landingPages, $exitPages, $request, $trafficMode, $paidMarketingIds) {
+        $data = $rows->map(function ($row) use ($recordings, $landingPages, $exitPages, $visitTrails, $request, $trafficMode, $paidMarketingIds) {
             $key = (string) $row->session_key;
             $rec = $recordings->get($key);
             if (! is_array($rec)) {
@@ -156,6 +157,12 @@ class TrafficControlSessionQuery
             }
             $landing = $landingPages->get($key);
             $exit = $exitPages->get($key);
+            $trail = $visitTrails->get($key);
+            if (! is_array($trail)) {
+                $trail = [];
+            }
+            // Prefer recording pages; fill gaps from every visit URL change in this session.
+            $rec = $this->mergeVisitTrailIntoRecording($rec, $trail, $landing, $exit);
 
             $first = Carbon::parse($row->first_seen);
             $last = Carbon::parse($row->last_seen);
@@ -498,22 +505,29 @@ class TrafficControlSessionQuery
                     continue;
                 }
                 $type = strtolower((string) ($ev['type'] ?? ''));
-                if (in_array($type, ['page', 'page_view'], true)) {
+                if (in_array($type, ['page', 'page_view', 'page_change'], true)) {
                     $url = (string) ($ev['url'] ?? $ev['page_url'] ?? '');
-                    if ($url === '') {
+                    $path = trim((string) ($ev['path'] ?? ''));
+                    if ($url === '' && $path === '') {
                         continue;
                     }
-                    $path = TrafficSourceClassifier::pathFromUrl($url);
+                    if ($path === '' && $url !== '') {
+                        $path = TrafficSourceClassifier::pathFromUrl($url);
+                    }
+                    if ($path === '') {
+                        continue;
+                    }
                     $pages[] = $path;
                     $pageEvents[] = [
                         'label' => 'Page: '.$path,
                         'detail' => trim(($ev['title'] ?? '').' '.$path),
                         'kind' => 'page',
-                        'type' => 'page_view',
-                        'page_url' => $url,
+                        'type' => $type === 'page_change' ? 'page_change' : 'page_view',
+                        'page_url' => $url !== '' ? $url : null,
                         'path' => $path,
                         'title' => $ev['title'] ?? null,
                         't' => (int) ($ev['t'] ?? 0),
+                        'elapsed_sec' => (int) floor(((int) ($ev['t'] ?? 0)) / 1000),
                         'at' => isset($ev['ts']) ? date('c', (int) floor(((int) $ev['ts']) / 1000)) : null,
                     ];
                 }
@@ -650,6 +664,207 @@ class TrafficControlSessionQuery
 
             return $last ? TrafficSourceClassifier::pathFromUrl((string) ($last->url ?? '/')) : null;
         });
+    }
+
+    /**
+     * Every visit URL in the session (ordered), so Event Timeline can show page changes
+     * even when the recorder only left a single page_view / exit stub.
+     *
+     * @param  list<int>  $domainIds
+     * @param  \Illuminate\Support\Collection<int, string>  $sessionKeys
+     * @return \Illuminate\Support\Collection<string, list<array{path:string,url:string,visited_at:string}>>
+     */
+    private function loadVisitTrails(array $domainIds, Carbon $from, Carbon $to, string $sessionExpr, $sessionKeys)
+    {
+        if ($sessionKeys->isEmpty()) {
+            return collect();
+        }
+
+        $query = DB::table('visits')
+            ->whereIn('domain_id', $domainIds)
+            ->whereBetween('visited_at', [$from, $to])
+            ->select([
+                DB::raw("{$sessionExpr} as session_key"),
+                'url',
+                'visited_at',
+            ])
+            ->orderBy('visited_at')
+            ->limit(5000);
+
+        $this->constrainToSessionKeys($query, $sessionExpr, $sessionKeys);
+
+        return $query->get()->groupBy('session_key')->map(function ($group) {
+            $out = [];
+            $prevPath = null;
+            foreach ($group as $hit) {
+                $url = (string) ($hit->url ?? '');
+                $path = TrafficSourceClassifier::pathFromUrl($url !== '' ? $url : '/');
+                // Keep consecutive same-path hits only once (reload noise).
+                if ($path === $prevPath) {
+                    continue;
+                }
+                $prevPath = $path;
+                $out[] = [
+                    'path' => $path,
+                    'url' => $url,
+                    'visited_at' => (string) ($hit->visited_at ?? ''),
+                ];
+                if (count($out) >= 40) {
+                    break;
+                }
+            }
+
+            return $out;
+        });
+    }
+
+    /**
+     * Inject visit-path changes into recording timeline/pages when mid-session trail is thin.
+     *
+     * @param  array<string, mixed>  $rec
+     * @param  list<array{path:string,url:string,visited_at:string}>  $trail
+     * @return array<string, mixed>
+     */
+    private function mergeVisitTrailIntoRecording(array $rec, array $trail, ?string $landing, ?string $exit): array
+    {
+        if ($trail === [] && ($landing || $exit)) {
+            $trail = [];
+            if ($landing) {
+                $trail[] = ['path' => $landing, 'url' => '', 'visited_at' => ''];
+            }
+            if ($exit && $exit !== $landing) {
+                $trail[] = ['path' => $exit, 'url' => '', 'visited_at' => ''];
+            }
+        }
+        if ($trail === []) {
+            return $rec;
+        }
+
+        $pages = array_values(array_filter(array_map(
+            static fn ($p) => is_string($p) ? $p : '',
+            $rec['pages'] ?? []
+        )));
+        foreach ($trail as $hit) {
+            $path = (string) ($hit['path'] ?? '');
+            if ($path !== '' && ! in_array($path, $pages, true)) {
+                $pages[] = $path;
+            }
+        }
+        if ($pages !== []) {
+            $rec['pages'] = array_values(array_slice($pages, 0, 40));
+            $rec['page_flow'] = implode(' -> ', array_slice($rec['pages'], 0, 8));
+        }
+
+        $detail = is_array($rec['event_detail'] ?? null) ? $rec['event_detail'] : [];
+        $timeline = is_array($detail['timeline'] ?? null) ? $detail['timeline'] : [];
+
+        $actionTypes = collect($timeline)->map(function ($ev) {
+            return strtolower((string) (is_array($ev) ? ($ev['type'] ?? $ev['kind'] ?? '') : ''));
+        })->all();
+        $midActions = count(array_filter($actionTypes, static fn ($t) => in_array($t, [
+            'cta', 'cta_click', 'phone', 'phone_click', 'tel_click', 'form', 'form_submit', 'form_start', 'scroll', 'click',
+        ], true)));
+        $pageMarkers = count(array_filter($actionTypes, static fn ($t) => in_array($t, [
+            'page', 'page_view', 'page_change', 'meta',
+        ], true)));
+
+        // Already has a rich path trail from the recorder — keep it.
+        if ($midActions >= 2 || $pageMarkers >= max(2, count($trail))) {
+            $rec['event_detail'] = $detail + ['timeline' => $timeline];
+
+            return $rec;
+        }
+
+        $startTs = null;
+        foreach ($trail as $hit) {
+            if (! empty($hit['visited_at'])) {
+                try {
+                    $startTs = Carbon::parse((string) $hit['visited_at'])->getTimestamp();
+                    break;
+                } catch (\Throwable) {
+                    $startTs = null;
+                }
+            }
+        }
+
+        $existingKeys = [];
+        foreach ($timeline as $ev) {
+            if (! is_array($ev)) {
+                continue;
+            }
+            $p = strtolower(trim((string) ($ev['path'] ?? $ev['page'] ?? $ev['label'] ?? '')));
+            $t = (int) ($ev['elapsed_sec'] ?? 0);
+            $existingKeys[$p.'|'.$t] = true;
+        }
+
+        $added = [];
+        foreach ($trail as $i => $hit) {
+            $path = (string) ($hit['path'] ?? '/');
+            $elapsed = 0;
+            if ($startTs && ! empty($hit['visited_at'])) {
+                try {
+                    $elapsed = max(0, Carbon::parse((string) $hit['visited_at'])->getTimestamp() - $startTs);
+                } catch (\Throwable) {
+                    $elapsed = $i;
+                }
+            } elseif (count($trail) > 1) {
+                $elapsed = $i; // sequential placeholders when timestamps missing
+            }
+            $key = strtolower($path).'|'.$elapsed;
+            if (isset($existingKeys[$key])) {
+                continue;
+            }
+            // Also skip same path already present at any time for first marker only.
+            if ($i === 0) {
+                $dupLanding = false;
+                foreach ($existingKeys as $ek => $_) {
+                    if (str_starts_with((string) $ek, strtolower($path).'|')) {
+                        $dupLanding = true;
+                        break;
+                    }
+                }
+                if ($dupLanding) {
+                    continue;
+                }
+            }
+            $existingKeys[$key] = true;
+            $added[] = [
+                'label' => $path,
+                'detail' => $path,
+                'kind' => 'page',
+                'type' => $i === 0 ? 'page_view' : 'page_change',
+                'path' => $path,
+                'page' => $path,
+                'page_url' => (string) ($hit['url'] ?? ''),
+                't' => $elapsed * 1000,
+                'elapsed_sec' => $elapsed,
+                'at' => (string) ($hit['visited_at'] ?? ''),
+            ];
+        }
+
+        if ($added !== []) {
+            $timeline = array_values(array_merge($timeline, $added));
+            usort($timeline, static function ($a, $b) {
+                $ta = (int) (is_array($a) ? ($a['elapsed_sec'] ?? $a['t'] ?? 0) : 0);
+                $tb = (int) (is_array($b) ? ($b['elapsed_sec'] ?? $b['t'] ?? 0) : 0);
+                if ($ta >= 1000) {
+                    $ta = (int) floor($ta / 1000);
+                }
+                if ($tb >= 1000) {
+                    $tb = (int) floor($tb / 1000);
+                }
+
+                return $ta <=> $tb;
+            });
+            $detail['timeline'] = array_slice($timeline, 0, 80);
+            $detail['pages'] = array_values(array_merge(
+                is_array($detail['pages'] ?? null) ? $detail['pages'] : [],
+                $added
+            ));
+            $rec['event_detail'] = $detail;
+        }
+
+        return $rec;
     }
 
     /** @param  \Illuminate\Support\Collection<int, string>  $sessionKeys */

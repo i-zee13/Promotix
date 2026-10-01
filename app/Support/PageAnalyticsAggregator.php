@@ -499,6 +499,7 @@ class PageAnalyticsAggregator
         foreach ($performanceBuckets as $bucket) {
             $chartConversionTotal += (int) ($bucket['conversions'] ?? 0);
         }
+        // When events are missing entirely, approximate from converting/CTA path sessions.
         if ($chartConversionTotal === 0 && $totalConversions > 0) {
             foreach ($sessions as $sid => $session) {
                 $isConversionAction = isset($convertingSessions[$sid]);
@@ -530,7 +531,12 @@ class PageAnalyticsAggregator
                     ];
                 }
                 $performanceBuckets[$bucketKey]['conversions']++;
+                $chartConversionTotal++;
             }
+        }
+        // KPI may include path/recording fallbacks events miss → keep series total in sync.
+        if ($chartConversionTotal !== $totalConversions) {
+            $this->alignBucketMetricTotal($performanceBuckets, 'conversions', $totalConversions);
         }
 
         $keywordRows = $this->rankKeywordPerformance($keywords, $keywordSessionMap, $convertingSessions, $total);
@@ -935,6 +941,62 @@ class PageAnalyticsAggregator
         }
 
         return $filled;
+    }
+
+    /**
+     * Pad or trim a bucket metric so its sum equals $target (keeps chart total in sync with KPI).
+     *
+     * @param  array<string, array<string, int>>  $buckets
+     */
+    private function alignBucketMetricTotal(array &$buckets, string $metric, int $target): void
+    {
+        $target = max(0, $target);
+        $current = 0;
+        foreach ($buckets as $bucket) {
+            $current += (int) ($bucket[$metric] ?? 0);
+        }
+        $diff = $target - $current;
+        if ($diff === 0) {
+            return;
+        }
+
+        if ($diff > 0) {
+            $keys = array_keys($buckets);
+            $key = null;
+            for ($i = count($keys) - 1; $i >= 0; $i--) {
+                $k = $keys[$i];
+                if (((int) ($buckets[$k][$metric] ?? 0)) > 0 || ((int) ($buckets[$k]['visitors'] ?? 0)) > 0) {
+                    $key = $k;
+                    break;
+                }
+            }
+            if ($key === null) {
+                $key = $keys !== [] ? $keys[array_key_last($keys)] : null;
+            }
+            if ($key === null) {
+                return;
+            }
+            if (! isset($buckets[$key][$metric])) {
+                $buckets[$key][$metric] = 0;
+            }
+            $buckets[$key][$metric] = (int) $buckets[$key][$metric] + $diff;
+
+            return;
+        }
+
+        $need = abs($diff);
+        foreach (array_reverse($buckets, true) as $key => $bucket) {
+            if ($need <= 0) {
+                break;
+            }
+            $have = (int) ($bucket[$metric] ?? 0);
+            if ($have <= 0) {
+                continue;
+            }
+            $cut = min($have, $need);
+            $buckets[$key][$metric] = $have - $cut;
+            $need -= $cut;
+        }
     }
 
     /**

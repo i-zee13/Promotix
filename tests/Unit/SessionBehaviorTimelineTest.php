@@ -49,15 +49,20 @@ class SessionBehaviorTimelineTest extends TestCase
         $this->assertSame('https://example.com/shop', $cta['page_url']);
     }
 
-    public function test_ignores_raw_scroll_without_depth_marks(): void
+    public function test_keeps_a_few_raw_scrolls_plus_depth_marks(): void
     {
         $timeline = SessionBehaviorTimeline::fromEvents([
             ['type' => 'scroll', 't' => 10, 'x' => 0, 'y' => 40],
             ['type' => 'scroll', 't' => 20, 'depth' => 50],
+            ['type' => 'scroll', 't' => 30, 'x' => 0, 'y' => 80],
+            ['type' => 'scroll', 't' => 40, 'x' => 0, 'y' => 120],
+            ['type' => 'scroll', 't' => 50, 'x' => 0, 'y' => 160],
         ]);
 
-        $this->assertCount(1, $timeline);
+        // 3 raw (capped) + 1 depth mark
+        $this->assertCount(4, $timeline);
         $this->assertSame('Scroll', $timeline[0]['label']);
-        $this->assertStringContainsString('50%', $timeline[0]['detail']);
+        $depth = collect($timeline)->first(fn ($r) => str_contains((string) ($r['detail'] ?? ''), '50%'));
+        $this->assertNotNull($depth);
     }
 }
