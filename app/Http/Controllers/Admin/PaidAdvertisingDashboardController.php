@@ -307,6 +307,17 @@ class PaidAdvertisingDashboardController extends Controller
             'currency_code' => $currencyCode,
             'currency_label' => AccountCurrency::label($currencyCode),
             'currency_symbol' => AccountCurrency::symbol($currencyCode),
+            // Domains actually rolled into All Domains / this summary (this user + Google Ads linked only).
+            'included_domains' => $domains
+                ->filter(fn (Domain $d) => $adsLinkedDomainIds->contains((int) $d->id))
+                ->map(fn (Domain $d) => [
+                    'id' => (int) $d->id,
+                    'hostname' => (string) $d->hostname,
+                    'currency_code' => AccountCurrency::fromDomain($d),
+                ])
+                ->values()
+                ->all(),
+            'included_domain_count' => $adsLinkedDomainIds->count(),
             'timezone_context' => UserTimezone::dashboardContext(
                 $request->user(),
                 $googleTz,
@@ -1654,6 +1665,7 @@ class PaidAdvertisingDashboardController extends Controller
 
     private function scopedDomainIds(Request $request)
     {
+        // Always this user's domains only — never another account's domains.
         $userDomainIds = Domain::query()
             ->where('user_id', $request->user()->id)
             ->forPaidMarketingSetup()
@@ -1672,7 +1684,12 @@ class PaidAdvertisingDashboardController extends Controller
                 ->values();
         }
 
-        return $userDomainIds;
+        // All Domains: only this user's Google Ads–linked domains (not orphan/bot-only).
+        return Domain::query()
+            ->where('user_id', $request->user()->id)
+            ->forPaidMarketing()
+            ->pluck('id')
+            ->values();
     }
 
     private function scopedVisitsQuery(Request $request, $domainIds, string $fromDate, string $toDate)

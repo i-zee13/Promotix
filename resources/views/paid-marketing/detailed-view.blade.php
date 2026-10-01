@@ -896,7 +896,10 @@
                         <span class="truncate" x-text="domainFilterLabel()"></span>
                     </button>
                     <div x-show="filterMenus.domain" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[8px] !right-auto">
-                        <button type="button" @click="selectDomainFilter('')" class="paid-advanced-campaign-option" :class="!filters.domain_id && 'is-active'"><span class="paid-advanced-campaign-option__label">All Domains</span></button>
+                        <button type="button" @click="selectDomainFilter('')" class="paid-advanced-campaign-option" :class="!filters.domain_id && 'is-active'">
+                            <span class="paid-advanced-campaign-option__label">All Domains</span>
+                            <span class="text-[9px] text-white/45" x-text="'(' + (includedDomains().length || domainOptions.length) + ')'"></span>
+                        </button>
                         <template x-for="d in domainOptions" :key="'dom-' + d.id">
                             <button type="button" @click="selectDomainFilter(d.id)" class="paid-advanced-campaign-option" :class="String(filters.domain_id) === String(d.id) && 'is-active'"><span class="paid-advanced-campaign-option__label" x-text="d.label"></span></button>
                         </template>
@@ -953,6 +956,17 @@
                 @include('partials.figma-filter-date-fields')
             </div>
         </div>
+
+        <p
+            x-show="!filters.domain_id && includedDomainsList.length"
+            x-cloak
+            class="mb-[12px] text-[11px] leading-snug text-white/50"
+        >
+            <span class="font-semibold text-white/70">All Domains includes </span>
+            <span x-text="includedDomainsList.length"></span>
+            <span> of your Google Ads–linked domains (this account only): </span>
+            <span class="text-white/75" x-text="includedDomainsList.map((d) => d.hostname + (d.currency_code ? ' · ' + d.currency_code : '')).join(' · ')"></span>
+        </p>
 
         {{-- KPI cards (mockup row 3) — no second filter toolbar row --}}
         <div class="pm-adv-kpi-grid">
@@ -1969,6 +1983,7 @@
             ],
             statCards: [],
             kpiCards: [],
+            includedDomainsList: [],
             chartThreat: { items: [], gradient: '', total_label: '0', center_label: 'Invalid Clicks' },
             chartRisk: { items: [], gradient: '', total_label: '0', center_label: 'Unique IPs' },
             chartCountries: [],
@@ -2620,6 +2635,11 @@
                 const blocked = Number(summary?.block_enforced ?? summary?.block_attempts ?? summary?.blocked_paid_visits ?? 0);
                 const costSaved = Number(summary?.cost_saved ?? 0);
                 const currencySymbol = summary?.currency_symbol || this.activeCurrencySymbol();
+                const included = Array.isArray(summary?.included_domains) ? summary.included_domains : [];
+                const allDomains = !this.filters.domain_id;
+                const wasteSub = allDomains && included.length
+                    ? `Saved from invalid traffic · ${included.length} domains`
+                    : 'Saved from invalid traffic';
                 const trackingAccuracy = Number(summary?.tracking_accuracy_pct ?? summary?.tag_capture_pct ?? 0);
                 const pctBase = tracked > 0 ? tracked : Math.max(valid + invalid, 0);
                 const validPct = pctBase > 0 ? ((valid / pctBase) * 100).toFixed(1) : '0.0';
@@ -2642,9 +2662,12 @@
                     { key: 'valid', label: 'Valid Clicks', value: fmt(valid), sub: `${validPct}% of tracked clicks`, tone: 'purple' },
                     { key: 'invalid', label: 'Invalid Clicks', value: fmt(invalid), sub: `${invalidPct}% of tracked clicks`, tone: 'purple' },
                     { key: 'blocked', label: 'Blocked Clicks', value: fmt(blocked), sub: 'Blocked by protection', tone: 'purple' },
-                    { key: 'waste', label: 'Estimated Waste Prevented', value: summary?.cost_saved_label || `${currencySymbol}${Number(costSaved || 0).toFixed(2)}`, sub: 'Saved from invalid traffic', tone: 'purple' },
+                    { key: 'waste', label: 'Estimated Waste Prevented', value: summary?.cost_saved_label || `${currencySymbol}${Number(costSaved || 0).toFixed(2)}`, sub: wasteSub, tone: 'purple' },
                     { key: 'risk', label: 'Tracking Accuracy', value: `${trackingAccuracy}%`, sub: `Tracked clicks ${tracked}`, tone: 'purple' },
                 ];
+            },
+            includedDomains() {
+                return Array.isArray(this.includedDomainsList) ? this.includedDomainsList : [];
             },
             syncHeaderDates() {
                 try {
@@ -2711,7 +2734,10 @@
                 this.filterMenus = { domain: false, traffic: false, account: false, campaign: false };
             },
             domainFilterLabel() {
-                if (!this.filters.domain_id) return 'All Domains';
+                if (!this.filters.domain_id) {
+                    const n = this.includedDomains().length || this.domainOptions.length;
+                    return n ? `All Domains (${n})` : 'All Domains';
+                }
                 return (this.domainOptions || []).find((d) => String(d.id) === String(this.filters.domain_id))?.label || 'All Domains';
             },
             trafficFilterLabel() {
@@ -2948,6 +2974,7 @@
                             }).then((r) => r.json());
                             if (! this.isFetchCurrent(generation)) return;
                             this.kpiCards = this.kpiCardsFromSummary(summary || {});
+                            this.includedDomainsList = Array.isArray(summary?.included_domains) ? summary.included_domains : [];
                             if (summary?.timezone_context?.reporting_timezone) {
                                 this.reportingTimezone = summary.timezone_context.reporting_timezone;
                                 this.timezoneContext = summary.timezone_context;
