@@ -177,6 +177,95 @@ class SessionBehaviorTimeline
                 continue;
             }
 
+            if (in_array($type, ['form_view', 'form_viewed'], true)) {
+                $rows[] = array_merge($base, [
+                    'label' => 'Form Viewed',
+                    'detail' => self::formDetail($raw),
+                    'kind' => 'form',
+                    'type' => 'form_view',
+                    'link_type' => 'form',
+                    'form_id' => $raw['form_id'] ?? null,
+                    'form_name' => $raw['form_name'] ?? null,
+                ]);
+
+                continue;
+            }
+
+            if (in_array($type, ['email_click', 'mailto_click'], true)) {
+                $email = trim((string) ($raw['email'] ?? preg_replace('/^mailto:/i', '', (string) ($raw['href'] ?? ''))));
+                $rows[] = array_merge($base, [
+                    'label' => 'Email Click',
+                    'detail' => $email !== '' ? $email : 'mailto',
+                    'kind' => 'cta',
+                    'type' => 'email_click',
+                    'href' => $raw['href'] ?? null,
+                ]);
+
+                continue;
+            }
+
+            if (in_array($type, ['zip_checked', 'zip_check', 'postal_check'], true)) {
+                $zip = trim((string) ($raw['zip_code'] ?? $raw['postal_code'] ?? $raw['value'] ?? ''));
+                $rows[] = array_merge($base, [
+                    'label' => 'ZIP Checked',
+                    'detail' => $zip !== '' ? $zip : 'zip',
+                    'kind' => 'form',
+                    'type' => 'zip_checked',
+                ]);
+
+                continue;
+            }
+
+            if (in_array($type, ['chat_opened', 'chat_open', 'chat_started'], true)) {
+                $rows[] = array_merge($base, [
+                    'label' => 'Chat Opened',
+                    'detail' => trim((string) ($raw['element_text'] ?? 'chat')),
+                    'kind' => 'cta',
+                    'type' => 'chat_opened',
+                ]);
+
+                continue;
+            }
+
+            if (in_array($type, ['pricing_viewed', 'provider_viewed', 'availability_viewed'], true)) {
+                $rows[] = array_merge($base, [
+                    'label' => match ($type) {
+                        'provider_viewed' => 'Provider Viewed',
+                        'availability_viewed' => 'Availability Viewed',
+                        default => 'Pricing Viewed',
+                    },
+                    'detail' => trim((string) ($raw['path'] ?? $raw['page_url'] ?? $type)),
+                    'kind' => 'page',
+                    'type' => $type,
+                ]);
+
+                continue;
+            }
+
+            if ($type === 'external_link') {
+                $rows[] = array_merge($base, [
+                    'label' => 'External Link',
+                    'detail' => trim((string) ($raw['href'] ?? $raw['element_text'] ?? 'external')),
+                    'kind' => 'cta',
+                    'type' => 'external_link',
+                    'href' => $raw['href'] ?? null,
+                ]);
+
+                continue;
+            }
+
+            if (in_array($type, ['file_download', 'download'], true)) {
+                $rows[] = array_merge($base, [
+                    'label' => 'File Download',
+                    'detail' => trim((string) ($raw['href'] ?? $raw['element_text'] ?? 'download')),
+                    'kind' => 'cta',
+                    'type' => 'file_download',
+                    'href' => $raw['href'] ?? null,
+                ]);
+
+                continue;
+            }
+
             if (in_array($type, ['form_submit', 'form_fill'], true)) {
                 $success = array_key_exists('success', $raw) ? ((bool) $raw['success'] ? 'success' : 'failed') : '';
                 $rows[] = array_merge($base, [

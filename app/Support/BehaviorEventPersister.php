@@ -112,8 +112,17 @@ class BehaviorEventPersister
         return match ($type) {
             'cta_click' => self::isCallPayload($raw) ? 'phone_click' : 'cta_click',
             'phone_click', 'tel_click', 'call_click' => 'phone_click',
+            'email_click', 'mailto_click' => 'email_click',
             'form_start' => 'form_start',
+            'form_view', 'form_viewed' => 'form_view',
             'form_submit', 'form_fill' => 'form_submit',
+            'zip_checked', 'zip_check', 'postal_check' => 'zip_checked',
+            'chat_opened', 'chat_open', 'chat_started' => 'chat_opened',
+            'pricing_viewed', 'pricing_view' => 'pricing_viewed',
+            'provider_viewed', 'provider_view' => 'provider_viewed',
+            'availability_viewed' => 'availability_viewed',
+            'external_link' => 'external_link',
+            'file_download', 'download' => 'file_download',
             'page_view', 'page' => 'page_view',
             'page_change' => 'page_change',
             'session_exit', 'exit' => 'session_exit',
@@ -128,7 +137,9 @@ class BehaviorEventPersister
                     ? 'cta_click'
                     : null
             ),
-            default => null,
+            default => str_starts_with($type, 'custom_') || $type === 'custom_event'
+                ? mb_substr($type, 0, 40)
+                : null,
         };
     }
 

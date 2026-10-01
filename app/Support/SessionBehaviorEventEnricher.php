@@ -88,8 +88,11 @@ class SessionBehaviorEventEnricher
             ->whereBetween('occurred_at', [$from->copy()->subDay(), $to->copy()->addDay()])
             ->whereIn('event_type', [
                 'page_view', 'page_change', 'scroll', 'session_exit',
-                'cta_click', 'phone_click', 'tel_click',
-                'form_start', 'form_submit', 'form_fill',
+                'cta_click', 'phone_click', 'tel_click', 'email_click',
+                'form_start', 'form_view', 'form_submit', 'form_fill',
+                'zip_checked', 'chat_opened',
+                'pricing_viewed', 'provider_viewed', 'availability_viewed',
+                'external_link', 'file_download',
                 'add_to_cart', 'checkout', 'begin_checkout', 'purchase', 'sale',
             ])
             ->orderBy('occurred_at')

@@ -66,6 +66,24 @@ class TagController extends Controller
   var trackCampaign = {$trackCampaign};
   var trackTerm = {$trackTerm};
 
+  // Public Pixel Guard / Clickronix event API (works before recording starts).
+  window.__pmEventQueue = window.__pmEventQueue || [];
+  window.Clickronix = window.Clickronix || {};
+  window.PixelGuard = window.PixelGuard || window.Clickronix;
+  window.Clickronix.track = function(eventName, eventData){
+    var payload = { name: String(eventName || 'custom_event'), data: eventData || {} };
+    try {
+      if (typeof window.__pmRecordingPush === 'function') {
+        window.__pmRecordingPush(payload.name, payload.data);
+        return true;
+      }
+    } catch (e) {}
+    window.__pmEventQueue.push(payload);
+    return true;
+  };
+  window.Clickronix.trackEvent = window.Clickronix.track;
+  window.PixelGuard.track = window.Clickronix.track;
+
   function qp(obj){
     try{
       var p = new URLSearchParams();
@@ -727,6 +745,15 @@ class TagController extends Controller
         push('cta_click', meta);
         // CTA navigations often unload before pagehide — flush so the click is stored.
         finishRecording();
+      } else if (meta.href && /^mailto:/i.test(meta.href)) {
+        push('email_click', Object.assign({}, meta, {
+          email: String(meta.href).replace(/^mailto:/i, '').split('?')[0].slice(0, 120),
+          link_type: 'email'
+        }));
+      } else if (meta.href && isDownloadHref(meta.href)) {
+        push('file_download', Object.assign({}, meta, { link_type: 'download' }));
+      } else if (meta.tag === 'A' && meta.href && isExternalHref(meta.href)) {
+        push('external_link', Object.assign({}, meta, { link_type: 'external' }));
       } else {
         push('click', {
           x: e.clientX,
@@ -742,6 +769,107 @@ class TagController extends Controller
 
       if (target && meta.tag === 'A' && meta.href && !tel) {
         markPageSoon();
+      }
+    }
+
+    function isExternalHref(href){
+      try {
+        var u = new URL(String(href || ''), location.href);
+        return u.protocol.indexOf('http') === 0 && u.host && u.host !== location.host;
+      } catch (e) { return false; }
+    }
+    function isDownloadHref(href){
+      var h = String(href || '').toLowerCase().split('?')[0].split('#')[0];
+      return /\\.(pdf|docx?|xlsx?|pptx?|zip|rar|csv|txt|ics)(\\s*$)/i.test(h)
+        || /[?&]download=/.test(String(href || '').toLowerCase());
+    }
+    function isZipField(el){
+      if (!el || !el.tagName) return false;
+      var name = String(el.name || el.id || el.getAttribute('placeholder') || el.getAttribute('aria-label') || '').toLowerCase();
+      var autocomplete = String(el.getAttribute('autocomplete') || '').toLowerCase();
+      if (autocomplete === 'postal-code') return true;
+      return /(^|[_-])(zip|zipcode|postal|postalcode|postcode)([_-]|$)/i.test(name)
+        || /zip\\s*code|postal\\s*code|enter\\s*(your\\s*)?zip/i.test(name);
+    }
+    function isChatEl(el){
+      if (!el || !el.tagName) return false;
+      var hay = String((el.className || '') + ' ' + (el.id || '') + ' ' + (el.getAttribute && el.getAttribute('aria-label') || '')).toLowerCase();
+      return /\\b(intercom|tidio|drift|hubspot|crisp|tawk|livechat|olark|zendesk|chat-widget|chat-button|open-chat|start-chat|chat-now)\\b/.test(hay);
+    }
+    function pageIntentFromPath(path, title){
+      var p = String(path || '').toLowerCase();
+      var t = String(title || '').toLowerCase();
+      var hay = p + ' ' + t;
+      if (/pricing|plans?|rates?|cost|quote/.test(hay)) return 'pricing_viewed';
+      if (/provider|carrier|isp|fiber|cable|compare/.test(hay)) return 'provider_viewed';
+      if (/availability|coverage|serviceable|check.?service/.test(hay)) return 'availability_viewed';
+      return '';
+    }
+
+    function onZipBlur(e){
+      var el = e.target;
+      if (!isZipField(el)) return;
+      var val = String(el.value || '').replace(/[^0-9A-Za-z\\-\\s]/g, '').trim().slice(0, 16);
+      if (val.length < 3) return;
+      push('zip_checked', {
+        zip_code: val,
+        form_id: formKey(el.form || null),
+        page_url: String(location.href || '').slice(0, 500),
+        path: String(location.pathname || '').slice(0, 500)
+      });
+    }
+
+    var formsSeen = {};
+    function observeFormsInView(){
+      if (!('IntersectionObserver' in window)) {
+        try {
+          var forms = document.querySelectorAll('form');
+          for (var i = 0; i < forms.length && i < 20; i++) markFormViewed(forms[i]);
+        } catch (e) {}
+        return;
+      }
+      try {
+        var io = new IntersectionObserver(function(entries){
+          entries.forEach(function(entry){
+            if (!entry.isIntersecting) return;
+            markFormViewed(entry.target);
+            try { io.unobserve(entry.target); } catch (e2) {}
+          });
+        }, { threshold: 0.35 });
+        var list = document.querySelectorAll('form');
+        for (var j = 0; j < list.length && j < 30; j++) io.observe(list[j]);
+      } catch (err) {}
+    }
+    function markFormViewed(form){
+      if (!form) return;
+      var key = formKey(form);
+      if (formsSeen[key]) return;
+      formsSeen[key] = true;
+      push('form_view', {
+        form_id: key,
+        form_name: formName(form),
+        page_url: String(location.href || '').slice(0, 500),
+        path: String(location.pathname || '').slice(0, 500)
+      });
+    }
+
+    function onClickCaptureExtras(e){
+      var target = e.target;
+      if (!target) return;
+      // Chat widgets often use nested buttons without <a>.
+      var node = target;
+      for (var depth = 0; node && depth < 5; depth++) {
+        if (isChatEl(node)) {
+          push('chat_opened', {
+            element_text: elementText(node).slice(0, 80),
+            element_id: String(node.id || '').slice(0, 120),
+            element_class: String(node.className || '').slice(0, 200),
+            page_url: String(location.href || '').slice(0, 500),
+            path: String(location.pathname || '').slice(0, 500)
+          });
+          return;
+        }
+        node = node.parentElement;
       }
     }
 
@@ -872,6 +1000,15 @@ class TagController extends Controller
       } else {
         push('page_change', pagePayload);
       }
+      var intent = pageIntentFromPath(pagePayload.path, pagePayload.title);
+      if (intent) {
+        push(intent, {
+          page_url: pagePayload.page_url,
+          path: pagePayload.path,
+          title: pagePayload.title
+        });
+      }
+      observeFormsInView();
     }
     var pageTimer = null;
     function markPageSoon(){
@@ -918,12 +1055,31 @@ class TagController extends Controller
     document.addEventListener('mousemove', onMove, { passive: true });
     window.addEventListener('scroll', onScroll, { passive: true });
     document.addEventListener('click', onClick, true);
+    document.addEventListener('click', onClickCaptureExtras, true);
     document.addEventListener('input', onInput, true);
     document.addEventListener('focusin', onFormFocus, true);
+    document.addEventListener('focusout', onZipBlur, true);
     document.addEventListener('invalid', onFormInvalid, true);
     document.addEventListener('submit', onFormSubmit, true);
     window.addEventListener('popstate', markPageSoon);
     window.addEventListener('hashchange', markPageSoon);
+    observeFormsInView();
+
+    // Public API for site custom events (no plugin update required).
+    window.__pmRecordingPush = function(name, data){
+      var type = String(name || 'custom_event').toLowerCase().replace(/\\s+/g, '_').slice(0, 40);
+      var row = data && typeof data === 'object' ? data : {};
+      push(type, row);
+    };
+    try {
+      var queued = window.__pmEventQueue || [];
+      window.__pmEventQueue = [];
+      for (var qi = 0; qi < queued.length; qi++) {
+        var qe = queued[qi];
+        if (!qe) continue;
+        window.__pmRecordingPush(qe.name || qe.event || 'custom_event', qe.data || qe);
+      }
+    } catch (queueErr) {}
 
     var sent = false;
     var recordingTimer = null;
@@ -943,8 +1099,10 @@ class TagController extends Controller
       document.removeEventListener('mousemove', onMove);
       window.removeEventListener('scroll', onScroll);
       document.removeEventListener('click', onClick, true);
+      document.removeEventListener('click', onClickCaptureExtras, true);
       document.removeEventListener('input', onInput, true);
       document.removeEventListener('focusin', onFormFocus, true);
+      document.removeEventListener('focusout', onZipBlur, true);
       document.removeEventListener('invalid', onFormInvalid, true);
       document.removeEventListener('submit', onFormSubmit, true);
       window.removeEventListener('popstate', markPageSoon);
@@ -955,6 +1113,7 @@ class TagController extends Controller
         history.pushState = _pushState;
         history.replaceState = _replaceState;
       } catch (histRestoreErr) {}
+      window.__pmRecordingPush = null;
       window.__pmRecording = false;
       try {
         var body = JSON.stringify({
