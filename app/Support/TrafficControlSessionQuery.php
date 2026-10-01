@@ -315,6 +315,10 @@ class TrafficControlSessionQuery
             ];
         })->values()->all();
 
+        if ($withRecordings) {
+            $data = app(SessionBehaviorEventEnricher::class)->enrich($data, $domainIds, $from, $to);
+        }
+
         if (! $withTotal) {
             $total = count($data);
         }
