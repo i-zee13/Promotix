@@ -86,19 +86,22 @@
                                 </span>
                             </td>
                             <td class="px-4 py-3 text-right">
-                                <button type="button" class="figma-sa-integration-btn"
-                                    @click='openEdit(@json([
-                                        "id" => $rate->id,
-                                        "code" => $rate->code,
-                                        "country_code" => $rate->country_code,
-                                        "country_name" => $rate->country_name,
-                                        "name" => $rate->name,
-                                        "symbol" => $rate->symbol,
-                                        "units_per_usd" => $rate->units_per_usd,
-                                        "is_active" => (bool) $rate->is_active,
-                                        "update_url" => route("super-admin.currency-rates.update", $rate),
-                                        "delete_url" => route("super-admin.currency-rates.destroy", $rate),
-                                    ]))'>Edit</button>
+                                <button
+                                    type="button"
+                                    class="figma-sa-integration-btn"
+                                    @click="openEdit({{ \Illuminate\Support\Js::from([
+                                        'id' => $rate->id,
+                                        'code' => $rate->code,
+                                        'country_code' => $rate->country_code,
+                                        'country_name' => $rate->country_name,
+                                        'name' => $rate->name,
+                                        'symbol' => $rate->symbol,
+                                        'units_per_usd' => $rate->units_per_usd,
+                                        'is_active' => (bool) $rate->is_active,
+                                        'update_url' => route('super-admin.currency-rates.update', $rate),
+                                        'delete_url' => route('super-admin.currency-rates.destroy', $rate),
+                                    ]) }})"
+                                >Edit</button>
                             </td>
                         </tr>
                     @empty
