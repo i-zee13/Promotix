@@ -459,7 +459,7 @@ class GoogleAdsDomainMetricsSync
         $bundles = [];
         $accounts = \App\Models\GoogleAdsAccount::query()
             ->whereIn('id', array_keys($byAccount))
-            ->get(['id', 'currency_code'])
+            ->get(['id', 'currency_code', 'time_zone'])
             ->keyBy('id');
 
         foreach ($byAccount as $accountId => $entries) {
@@ -478,7 +478,12 @@ class GoogleAdsDomainMetricsSync
                     $cost += $entry['cost'];
                 }
             }
-            $currency = AccountCurrency::normalize((string) ($accounts->get($accountId)?->currency_code ?: 'USD'));
+            $account = $accounts->get($accountId);
+            $fromCode = trim((string) ($account?->currency_code ?? ''));
+            if ($fromCode === '') {
+                $fromCode = AccountCurrency::fromTimezone((string) ($account?->time_zone ?? ''));
+            }
+            $currency = AccountCurrency::normalize($fromCode !== '' ? $fromCode : 'USD');
             $bundles[] = [
                 'currency_code' => $currency,
                 'clicks' => $clicks,

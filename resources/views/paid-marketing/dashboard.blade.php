@@ -1942,7 +1942,8 @@ function paidAdvertisingFigma(config = {}) {
                     return map[entry.currency_code] || `${entry.currency_code} `;
                 }
             }
-            // All Domains: follow account / reporting timezone (PKT → Rs), not first-domain currency.
+            // All Domains: always USD.
+            if (!id) return '$';
             const tz = String(this.userTimezone || this.profileTimezone || this.summary?.timezone_context?.reporting_timezone || '');
             if (tz === 'Asia/Karachi' || /karachi/i.test(tz)) return 'Rs ';
             if (tz.startsWith('Europe/London')) return '£';

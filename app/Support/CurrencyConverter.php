@@ -42,8 +42,30 @@ class CurrencyConverter
     {
         $code = AccountCurrency::normalize($code);
         $map = self::rateMap();
+        if (isset($map[$code])) {
+            return (float) $map[$code];
+        }
 
-        return (float) ($map[$code] ?? 1.0);
+        // Fallback when Currency Rates table empty / rate missing (never treat FX as 1:1).
+        return (float) (self::fallbackUnitsPerUsd()[$code] ?? 1.0);
+    }
+
+    /**
+     * @return array<string, float>
+     */
+    private static function fallbackUnitsPerUsd(): array
+    {
+        return [
+            'USD' => 1.0,
+            'PKR' => 278.50,
+            'AED' => 3.6725,
+            'SAR' => 3.75,
+            'GBP' => 0.78,
+            'EUR' => 0.92,
+            'INR' => 83.50,
+            'AUD' => 1.52,
+            'CAD' => 1.36,
+        ];
     }
 
     public static function toUsd(float $amount, string $fromCode): float

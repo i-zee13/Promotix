@@ -964,7 +964,7 @@
         >
             <span class="font-semibold text-white/70">All Domains includes </span>
             <span x-text="includedDomainsList.length"></span>
-            <span> of your Google Ads–linked domains (this account only): </span>
+            <span> of your Google Ads–linked domains (this account only), converted to USD: </span>
             <span class="text-white/75" x-text="includedDomainsList.map((d) => d.hostname + (d.currency_code ? ' · ' + d.currency_code : '')).join(' · ')"></span>
         </p>
 
@@ -2435,7 +2435,8 @@
                         return map[entry.currency_code] || `${entry.currency_code} `;
                     }
                 }
-                // All Domains: follow reporting / account timezone (PKT → Rs), not first domain currency.
+                // All Domains: always USD display currency.
+                if (!id) return '$';
                 const tz = String(this.reportingTimezone || this.profileTimezone || '');
                 if (tz === 'Asia/Karachi' || /karachi/i.test(tz)) return 'Rs ';
                 if (tz.startsWith('Europe/London')) return '£';

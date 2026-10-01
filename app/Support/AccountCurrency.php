@@ -106,15 +106,8 @@ class AccountCurrency
             return self::fromDomain($domain);
         }
 
-        // All Domains: currency follows account / reporting timezone (e.g. PKT → PKR),
-        // not "first domain with any currency" which wrongly shows Rs on EDT accounts.
-        $reportingTz = UserTimezone::reportingTimezoneForRequest(
-            $request->user(),
-            null,
-            $domains->pluck('id')->all(),
-        );
-
-        return self::fromTimezone($reportingTz);
+        // All Domains: always roll up to USD so mixed Ads currencies (PKR/AED/…) convert cleanly.
+        return 'USD';
     }
 
     public static function symbol(string $currencyCode): string
