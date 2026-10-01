@@ -311,6 +311,7 @@ class TrafficControlSessionQuery
                 'exit_page' => $exit ?? '—',
                 'session_recording_id' => $rec['id'] ?? null,
                 'has_session_recording' => ! empty($rec['id']),
+                'recording_session_id' => trim((string) ($rec['session_id'] ?? '')) ?: null,
                 'event_detail' => $rec['event_detail'] ?? [],
             ];
         })->values()->all();

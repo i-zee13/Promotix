@@ -722,8 +722,11 @@ class TagController extends Controller
         push(commerce, Object.assign({}, meta, {
           product_name: meta.element_text || undefined
         }));
+        finishRecording();
       } else if (cta) {
         push('cta_click', meta);
+        // CTA navigations often unload before pagehide — flush so the click is stored.
+        finishRecording();
       } else {
         push('click', {
           x: e.clientX,
@@ -795,6 +798,8 @@ class TagController extends Controller
         success: valid ? 1 : 0,
         status: valid ? 'success' : 'failed'
       });
+      // Form posts often navigate away — flush so submit is not lost.
+      finishRecording();
     }
 
     function pushCommerce(type, detail){

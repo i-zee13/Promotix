@@ -121,7 +121,13 @@ class BehaviorEventPersister
             'add_to_cart' => 'add_to_cart',
             'checkout', 'begin_checkout', 'initiate_checkout' => 'checkout',
             'purchase', 'sale', 'order', 'transaction' => 'purchase',
-            'click' => self::mapLegacyClick($raw),
+            // Prefer typed click events; also promote legacy generic clicks that look like CTAs.
+            'click' => self::mapLegacyClick($raw) ?? (
+                // Keep a click as CTA when it has actionable text/href so timeline is not empty.
+                (trim((string) ($raw['href'] ?? $raw['text'] ?? $raw['element_text'] ?? '')) !== '')
+                    ? 'cta_click'
+                    : null
+            ),
             default => null,
         };
     }
