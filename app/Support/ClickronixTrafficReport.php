@@ -150,7 +150,7 @@ class ClickronixTrafficReport
         ],
         'ip_intelligence' => [
             'label' => 'IP Intelligence',
-            'keys' => ['ip', 'country', 'intel_region', 'intel_city', 'intel_asn', 'intel_asn_org', 'intel_isp', 'intel_network_range', 'intel_routed_prefix', 'intel_allocated_range', 'intel_provider_type', 'intel_vpn', 'intel_proxy', 'intel_tor', 'intel_datacenter', 'intel_risk_score', 'intel_risk_level', 'intel_confidence', 'intel_evidence', 'intel_ip_need_blockation', 'intel_block_reason'],
+            'keys' => ['ip', 'country', 'intel_region', 'intel_city', 'intel_asn', 'intel_asn_org', 'intel_isp', 'intel_network_range', 'intel_routed_prefix', 'intel_allocated_range', 'intel_provider_type', 'intel_vpn', 'intel_proxy', 'intel_tor', 'intel_datacenter', 'intel_risk_score', 'intel_risk_level', 'intel_confidence', 'intel_evidence', 'intel_ip_need_blockation', 'intel_block_reason', 'intel_checked_at'],
         ],
         'device_browser' => [
             'label' => 'Device / Browser',
@@ -158,7 +158,7 @@ class ClickronixTrafficReport
         ],
         'session_behavior' => [
             'label' => 'Session / Behavior',
-            'keys' => ['ip', 'session_id', 'landing_page', 'page_flow', 'entry_time', 'exit_time', 'utc_timestamp', 'exit_timestamps', 'invalid_entry_times', 'invalid_exit_times', 'device_id', 'time_on_site', 'event_actions', 'cta_clicks', 'tel_clicks', 'page_changes', 'scroll_events', 'session_recording', 'status'],
+            'keys' => ['ip', 'session_id', 'landing_page', 'page_flow', 'entry_time', 'exit_time', 'utc_timestamp', 'exit_timestamps', 'intel_checked_at', 'invalid_entry_times', 'invalid_exit_times', 'device_id', 'time_on_site', 'event_actions', 'cta_clicks', 'tel_clicks', 'page_changes', 'scroll_events', 'session_recording', 'status'],
         ],
         'conversion_lead' => [
             'label' => 'Conversion / Lead',
@@ -238,7 +238,6 @@ class ClickronixTrafficReport
             'WBRAID',
             'Last Page',
             'Last CTA',
-            'Checked At',
             'UTC Timestamp',
             'Exit Timestamps',
         ];
@@ -384,7 +383,6 @@ class ClickronixTrafficReport
             $row['wbraid'] ?? '',
             $row['last_path'] ?? '',
             $row['last_cta'] ?? '',
-            $row['intel_checked_at'] ?? '',
             $row['utc_timestamp'] ?? '',
             $row['exit_timestamps'] ?? '',
         ];

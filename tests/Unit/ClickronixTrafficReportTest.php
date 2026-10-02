@@ -11,7 +11,7 @@ class ClickronixTrafficReportTest extends TestCase
     {
         $headers = ClickronixTrafficReport::headers();
 
-        $this->assertCount(47, $headers);
+        $this->assertCount(46, $headers);
         $this->assertSame('IP Address', $headers[0]);
         $this->assertSame('Device ID', $headers[10]);
         $this->assertSame('Entry Time', $headers[26]);
@@ -20,9 +20,10 @@ class ClickronixTrafficReportTest extends TestCase
         $this->assertSame('Invalid Exit Times', $headers[29]);
         $this->assertSame('Total CTA Clicks', $headers[30]);
         $this->assertSame('Total Tel Clicks', $headers[31]);
-        $this->assertSame('Checked At', $headers[44]);
-        $this->assertSame('UTC Timestamp', $headers[45]);
-        $this->assertSame('Exit Timestamps', $headers[46]);
+        $this->assertSame('Last CTA', $headers[43]);
+        $this->assertSame('UTC Timestamp', $headers[44]);
+        $this->assertSame('Exit Timestamps', $headers[45]);
+        $this->assertNotContains('Checked At', $headers);
     }
 
     public function test_values_align_with_headers(): void
@@ -69,8 +70,8 @@ class ClickronixTrafficReportTest extends TestCase
         $this->assertSame(4, $row[30]);
         $this->assertSame(1, $row[31]);
         $this->assertSame('tel:+15551212', $row[43]);
-        $this->assertSame('2026-09-29T09:41:47Z', $row[45]);
-        $this->assertSame('2026-09-29T09:42:36Z', $row[46]);
+        $this->assertSame('2026-09-29T09:41:47Z', $row[44]);
+        $this->assertSame('2026-09-29T09:42:36Z', $row[45]);
     }
 
     public function test_group_export_matches_sheet_keys(): void

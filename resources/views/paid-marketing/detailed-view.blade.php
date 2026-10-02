@@ -1802,6 +1802,7 @@
             { key: 'exit_time', label: 'Exit Time', primary: false, min: 120 },
             { key: 'utc_timestamp', label: 'UTC Timestamp', primary: false, min: 150 },
             { key: 'exit_timestamps', label: 'Exit Timestamps', primary: false, min: 150 },
+            { key: 'intel_checked_at', label: 'Checked At', primary: false, min: 120 },
             { key: 'invalid_entry_times', label: 'Invalid Entry Times', primary: false, min: 180 },
             { key: 'invalid_exit_times', label: 'Invalid Exit Times', primary: false, min: 180 },
             { key: 'time_on_site', label: 'Time on Site', primary: false, min: 88 },
@@ -1861,7 +1862,7 @@
             {
                 id: 'ip_intelligence',
                 label: 'IP Intelligence',
-                keys: ['ip', 'country', 'intel_region', 'intel_city', 'intel_asn', 'intel_asn_org', 'intel_isp', 'intel_network_range', 'intel_allocated_range', 'intel_vpn', 'intel_proxy', 'intel_tor', 'intel_datacenter', 'intel_risk_score', 'intel_risk_level', 'intel_evidence', 'intel_ip_need_blockation', 'intel_block_reason'],
+                keys: ['ip', 'country', 'intel_region', 'intel_city', 'intel_asn', 'intel_asn_org', 'intel_isp', 'intel_network_range', 'intel_allocated_range', 'intel_vpn', 'intel_proxy', 'intel_tor', 'intel_datacenter', 'intel_risk_score', 'intel_risk_level', 'intel_evidence', 'intel_ip_need_blockation', 'intel_block_reason', 'intel_checked_at'],
             },
             {
                 id: 'device_browser',
@@ -1871,7 +1872,7 @@
             {
                 id: 'session_behavior',
                 label: 'Session / Behavior',
-                keys: ['ip', 'session_id', 'landing_page', 'page_flow', 'entry_time', 'exit_time', 'utc_timestamp', 'exit_timestamps', 'invalid_entry_times', 'invalid_exit_times', 'device_id', 'time_on_site', 'event_actions', 'cta_clicks', 'tel_clicks', 'page_changes', 'scroll_events', 'session_recording', 'status'],
+                keys: ['ip', 'session_id', 'landing_page', 'page_flow', 'entry_time', 'exit_time', 'utc_timestamp', 'exit_timestamps', 'intel_checked_at', 'invalid_entry_times', 'invalid_exit_times', 'device_id', 'time_on_site', 'event_actions', 'cta_clicks', 'tel_clicks', 'page_changes', 'scroll_events', 'session_recording', 'status'],
             },
             {
                 id: 'conversion_lead',
@@ -2904,8 +2905,10 @@
                 p.set('page', String(page));
                 p.set('per_page', String(perPage));
                 p.set('offset', String(Math.max(0, (page - 1) * perPage)));
-                if (includeExportColumns && this.activeColumnGroup) {
-                    p.set('column_group', this.activeColumnGroup);
+                if (includeExportColumns) {
+                    if (this.activeColumnGroup) {
+                        p.set('column_group', this.activeColumnGroup);
+                    }
                     const keys = this.exportColumnKeys;
                     if (keys.length) {
                         p.set('columns', keys.join(','));
