@@ -328,6 +328,7 @@ class PaidAdvertisingDashboardController extends Controller
             'avg_cpc' => round($avgCpc, 4),
             'cost_saved' => $costSaved,
             'cost_saved_label' => AccountCurrency::formatAmount($costSaved, $currencyCode),
+            'cost_saved_compact' => AccountCurrency::formatCompact($costSaved, $currencyCode),
             'cost_saved_breakdown' => $costSavedBreakdown,
             'currency_code' => $currencyCode,
             'currency_label' => AccountCurrency::label($currencyCode),

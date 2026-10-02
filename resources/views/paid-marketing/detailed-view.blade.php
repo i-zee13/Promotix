@@ -46,10 +46,14 @@
                 display: flex;
                 flex-direction: column;
                 min-height: 148px;
+                min-width: 0;
+                max-width: 100%;
                 border-radius: 10px;
                 border: 1px solid color-mix(in srgb, var(--brand-primary, #FF6600) 55%, transparent);
                 background: #111111;
                 padding: 14px 14px 12px;
+                overflow: hidden;
+                box-sizing: border-box;
             }
             .pm-adv-kpi-card__icon {
                 display: inline-flex;
@@ -59,6 +63,7 @@
                 height: 28px;
                 border-radius: 7px;
                 margin-bottom: 10px;
+                flex-shrink: 0;
             }
             .pm-adv-kpi-card__icon.is-purple,
             .pm-adv-kpi-card__icon.is-green,
@@ -75,11 +80,25 @@
                 margin-bottom: 8px;
             }
             .pm-adv-kpi-card__value {
-                font-size: 26px;
+                font-size: clamp(13px, 1.6vw, 26px);
                 font-weight: 700;
                 color: #fff;
-                line-height: 1.1;
+                line-height: 1.15;
                 letter-spacing: -0.02em;
+                min-width: 0;
+                max-width: 100%;
+                overflow-wrap: anywhere;
+                word-break: break-word;
+                white-space: normal;
+            }
+            .pm-adv-kpi-card__value.is-money {
+                font-variant-numeric: tabular-nums;
+            }
+            @media (max-width: 1400px) {
+                .pm-adv-kpi-card__value { font-size: clamp(12px, 1.35vw, 20px); }
+            }
+            @media (max-width: 1100px) {
+                .pm-adv-kpi-card__value { font-size: clamp(12px, 2.4vw, 18px); }
             }
             .pm-adv-kpi-card__sub {
                 margin-top: auto;
@@ -981,8 +1000,13 @@
                         </template>
                     </span>
                     <p class="pm-adv-kpi-card__label" x-text="card.label"></p>
-                    <div class="flex flex-wrap items-center gap-[6px]">
-                        <p class="pm-adv-kpi-card__value" x-text="card.value"></p>
+                    <div class="flex min-w-0 flex-wrap items-center gap-[6px]">
+                        <p
+                            class="pm-adv-kpi-card__value"
+                            :class="card.key === 'waste' && 'is-money'"
+                            :title="card.title || card.value"
+                            x-text="card.value"
+                        ></p>
                         <template x-if="card.key === 'total' && card.show_reconnect">
                             <a
                                 :href="card.reconnect_url || '{{ route('integrations.google.redirect') }}'"
@@ -2658,9 +2682,31 @@
                     { key: 'valid', label: 'Valid Clicks', value: fmt(valid), sub: `${validPct}% of tracked clicks`, tone: 'purple' },
                     { key: 'invalid', label: 'Invalid Clicks', value: fmt(invalid), sub: `${invalidPct}% of tracked clicks`, tone: 'purple' },
                     { key: 'blocked', label: 'Blocked Clicks', value: fmt(blocked), sub: 'Blocked by protection', tone: 'purple' },
-                    { key: 'waste', label: 'Estimated Waste Prevented', value: summary?.cost_saved_label || `${currencySymbol}${Number(costSaved || 0).toFixed(2)}`, sub: wasteSub, tone: 'purple' },
+                    {
+                        key: 'waste',
+                        label: 'Estimated Waste Prevented',
+                        value: summary?.cost_saved_compact
+                            || this.formatMoneyCompact(costSaved, currencySymbol)
+                            || summary?.cost_saved_label
+                            || `${currencySymbol}${Number(costSaved || 0).toFixed(2)}`,
+                        title: summary?.cost_saved_label || `${currencySymbol}${Number(costSaved || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                        sub: wasteSub,
+                        tone: 'purple',
+                    },
                     { key: 'risk', label: 'Tracking Accuracy', value: `${trackingAccuracy}%`, sub: `Tracked clicks ${tracked}`, tone: 'purple' },
                 ];
+            },
+            formatMoneyCompact(amount, symbol) {
+                const n = Number(amount || 0);
+                const abs = Math.abs(n);
+                const sym = String(symbol || '');
+                if (abs >= 1_000_000) {
+                    return sym + (n / 1_000_000).toFixed(2).replace(/\.?0+$/, '') + 'M';
+                }
+                if (abs >= 10_000) {
+                    return sym + (n / 1_000).toFixed(2).replace(/\.?0+$/, '') + 'K';
+                }
+                return sym + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             },
             syncHeaderDates() {
                 try {

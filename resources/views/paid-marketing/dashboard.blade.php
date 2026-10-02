@@ -128,6 +128,18 @@
         line-height: 1.1;
         color: #fff;
     }
+    .paid-kpi-card__money {
+        margin: 4px 0 0;
+        font-size: clamp(12px, 1.4vw, 16px);
+        font-weight: 600;
+        line-height: 1.15;
+        color: #fff;
+        min-width: 0;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        font-variant-numeric: tabular-nums;
+    }
     .paid-kpi-card__link {
         display: inline-flex;
         align-items: center;
@@ -1051,9 +1063,9 @@
                         </div>
                         </div>
                 <div class="mt-[14px] flex items-end justify-between gap-[10px]">
-                        <div>
+                        <div class="min-w-0">
                             <p class="paid-traffic-metrics__label">Cost Saved</p>
-                        <p class="text-[16px] font-semibold leading-none text-white"><span x-text="summary.cost_saved_label || (activeCurrencySymbol() + Number(summary.cost_saved || 0).toFixed(2))"></span></p>
+                        <p class="paid-kpi-card__money" :title="summary.cost_saved_label || ''"><span x-text="summary.cost_saved_compact || summary.cost_saved_label || (activeCurrencySymbol() + Number(summary.cost_saved || 0).toFixed(2))"></span></p>
                         </div>
                     <p class="text-[9px] text-white/45" x-show="summary.avg_cpc">Avg CPC <span x-text="activeCurrencySymbol() + Number(summary.avg_cpc || 0).toFixed(2)"></span></p>
                     </div>

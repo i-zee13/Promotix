@@ -135,11 +135,33 @@ class VerifyBehaviorEvents extends Command
             return [];
         }
 
-        $q = DB::table('domains')->select(['id', 'hostname'])->orderByDesc('id');
+        $q = DB::table('domains')->select(['id', 'hostname', 'status'])->orderByDesc('id');
         if (Schema::hasColumn('domains', 'status')) {
-            $q->where('status', 'active');
+            // Domain statuses are pending|connected|disabled (not "active").
+            $q->whereIn('status', ['connected', 'pending']);
         }
         $rows = $q->limit($domainsLimit)->get();
+
+        if ($rows->isEmpty() && Schema::hasColumn('domains', 'status')) {
+            // Fallback: any non-disabled domain.
+            $rows = DB::table('domains')
+                ->select(['id', 'hostname', 'status'])
+                ->where(function ($inner): void {
+                    $inner->whereNull('status')->orWhere('status', '!=', 'disabled');
+                })
+                ->orderByDesc('id')
+                ->limit($domainsLimit)
+                ->get();
+        }
+
+        if ($rows->isEmpty()) {
+            // Last resort: newest domains regardless of status.
+            $rows = DB::table('domains')
+                ->select(['id', 'hostname'])
+                ->orderByDesc('id')
+                ->limit($domainsLimit)
+                ->get();
+        }
 
         return $rows->all();
     }
