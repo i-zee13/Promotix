@@ -2213,8 +2213,8 @@
                                     >
                             <div class="figma-gaem-head">
                                 <div>
-                                    <h2 class="figma-gaem-title">Google Ads Exclusion Manager</h2>
-                                    <p class="figma-gaem-lead">Detected blocks and cross-domain IPs queued for Google Ads.</p>
+                                    <h2 class="figma-gaem-title">{{ request()->filled('domain_id') ? 'Google Ads Exclusion Manager' : 'Select your domain first !' }}</h2>
+                                    <p class="figma-gaem-lead">{{ request()->filled('domain_id') ? 'Detected blocks and cross-domain IPs queued for Google Ads.' : 'Pick a domain from the filter above to manage Google Ads exclusions.' }}</p>
                                         </div>
                                 <div class="figma-gaem-head-actions" x-data="{
                                     saving: false,
