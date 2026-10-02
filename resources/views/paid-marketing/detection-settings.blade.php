@@ -488,6 +488,8 @@
             }
             .figma-bip, .figma-gaem {
                 min-width: 0;
+                max-width: 100%;
+                width: 100%;
                 height: 100%;
                 display: flex;
                 flex-direction: column;
@@ -496,6 +498,7 @@
                 background: #fff;
                 padding: 16px;
                 overflow: visible;
+                box-sizing: border-box;
             }
             .figma-bip-head, .figma-gaem-head {
                 display: flex; flex-wrap: wrap; align-items: center;
@@ -556,27 +559,42 @@
             }
             .figma-gaem-quick {
                 display: grid;
-                grid-template-columns: minmax(180px, 1fr) minmax(220px, 1fr);
-                gap: 8px;
+                grid-template-columns: 1fr;
+                gap: 10px;
                 margin-bottom: 12px;
                 align-items: start;
                 position: relative;
                 z-index: 20;
                 overflow: visible;
+                min-width: 0;
+                width: 100%;
+                max-width: 100%;
+                box-sizing: border-box;
+            }
+            /* Sidebars shrink usable width — only side-by-side on wide desktops */
+            @media (min-width: 1600px) {
+                .figma-gaem-quick {
+                    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+                }
             }
             .figma-gaem-quick-left {
                 display: flex;
                 flex-direction: column;
                 gap: 4px;
                 min-width: 0;
+                width: 100%;
+                max-width: 100%;
             }
             .figma-gaem-quick-left .figma-gaem-search-field {
                 display: flex;
                 flex-direction: column;
                 gap: 4px;
+                min-width: 0;
+                width: 100%;
             }
             .figma-gaem-search-input {
                 width: 100%;
+                max-width: 100%;
                 height: 34px;
                 border-radius: 3px;
                 border: 0;
@@ -586,6 +604,7 @@
                 font-size: 11px;
                 outline: none;
                 box-shadow: none;
+                box-sizing: border-box;
             }
             .figma-gaem-search-input::placeholder { color: #8c8787; opacity: 1; }
             .figma-gaem-search-input:focus {
@@ -593,7 +612,7 @@
                 box-shadow: 0 0 0 1px rgba(140, 135, 135, 0.45);
             }
             .figma-gaem-quick-left-actions {
-                margin-top: auto;
+                margin-top: 8px;
                 display: flex;
                 flex-wrap: wrap;
                 gap: 8px;
@@ -606,9 +625,12 @@
                 flex-direction: column;
                 gap: 4px;
                 min-width: 0;
+                width: 100%;
+                max-width: 100%;
                 position: relative;
                 z-index: 30;
                 isolation: isolate;
+                box-sizing: border-box;
             }
             .figma-gaem-campaign-label { font-size: 10px; font-weight: 600; color: #6b6578; text-transform: uppercase; letter-spacing: 0.02em; }
             .figma-gaem-campaign-select {
@@ -619,9 +641,13 @@
                 color: #2d2d3a;
                 font-size: 12px;
                 padding: 0 10px;
+                width: 100%;
+                max-width: 100%;
+                box-sizing: border-box;
             }
             .figma-gaem-campaign-trigger {
                 width: 100%;
+                max-width: 100%;
                 height: 34px;
                 border-radius: 6px;
                 border: 1px solid #e4dceb;
@@ -656,6 +682,7 @@
                 top: calc(100% + 4px);
                 width: 100%;
                 min-width: 0;
+                max-width: 100%;
                 z-index: 80;
                 border: 1px solid #e4dceb;
                 border-radius: 8px;
@@ -667,14 +694,10 @@
                 box-sizing: border-box;
             }
             .figma-gaem-campaign-multi.is-disabled { opacity: 0.55; pointer-events: none; }
-            @media (max-width: 1280px) {
-                .figma-gaem-quick { grid-template-columns: 1fr; }
+            @media (max-width: 1599px) {
                 .figma-gaem-campaign-multi {
                     max-height: min(180px, 36vh);
                 }
-            }
-            @media (max-width: 640px) {
-                .figma-gaem-quick { grid-template-columns: 1fr; }
             }
             .figma-gaem-campaign-all,
             .figma-gaem-campaign-item {
