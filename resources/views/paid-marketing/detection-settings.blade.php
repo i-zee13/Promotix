@@ -79,22 +79,47 @@
     <section class="mx-auto w-full max-w-[1120px] px-[18px] pb-[28px] pt-[28px] sm:px-[22px] xl:max-w-none xl:px-[24px] xl:pt-[68px]">
         <style>
             .figma-filter-bar--detection {
-                width: fit-content !important;
+                width: 100% !important;
                 max-width: 100% !important;
-                margin-left: auto;
-                display: inline-flex !important;
-                flex-wrap: nowrap;
+                margin-left: 0;
+                display: flex !important;
+                flex-wrap: wrap !important;
                 align-items: stretch;
                 gap: 0 !important;
+                row-gap: 0;
                 overflow: visible;
                 box-sizing: border-box;
             }
+            .detection-page-head {
+                width: 100%;
+                min-width: 0;
+            }
+            @container figma-main (min-width: 1400px) {
+                .detection-page-head {
+                    flex-direction: row;
+                    align-items: center;
+                    justify-content: space-between;
+                }
+                .figma-filter-bar--detection {
+                    width: fit-content !important;
+                    max-width: min(100%, 920px) !important;
+                    margin-left: auto;
+                }
+            }
             .figma-filter-bar--detection > label {
-                flex: 0 0 auto !important;
+                flex: 1 1 0 !important;
+                width: auto !important;
                 min-width: 0 !important;
-                padding-left: 8px !important;
-                padding-right: 8px !important;
+                max-width: none !important;
+                padding-left: 6px !important;
+                padding-right: 6px !important;
                 box-sizing: border-box;
+            }
+            .figma-filter-bar--detection > label > span:first-child {
+                font-size: clamp(6px, 0.7cqi, 8px) !important;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
             }
             .figma-filter-bar--detection .figma-filter-select-wrap,
             .figma-filter-bar--detection .figma-filter-control,
@@ -102,69 +127,78 @@
                 box-sizing: border-box !important;
                 height: 23px !important;
                 min-height: 23px !important;
+                min-width: 0 !important;
+                width: 100% !important;
+                font-size: clamp(8px, 0.95cqi, 11px) !important;
+            }
+            .figma-filter-bar--detection .figma-filter-select-wrap span {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
             }
             .figma-filter-bar--detection .figma-filter-calendar-host {
                 display: flex;
-                flex: 0 0 auto;
+                flex: 0 0 auto !important;
+                flex-shrink: 0 !important;
                 align-items: center;
                 justify-content: center;
                 align-self: stretch;
                 border-left: 1px solid rgba(0, 0, 0, 0.2);
-                padding: 6px 10px;
+                padding: 6px 8px;
                 margin: 0;
                 box-sizing: border-box;
             }
             .figma-filter-bar--detection .figma-filter-calendar-btn--responsive {
-                height: 32px !important;
-                min-height: 32px !important;
+                height: 30px !important;
+                min-height: 30px !important;
+                width: 30px !important;
+                min-width: 30px !important;
                 box-sizing: border-box !important;
             }
-            /* Shrink text first; wrap only when one row can't fit */
-            @media (max-width: 1600px) {
-                .figma-filter-bar--detection {
-                    width: 100% !important;
-                    display: flex !important;
-                    flex-wrap: nowrap !important;
-                    margin-left: 0 !important;
-                }
+            /* Right sidebar open / narrow main: Landing Page + calendar on next row */
+            @container figma-main (max-width: 1200px) {
                 .figma-filter-bar--detection > label {
-                    flex: 1 1 0 !important;
-                    min-width: 0 !important;
-                    max-width: none !important;
+                    flex: 1 1 110px !important;
                     padding-left: 5px !important;
                     padding-right: 5px !important;
                 }
                 .figma-filter-bar--detection > label > span:first-child {
-                    font-size: clamp(5.5px, 0.48vw, 7px) !important;
+                    font-size: 6px !important;
                 }
                 .figma-filter-bar--detection .figma-filter-control,
                 .figma-filter-bar--detection .figma-filter-select-wrap {
-                    font-size: clamp(8px, 0.6vw, 10px) !important;
+                    font-size: 9px !important;
+                }
+                .figma-filter-bar--detection .detection-f-landing,
+                .figma-filter-bar--detection .figma-filter-calendar-host {
+                    flex: 1 1 100% !important;
+                    width: 100% !important;
+                    max-width: none !important;
+                    border-left: 0 !important;
+                    border-top: 1px solid rgba(0, 0, 0, 0.12);
+                }
+                .figma-filter-bar--detection .detection-f-landing {
+                    flex: 1 1 calc(100% - 48px) !important;
+                    border-top: 1px solid rgba(0, 0, 0, 0.12);
                 }
                 .figma-filter-bar--detection .figma-filter-calendar-host {
                     flex: 0 0 auto !important;
-                    flex-shrink: 0 !important;
-                    margin-left: 0;
-                    border-left: 1px solid rgba(0, 0, 0, 0.2);
-                    border-top: 0;
-                    align-self: stretch;
+                    margin-left: auto;
+                    justify-content: center;
                 }
             }
-            @media (max-width: 1100px) {
-                .figma-filter-bar--detection {
-                    flex-wrap: wrap !important;
-                    row-gap: 6px !important;
-                }
+            @container figma-main (max-width: 900px) {
                 .figma-filter-bar--detection > label {
-                    flex: 1 1 120px !important;
-                    max-width: 220px !important;
+                    flex: 1 1 46% !important;
                 }
+                .figma-filter-bar--detection .detection-f-landing,
                 .figma-filter-bar--detection .figma-filter-calendar-host {
-                    margin-left: auto;
+                    flex: 1 1 100% !important;
+                    margin-left: 0;
                 }
             }
             @media (max-width: 640px) {
-                .figma-filter-bar--detection > label { flex: 1 1 100% !important; max-width: none !important; }
+                .figma-filter-bar--detection > label { flex: 1 1 100% !important; }
                 .figma-filter-bar--detection .figma-filter-calendar-host {
                     flex: 1 1 100% !important;
                     margin-left: 0;
@@ -1445,7 +1479,7 @@
             html.light-mode .figma-rule-editor-title { color: #2d2d3a; }
         </style>
 
-        <div class="bp-adv-page-head mb-[23px] flex flex-col gap-[14px] sm:flex-row sm:items-center sm:justify-between">
+        <div class="bp-adv-page-head detection-page-head mb-[23px] flex flex-col gap-[14px]">
             <div class="flex flex-wrap items-center gap-[12px] shrink-0">
                 <h1 class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Paid Marketing</h1>
                 <span class="h-[34px] w-[2px] bg-[#a9a9a9] sm:h-[44px]"></span>
@@ -1453,8 +1487,8 @@
             </div>
 
             @if ($domains->isNotEmpty())
-                <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--detection ov-filter-bar ml-auto flex min-h-[54px] w-fit max-w-full flex-nowrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)]">
-                    <label class="relative flex w-[140px] shrink-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]" @click.outside="filterMenus.domain = false">
+                <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--detection ov-filter-bar ml-auto flex min-h-[54px] w-full max-w-full flex-wrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)]">
+                    <label class="relative flex min-w-0 flex-1 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]" @click.outside="filterMenus.domain = false">
                         <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Domain</span>
                         <button type="button" @click="toggleFilterMenu('domain')" class="figma-filter-select-wrap flex h-[23px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[11px] text-[#8c8787]">
                             <span class="truncate" x-text="domainFilterLabel()"></span>
@@ -1466,7 +1500,7 @@
                             </template>
                         </div>
                     </label>
-                    <label class="relative flex w-[118px] shrink-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]" @click.outside="filterMenus.traffic = false">
+                    <label class="relative flex min-w-0 flex-1 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]" @click.outside="filterMenus.traffic = false">
                         <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Traffic Source</span>
                         <button type="button" @click="toggleFilterMenu('traffic')" class="figma-filter-select-wrap flex h-[23px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[11px] text-[#8c8787]">
                             <span class="truncate" x-text="trafficFilterLabel()"></span>
@@ -1477,7 +1511,7 @@
                             </template>
                         </div>
                     </label>
-                    <label class="relative flex w-[150px] shrink-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]" @click.outside="filterMenus.account = false">
+                    <label class="relative flex min-w-0 flex-1 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]" @click.outside="filterMenus.account = false">
                         <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Google Ads Account</span>
                         <button type="button" @click="toggleFilterMenu('account')" class="figma-filter-select-wrap flex h-[23px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[11px] text-[#8c8787]">
                             <span class="truncate" x-text="accountFilterLabel()"></span>
@@ -1492,7 +1526,7 @@
                             </template>
                         </div>
                     </label>
-                    <label class="relative flex w-[130px] shrink-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]" @click.outside="filterMenus.campaign = false">
+                    <label class="relative flex min-w-0 flex-1 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]" @click.outside="filterMenus.campaign = false">
                         <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Campaign</span>
                         <button type="button" @click="toggleFilterMenu('campaign')" class="figma-filter-select-wrap flex h-[23px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[11px] text-[#8c8787]">
                             <span class="truncate" x-text="filters.campaign || 'All Campaigns'"></span>
@@ -1507,7 +1541,7 @@
                             </template>
                         </div>
                     </label>
-                    <label class="flex w-[128px] shrink-0 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
+                    <label class="detection-f-landing flex min-w-0 flex-1 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
                         <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Landing Page</span>
                         <div class="figma-filter-path-wrap">
                             <svg class="figma-filter-path-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
