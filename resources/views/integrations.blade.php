@@ -433,17 +433,41 @@ document.addEventListener('DOMContentLoaded', () => {
                 .figma-filter-bar--pi {
                     width: 100% !important;
                     display: flex !important;
-                    flex-wrap: wrap !important;
+                    flex-wrap: nowrap !important;
                     margin-left: 0 !important;
+                }
+                .figma-filter-bar--pi > label {
+                    flex: 1 1 0 !important;
+                    min-width: 0 !important;
+                    max-width: none !important;
+                    padding-left: 5px !important;
+                    padding-right: 5px !important;
+                }
+                .figma-filter-bar--pi > label > span:first-child {
+                    font-size: clamp(5.5px, 0.48vw, 7px) !important;
+                }
+                .figma-filter-bar--pi .figma-filter-control,
+                .figma-filter-bar--pi .figma-filter-select-wrap {
+                    font-size: clamp(8px, 0.6vw, 10px) !important;
+                }
+                .figma-filter-bar--pi .figma-filter-calendar-host {
+                    flex: 0 0 auto !important;
+                    flex-shrink: 0 !important;
+                    margin-left: 0;
+                    align-self: stretch;
+                }
+            }
+            @media (max-width: 1100px) {
+                .figma-filter-bar--pi {
+                    flex-wrap: wrap !important;
                     row-gap: 6px !important;
                 }
                 .figma-filter-bar--pi > label {
-                    flex: 1 1 132px !important;
+                    flex: 1 1 120px !important;
                     max-width: 220px !important;
                 }
                 .figma-filter-bar--pi .figma-filter-calendar-host {
                     margin-left: auto;
-                    align-self: stretch;
                 }
             }
             @media (max-width: 640px) {

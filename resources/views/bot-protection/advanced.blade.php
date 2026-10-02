@@ -58,13 +58,13 @@
                 position: relative;
                 overflow: visible !important;
             }
-            .figma-filter-bar--bp-adv > label.bp-adv-f-search { width: 140px !important; flex: 0 0 140px !important; }
-            .figma-filter-bar--bp-adv > label.bp-adv-f-account { width: 130px !important; flex: 0 0 130px !important; }
-            .figma-filter-bar--bp-adv > label.bp-adv-f-domain { width: 118px !important; flex: 0 0 118px !important; }
-            .figma-filter-bar--bp-adv > label.bp-adv-f-traffic { width: 108px !important; flex: 0 0 108px !important; }
-            .figma-filter-bar--bp-adv > label.bp-adv-f-campaign { width: 118px !important; flex: 0 0 118px !important; }
-            .figma-filter-bar--bp-adv > label.bp-adv-f-device { width: 100px !important; flex: 0 0 100px !important; }
-            .figma-filter-bar--bp-adv > label.bp-adv-f-path { width: 120px !important; flex: 0 0 120px !important; }
+            .figma-filter-bar--bp-adv > label.bp-adv-f-search { width: 140px !important; flex: 1 1 140px !important; }
+            .figma-filter-bar--bp-adv > label.bp-adv-f-account { width: 130px !important; flex: 1 1 130px !important; }
+            .figma-filter-bar--bp-adv > label.bp-adv-f-domain { width: 118px !important; flex: 1 1 118px !important; }
+            .figma-filter-bar--bp-adv > label.bp-adv-f-traffic { width: 108px !important; flex: 1 1 108px !important; }
+            .figma-filter-bar--bp-adv > label.bp-adv-f-campaign { width: 118px !important; flex: 1 1 118px !important; }
+            .figma-filter-bar--bp-adv > label.bp-adv-f-device { width: 100px !important; flex: 1 1 100px !important; }
+            .figma-filter-bar--bp-adv > label.bp-adv-f-path { width: 120px !important; flex: 1 1 120px !important; }
             .figma-filter-bar--bp-adv .bp-adv-f-actions {
                 display: inline-flex !important;
                 flex: 0 0 auto !important;
@@ -106,21 +106,63 @@
                     width: 100% !important;
                     align-self: stretch;
                     margin-left: 0 !important;
-                    flex-wrap: wrap !important;
+                    flex-wrap: nowrap !important;
                     display: flex !important;
+                }
+                .figma-filter-bar--bp-adv > label {
+                    flex: 1 1 0 !important;
+                    width: auto !important;
+                    min-width: 0 !important;
+                    max-width: none !important;
+                    padding-left: 5px !important;
+                    padding-right: 5px !important;
+                }
+                .figma-filter-bar--bp-adv > label.bp-adv-f-search,
+                .figma-filter-bar--bp-adv > label.bp-adv-f-account,
+                .figma-filter-bar--bp-adv > label.bp-adv-f-domain,
+                .figma-filter-bar--bp-adv > label.bp-adv-f-traffic,
+                .figma-filter-bar--bp-adv > label.bp-adv-f-campaign,
+                .figma-filter-bar--bp-adv > label.bp-adv-f-device,
+                .figma-filter-bar--bp-adv > label.bp-adv-f-path {
+                    width: auto !important;
+                    flex: 1 1 0 !important;
+                }
+                .figma-filter-bar--bp-adv > label > span:first-child {
+                    font-size: clamp(5.5px, 0.48vw, 7px) !important;
+                }
+                .figma-filter-bar--bp-adv .figma-filter-control,
+                .figma-filter-bar--bp-adv .figma-filter-select-wrap {
+                    font-size: clamp(8px, 0.6vw, 10px) !important;
+                }
+                .figma-filter-bar--bp-adv .bp-adv-f-actions {
+                    margin-left: 0 !important;
+                    flex: 0 0 auto !important;
+                    flex-shrink: 0 !important;
+                }
+                .figma-filter-bar--bp-adv .figma-filter-calendar-host {
+                    flex: 0 0 auto !important;
+                    flex-shrink: 0 !important;
+                }
+            }
+            @media (max-width: 1360px) {
+                .figma-filter-bar--bp-adv > label > span:first-child { font-size: 5.5px !important; }
+                .figma-filter-bar--bp-adv .figma-filter-control,
+                .figma-filter-bar--bp-adv .figma-filter-select-wrap {
+                    font-size: 8px !important;
+                    height: 20px !important;
+                }
+            }
+            @media (max-width: 1100px) {
+                .figma-filter-bar--bp-adv {
+                    flex-wrap: wrap !important;
                     row-gap: 6px !important;
                 }
                 .figma-filter-bar--bp-adv > label {
-                    flex: 1 1 132px !important;
-                    width: auto !important;
+                    flex: 1 1 120px !important;
                     max-width: 220px !important;
                 }
                 .figma-filter-bar--bp-adv .bp-adv-f-actions {
                     margin-left: auto !important;
-                    flex: 0 0 auto !important;
-                }
-                .figma-filter-bar--bp-adv .figma-filter-calendar-host {
-                    flex: 0 0 auto !important;
                 }
             }
             @media (max-width: 640px) {

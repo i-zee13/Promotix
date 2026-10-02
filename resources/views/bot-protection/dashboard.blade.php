@@ -87,12 +87,12 @@
                     z-index: 1;
                     overflow: visible !important;
                 }
-                .figma-filter-bar--bp-dash > label.bp-dash-f-search { width: 118px !important; flex: 0 0 118px !important; }
-                .figma-filter-bar--bp-dash > label.bp-dash-f-account { width: 108px !important; flex: 0 0 108px !important; }
-                .figma-filter-bar--bp-dash > label.bp-dash-f-domain { width: 92px !important; flex: 0 0 92px !important; }
-                .figma-filter-bar--bp-dash > label.bp-dash-f-campaign { width: 98px !important; flex: 0 0 98px !important; }
-                .figma-filter-bar--bp-dash > label.bp-dash-f-device { width: 80px !important; flex: 0 0 80px !important; }
-                .figma-filter-bar--bp-dash > label.bp-dash-f-path { width: 108px !important; flex: 0 0 108px !important; }
+                .figma-filter-bar--bp-dash > label.bp-dash-f-search { width: 118px !important; flex: 1 1 118px !important; }
+                .figma-filter-bar--bp-dash > label.bp-dash-f-account { width: 108px !important; flex: 1 1 108px !important; }
+                .figma-filter-bar--bp-dash > label.bp-dash-f-domain { width: 92px !important; flex: 1 1 92px !important; }
+                .figma-filter-bar--bp-dash > label.bp-dash-f-campaign { width: 98px !important; flex: 1 1 98px !important; }
+                .figma-filter-bar--bp-dash > label.bp-dash-f-device { width: 80px !important; flex: 1 1 80px !important; }
+                .figma-filter-bar--bp-dash > label.bp-dash-f-path { width: 108px !important; flex: 1 1 108px !important; }
                 .figma-filter-bar--bp-dash > label > span:first-child,
                 .figma-filter-bar--bp-dash .figma-filter-label {
                     color: rgba(0, 0, 0, 0.55) !important;
@@ -199,7 +199,7 @@
                     width: 14px;
                     height: 14px;
                 }
-                /* 12–13" / sidebars: wrap filter chips so Domain isn’t crushed to the edge */
+                /* Shrink text/fields first; wrap only when one row can't fit */
                 @media (max-width: 1600px) {
                     .figma-filter-bar--bp-dash.ov-filter-bar,
                     .figma-filter-bar--bp-dash {
@@ -208,28 +208,79 @@
                         margin-left: 0 !important;
                         align-self: stretch;
                         display: flex !important;
-                        flex-wrap: wrap !important;
+                        flex-wrap: nowrap !important;
                         overflow: visible !important;
+                    }
+                    .figma-filter-bar--bp-dash > label {
+                        flex: 1 1 0 !important;
+                        width: auto !important;
+                        min-width: 0 !important;
+                        max-width: none !important;
+                        padding-left: 5px !important;
+                        padding-right: 5px !important;
+                    }
+                    .figma-filter-bar--bp-dash > label.bp-dash-f-search,
+                    .figma-filter-bar--bp-dash > label.bp-dash-f-account,
+                    .figma-filter-bar--bp-dash > label.bp-dash-f-domain,
+                    .figma-filter-bar--bp-dash > label.bp-dash-f-campaign,
+                    .figma-filter-bar--bp-dash > label.bp-dash-f-device,
+                    .figma-filter-bar--bp-dash > label.bp-dash-f-path {
+                        flex: 1 1 0 !important;
+                        width: auto !important;
+                        min-width: 0 !important;
+                    }
+                    .figma-filter-bar--bp-dash > label > span:first-child,
+                    .figma-filter-bar--bp-dash .figma-filter-label {
+                        font-size: clamp(5.5px, 0.48vw, 7px) !important;
+                    }
+                    .figma-filter-bar--bp-dash .figma-filter-control,
+                    .figma-filter-bar--bp-dash .figma-filter-select-wrap {
+                        font-size: clamp(8px, 0.6vw, 10px) !important;
+                    }
+                    .figma-filter-bar--bp-dash .bp-dash-f-actions {
+                        flex: 0 0 auto !important;
+                        flex-shrink: 0 !important;
+                        margin-left: 0 !important;
+                        position: relative;
+                        background: transparent;
+                    }
+                }
+                @media (max-width: 1360px) {
+                    .figma-filter-bar--bp-dash > label {
+                        padding-left: 4px !important;
+                        padding-right: 4px !important;
+                    }
+                    .figma-filter-bar--bp-dash > label > span:first-child,
+                    .figma-filter-bar--bp-dash .figma-filter-label {
+                        font-size: 5.5px !important;
+                    }
+                    .figma-filter-bar--bp-dash .figma-filter-control,
+                    .figma-filter-bar--bp-dash .figma-filter-select-wrap {
+                        font-size: 8px !important;
+                        height: 20px !important;
+                    }
+                    .figma-filter-bar--bp-dash .figma-filter-calendar-btn--responsive {
+                        width: 26px !important;
+                        min-width: 26px !important;
+                        height: 26px !important;
+                    }
+                    .figma-filter-bar--bp-dash .bp-dash-export-btn {
+                        width: 26px;
+                        height: 26px;
+                    }
+                }
+                @media (max-width: 1100px) {
+                    .figma-filter-bar--bp-dash.ov-filter-bar,
+                    .figma-filter-bar--bp-dash {
+                        flex-wrap: wrap !important;
                         row-gap: 6px !important;
                     }
                     .figma-filter-bar--bp-dash > label {
-                        flex: 1 1 140px !important;
-                        width: auto !important;
-                        min-width: 120px !important;
+                        flex: 1 1 120px !important;
                         max-width: 220px !important;
                     }
-                    .figma-filter-bar--bp-dash > label.bp-dash-f-search { flex: 1 1 160px !important; min-width: 140px !important; }
-                    .figma-filter-bar--bp-dash > label.bp-dash-f-account { flex: 1 1 150px !important; }
-                    .figma-filter-bar--bp-dash > label.bp-dash-f-domain { flex: 1 1 150px !important; min-width: 140px !important; }
-                    .figma-filter-bar--bp-dash > label.bp-dash-f-campaign { flex: 1 1 140px !important; }
-                    .figma-filter-bar--bp-dash > label.bp-dash-f-device { flex: 1 1 120px !important; }
-                    .figma-filter-bar--bp-dash > label.bp-dash-f-path { flex: 1 1 150px !important; }
                     .figma-filter-bar--bp-dash .bp-dash-f-actions {
                         margin-left: auto !important;
-                        position: sticky;
-                        right: 0;
-                        background: #d9d9d9;
-                        flex: 0 0 auto !important;
                     }
                 }
                 /* Phone: wrap calendar row cleanly */

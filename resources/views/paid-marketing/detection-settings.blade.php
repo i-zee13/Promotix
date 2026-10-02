@@ -119,25 +119,48 @@
                 min-height: 32px !important;
                 box-sizing: border-box !important;
             }
-            /* 12–13" + sidebars: wrap so calendar isn’t clipped */
+            /* Shrink text first; wrap only when one row can't fit */
             @media (max-width: 1600px) {
                 .figma-filter-bar--detection {
                     width: 100% !important;
                     display: flex !important;
-                    flex-wrap: wrap !important;
+                    flex-wrap: nowrap !important;
                     margin-left: 0 !important;
-                    row-gap: 6px !important;
                 }
                 .figma-filter-bar--detection > label {
-                    flex: 1 1 132px !important;
-                    max-width: 220px !important;
+                    flex: 1 1 0 !important;
+                    min-width: 0 !important;
+                    max-width: none !important;
+                    padding-left: 5px !important;
+                    padding-right: 5px !important;
+                }
+                .figma-filter-bar--detection > label > span:first-child {
+                    font-size: clamp(5.5px, 0.48vw, 7px) !important;
+                }
+                .figma-filter-bar--detection .figma-filter-control,
+                .figma-filter-bar--detection .figma-filter-select-wrap {
+                    font-size: clamp(8px, 0.6vw, 10px) !important;
                 }
                 .figma-filter-bar--detection .figma-filter-calendar-host {
                     flex: 0 0 auto !important;
-                    margin-left: auto;
+                    flex-shrink: 0 !important;
+                    margin-left: 0;
                     border-left: 1px solid rgba(0, 0, 0, 0.2);
                     border-top: 0;
                     align-self: stretch;
+                }
+            }
+            @media (max-width: 1100px) {
+                .figma-filter-bar--detection {
+                    flex-wrap: wrap !important;
+                    row-gap: 6px !important;
+                }
+                .figma-filter-bar--detection > label {
+                    flex: 1 1 120px !important;
+                    max-width: 220px !important;
+                }
+                .figma-filter-bar--detection .figma-filter-calendar-host {
+                    margin-left: auto;
                 }
             }
             @media (max-width: 640px) {
