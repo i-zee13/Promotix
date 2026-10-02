@@ -72,8 +72,16 @@ class Branding
 
     public static function logoAsset(string $variant = 'dark'): string
     {
-        $file = $variant === 'light' ? 'clickronix-logo-light.png' : 'clickronix-logo-dark.png';
+        $file = match ($variant) {
+            'light' => 'clickronix-logo-light.png',
+            'block' => 'clickronix-logo-block.png',
+            default => 'clickronix-logo-dark.png',
+        };
         $path = public_path('images/'.$file);
+        if ($variant === 'block' && ! is_file($path)) {
+            $file = 'clickronix-logo-light.png';
+            $path = public_path('images/'.$file);
+        }
 
         return url('/images/'.$file).(is_file($path) ? '?v='.filemtime($path) : '');
     }

@@ -48,7 +48,7 @@ class TagController extends Controller
         $ipCheckUrlJson = $this->json($ipCheckUrl);
         // Customer-facing block page always uses Clickronix (not host/APP_NAME PromoTix).
         $brandNameJson = $this->json('Clickronix');
-        $brandLogoUrlJson = $this->json(\App\Support\Branding::logoAsset('light'));
+        $brandLogoUrlJson = $this->json(\App\Support\Branding::logoAsset('block'));
 
         $js = <<<JS
 (function(){
@@ -188,7 +188,7 @@ class TagController extends Controller
       var name = brandName || 'Clickronix';
       var logoUrl = brandLogoUrl || '';
       var logo = logoUrl
-        ? '<img src="'+String(logoUrl).replace(/"/g,'&quot;')+'" alt="'+String(name).replace(/"/g,'&quot;')+'" width="180" height="48" decoding="async" referrerpolicy="no-referrer" style="display:block;margin:0 auto 20px;max-width:min(220px,70vw);height:auto;">'
+        ? '<img src="'+String(logoUrl).replace(/"/g,'&quot;')+'" alt="'+String(name).replace(/"/g,'&quot;')+'" width="220" height="220" decoding="async" referrerpolicy="no-referrer" style="display:block;margin:0 auto 20px;max-width:min(240px,72vw);height:auto;">'
         : '';
       overlay.innerHTML = '<div>'+logo+'<p style="font-size:20px;font-weight:600;margin:0 0 8px;">Access restricted</p><p style="opacity:.75;margin:0;">This visit was blocked by '+String(name).replace(/</g,'&lt;')+' protection.</p></div>';
       (document.body || document.documentElement).appendChild(overlay);
@@ -216,7 +216,7 @@ class TagController extends Controller
       var name = brandName || 'Clickronix';
       var logoUrl = brandLogoUrl || '';
       var logo = logoUrl
-        ? '<img src="'+String(logoUrl).replace(/"/g,'&quot;')+'" alt="'+String(name).replace(/"/g,'&quot;')+'" width="180" height="48" decoding="async" referrerpolicy="no-referrer" style="display:block;margin:0 auto 16px;max-width:min(220px,70vw);height:auto;">'
+        ? '<img src="'+String(logoUrl).replace(/"/g,'&quot;')+'" alt="'+String(name).replace(/"/g,'&quot;')+'" width="220" height="220" decoding="async" referrerpolicy="no-referrer" style="display:block;margin:0 auto 16px;max-width:min(240px,72vw);height:auto;">'
         : '';
       overlay.innerHTML = '<div>'+logo+'<p style="font-size:42px;font-weight:700;margin:0 0 8px;">403</p><p style="opacity:.75;margin:0;">Forbidden — blocked by '+String(name).replace(/</g,'&lt;')+' protection.</p></div>';
       (document.body || document.documentElement).appendChild(overlay);
