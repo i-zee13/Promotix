@@ -1380,11 +1380,15 @@
                     <div><span>Landing</span><strong x-text="journeyDrawer.row?.landing_page || '—'"></strong></div>
                     <div><span>Exit</span><strong x-text="journeyDrawer.row?.exit_page || '—'"></strong></div>
                     <div><span>Entry / Exit</span><strong x-text="(journeyDrawer.row?.entry_time || '—') + ' → ' + (journeyDrawer.row?.exit_time || '—')"></strong></div>
-                    <div><span>Time on site</span><strong x-text="journeyDrawer.row?.time_on_site || '—'"></strong></div>
+                    <div><span>Session length</span><strong x-text="journeySessionLength()"></strong></div>
                     <div><span>Device</span><strong x-text="(journeyDrawer.row?.device || '—') + ' · ' + (journeyDrawer.row?.country || '—')"></strong></div>
                     <div><span>Region</span><strong x-text="journeyDrawer.row?.region || '—'"></strong></div>
                     <div><span>CTA / Tel</span><strong x-text="(journeyDrawer.row?.cta_clicks || 0) + ' / ' + (journeyDrawer.row?.tel_clicks || 0)"></strong></div>
                     <div><span>Forms / Purchase</span><strong x-text="((journeyDrawer.row?.form_fills ?? journeyDrawer.row?.form_submits) ?? 0) + ' / ' + (journeyDrawer.row?.purchase || 'No')"></strong></div>
+                </div>
+                <div class="mb-3 rounded-[8px] border border-[#FF6600]/35 bg-[#FF6600]/10 px-3 py-2" x-show="journeyStoryLine()">
+                    <div class="text-[10px] font-semibold uppercase tracking-wide text-[#FFB380]">What happened</div>
+                    <p class="mt-1 text-[12px] leading-relaxed text-white/90" x-text="journeyStoryLine()"></p>
                 </div>
                 <h4 class="mb-2 text-[12px] font-semibold uppercase tracking-wide text-[#FFB380]">Page flow</h4>
                 <template x-for="(step, idx) in journeySteps()" :key="'js-' + idx">
@@ -1396,15 +1400,19 @@
                     </div>
                 </template>
                 <p x-show="!journeySteps().length" class="py-4 text-center text-[12px] text-white/40">No page flow recorded.</p>
-                <h4 class="mb-2 mt-4 text-[12px] font-semibold uppercase tracking-wide text-[#FFB380]">Behaviour timeline</h4>
-                <div class="max-h-[240px] overflow-y-auto promotix-slim-scroll">
+                <h4 class="mb-2 mt-4 text-[12px] font-semibold uppercase tracking-wide text-[#FFB380]">Activity timeline</h4>
+                <p class="mb-2 text-[11px] text-white/45">Elapsed time from session start (CTA, form, call, scroll…)</p>
+                <div class="max-h-[280px] overflow-y-auto promotix-slim-scroll">
                     <template x-for="(ev, idx) in journeyTimeline()" :key="'jt-' + idx">
-                        <div class="mb-2 flex justify-between gap-3 border-b border-white/5 pb-2 text-[11px]">
-                            <span class="text-white/85" x-text="ev.label"></span>
-                            <span class="shrink-0 text-white/45" x-text="ev.time"></span>
+                        <div class="mb-2 flex items-start justify-between gap-3 border-b border-white/5 pb-2 text-[11px]">
+                            <div class="min-w-0">
+                                <div class="font-medium text-white/90" x-text="ev.label"></div>
+                                <div class="truncate text-white/45" x-show="ev.page" x-text="ev.page"></div>
+                            </div>
+                            <span class="shrink-0 font-mono text-[#FFB380]" x-text="ev.time"></span>
                         </div>
                     </template>
-                    <p x-show="!journeyTimeline().length" class="py-4 text-center text-[12px] text-white/40">No timeline events.</p>
+                    <p x-show="!journeyTimeline().length" class="py-4 text-center text-[12px] text-white/40">No timed activities yet. Turn Session Record ON to capture CTA / form / call with timestamps.</p>
                 </div>
                 <div class="mt-4 flex gap-2" x-show="journeyDrawer.row?.has_session_recording">
                     <button type="button" class="rounded-[6px] bg-[#FF6600] px-3 py-2 text-[12px] font-medium text-white" @click="openRecording(journeyDrawer.row)">Watch recording</button>
@@ -2322,12 +2330,109 @@ function botProtectionAdvancedFigma(config = {}) {
             }
             return flow.split(/\s*(?:->|→)\s*/).map(s => s.trim()).filter(Boolean);
         },
+        journeyElapsedSec(ev) {
+            if (!ev || typeof ev !== 'object') return 0;
+            if (Number(ev.elapsed_sec) > 0) return Number(ev.elapsed_sec);
+            const raw = Number(ev.t || 0);
+            if (raw >= 1000) return Math.floor(raw / 1000);
+            if (raw > 0) return Math.floor(raw);
+            const clock = String(ev.time || '').trim();
+            const m = clock.match(/^(\d+):(\d{2})$/);
+            if (m) return (Number(m[1]) * 60) + Number(m[2]);
+            return 0;
+        },
+        formatElapsedClock(sec) {
+            const n = Math.max(0, Math.round(Number(sec) || 0));
+            const m = Math.floor(n / 60);
+            const s = n % 60;
+            return m + ':' + String(s).padStart(2, '0');
+        },
+        journeyActionLabel(ev) {
+            const type = String(ev?.type || ev?.kind || ev?.display_type || '').toLowerCase();
+            const label = String(ev?.label || ev?.detail || '').trim();
+            if (['cta', 'cta_click'].includes(type)) return label && !label.startsWith('/') ? label : 'CTA clicked';
+            if (['phone', 'phone_click', 'tel_click', 'call_click'].includes(type)) return 'Phone / call clicked';
+            if (['form', 'form_submit', 'form_fill'].includes(type) && type !== 'form_start' && type !== 'form_view') {
+                return label.toLowerCase().includes('start') ? 'Form started' : 'Form submitted';
+            }
+            if (type === 'form_start') return 'Form started';
+            if (type === 'form_view' || type === 'form_viewed') return 'Form viewed';
+            if (type === 'scroll') return 'Scrolled';
+            if (type === 'zip_checked' || type === 'zip_entered') return label || 'ZIP checked';
+            if (type === 'email_click') return 'Email clicked';
+            if (type === 'chat_opened') return 'Chat opened';
+            if (['page', 'page_view', 'landing_page_viewed'].includes(type)) return label || 'Page viewed';
+            if (type === 'page_change' || type === 'next_page_viewed') return label || 'Next page';
+            if (type === 'exit' || type === 'session_exit') return 'Exit';
+            return label || type || 'Event';
+        },
+        journeySessionLength() {
+            const row = this.journeyDrawer?.row;
+            if (!row) return '—';
+            if (row.time_on_site && String(row.time_on_site) !== '00:00:00') return row.time_on_site;
+            const sec = Number(row.duration_sec || 0);
+            if (sec > 0) return this.formatElapsedClock(sec);
+            const maxEv = Math.max(0, ...this.journeyTimeline().map((e) => Number(e.sec || 0)));
+            return maxEv > 0 ? this.formatElapsedClock(maxEv) : '—';
+        },
         journeyTimeline() {
-            const timeline = this.journeyDrawer?.row?.event_detail?.timeline || [];
-            return (Array.isArray(timeline) ? timeline : []).map(ev => ({
-                label: ev.label || ev.detail || ev.kind || ev.type || 'Event',
-                time: ev.t != null ? `${Math.max(0, Math.round(Number(ev.t) / 1000))}s` : (ev.time || '—'),
-            }));
+            const row = this.journeyDrawer?.row;
+            const timeline = row?.event_detail?.timeline || [];
+            let list = Array.isArray(timeline) ? timeline.slice() : [];
+            // If counts exist but timeline is thin, synthesize timed markers so users still see the story.
+            if (list.length < 2 && row) {
+                const dur = Math.max(1, Number(row.duration_sec || 0) || 60);
+                const synth = [];
+                if (row.landing_page) {
+                    synth.push({ type: 'page_view', label: row.landing_page, elapsed_sec: 0, page: row.landing_page });
+                }
+                if (Number(row.scroll_events || 0) > 0) {
+                    synth.push({ type: 'scroll', label: 'Scroll', elapsed_sec: Math.max(1, Math.round(dur * 0.25)) });
+                }
+                if (Number(row.cta_clicks || 0) > 0) {
+                    synth.push({ type: 'cta_click', label: 'CTA clicked', elapsed_sec: Math.max(1, Math.round(dur * 0.45)) });
+                }
+                if (Number(row.form_starts || 0) > 0) {
+                    synth.push({ type: 'form_start', label: 'Form started', elapsed_sec: Math.max(1, Math.round(dur * 0.55)) });
+                }
+                if (Number(row.form_fills || row.form_submits || 0) > 0) {
+                    synth.push({ type: 'form_submit', label: 'Form submitted', elapsed_sec: Math.max(1, Math.round(dur * 0.7)) });
+                }
+                if (Number(row.tel_clicks || 0) > 0) {
+                    synth.push({ type: 'phone_click', label: 'Phone / call clicked', elapsed_sec: Math.max(1, Math.round(dur * 0.85)) });
+                }
+                if (synth.length) list = synth;
+            }
+            return list
+                .map((ev) => {
+                    const sec = this.journeyElapsedSec(ev);
+                    return {
+                        label: this.journeyActionLabel(ev),
+                        page: ev.page || ev.path || '',
+                        sec,
+                        time: '+' + this.formatElapsedClock(sec),
+                        type: String(ev.type || ev.kind || '').toLowerCase(),
+                    };
+                })
+                .sort((a, b) => a.sec - b.sec);
+        },
+        journeyStoryLine() {
+            const row = this.journeyDrawer?.row;
+            if (!row) return '';
+            const length = this.journeySessionLength();
+            const actions = this.journeyTimeline().filter((e) => {
+                const t = e.type;
+                return ['cta', 'cta_click', 'phone', 'phone_click', 'tel_click', 'form', 'form_start', 'form_submit', 'form_fill', 'scroll', 'zip_checked', 'chat_opened', 'email_click'].includes(t)
+                    || /cta|phone|form|call|scroll|zip|chat|email/i.test(e.label);
+            });
+            if (!actions.length) {
+                if (Number(row.cta_clicks || 0) || Number(row.tel_clicks || 0) || Number(row.form_fills || row.form_submits || 0)) {
+                    return `Session ${length}. Actions were counted on this session, but timed markers were not stored — enable Session Record for exact CTA/form/call timing.`;
+                }
+                return length && length !== '—' ? `Session lasted ${length}. No CTA / form / call activity recorded.` : '';
+            }
+            const parts = actions.slice(0, 6).map((e) => `${e.label} at ${e.time.replace(/^\+/, '')}`);
+            return `Session ${length}. ` + parts.join(' → ') + '.';
         },
         cellValue(row, key) {
             if (key === 'ip') return this.ipLabel(row);

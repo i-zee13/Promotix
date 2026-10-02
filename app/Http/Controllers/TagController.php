@@ -516,6 +516,45 @@ class TagController extends Controller
       title: String(document.title || ''),
       referrer: String(document.referrer || '')
     });
+    push('session_started', {
+      page_url: String(location.href || '').slice(0, 500),
+      path: String(location.pathname || '').slice(0, 500),
+      referrer: String(document.referrer || '').slice(0, 500),
+      vw: window.innerWidth || 0,
+      vh: window.innerHeight || 0,
+      session_id: sessionId(),
+      visitor_id: visitorId()
+    });
+    try {
+      var _qs = new URLSearchParams(String(location.search || ''));
+      var _gclid = _qs.get('gclid') || _qs.get('gbraid') || _qs.get('wbraid');
+      if (_gclid) {
+        push('ad_click_detected', {
+          gclid: _qs.get('gclid') || '',
+          gbraid: _qs.get('gbraid') || '',
+          wbraid: _qs.get('wbraid') || '',
+          utm_source: _qs.get('utm_source') || '',
+          utm_medium: _qs.get('utm_medium') || '',
+          utm_campaign: _qs.get('utm_campaign') || '',
+          page_url: String(location.href || '').slice(0, 500)
+        });
+      }
+    } catch (adErr) {}
+
+    var pageEnteredAt = Date.now();
+    var lastPagePath = String(location.pathname || '');
+    function pushTimeOnPage(nextPath){
+      var spent = Math.max(0, Date.now() - pageEnteredAt);
+      if (spent < 250) return;
+      push('time_on_page', {
+        path: lastPagePath,
+        duration_ms: spent,
+        duration_sec: Math.round(spent / 1000),
+        next_path: nextPath || ''
+      });
+      pageEnteredAt = Date.now();
+      lastPagePath = String(nextPath || location.pathname || '');
+    }
 
     function onMove(e){
       var now = Date.now();
@@ -818,6 +857,88 @@ class TagController extends Controller
         path: String(location.pathname || '').slice(0, 500)
       });
     }
+    var zipEntered = {};
+    function onZipInput(e){
+      var el = e.target;
+      if (!isZipField(el)) return;
+      var val = String(el.value || '').replace(/[^0-9A-Za-z\\-\\s]/g, '').trim().slice(0, 16);
+      if (val.length < 3) return;
+      var key = formKey(el.form || null) + '|' + String(el.name || el.id || 'zip');
+      if (zipEntered[key] === val) return;
+      zipEntered[key] = val;
+      push('zip_entered', {
+        zip_code: val,
+        form_id: formKey(el.form || null),
+        page_url: String(location.href || '').slice(0, 500),
+        path: String(location.pathname || '').slice(0, 500)
+      });
+    }
+
+    function onNavOrSearchClick(e){
+      var el = e.target && e.target.closest
+        ? e.target.closest('a, button, input, [role="button"], [aria-expanded], .menu-toggle, .hamburger, .navbar-toggler, [type="search"]')
+        : null;
+      if (!el) return;
+      var hay = String((el.className || '') + ' ' + (el.id || '') + ' ' + (el.getAttribute && (el.getAttribute('aria-label') || '') || '')).toLowerCase();
+      if (el.matches && (el.matches('.menu-toggle, .hamburger, .navbar-toggler, [aria-controls*="nav"], [aria-controls*="menu"]') || /menu-toggle|hamburger|navbar-toggler|nav-toggle|mobile-menu/.test(hay))) {
+        push('navigation_menu_opened', {
+          element_text: elementText(el).slice(0, 80),
+          page_url: String(location.href || '').slice(0, 500),
+          path: String(location.pathname || '').slice(0, 500)
+        });
+      }
+      var type = String(el.type || '').toLowerCase();
+      var role = String(el.getAttribute && el.getAttribute('role') || '').toLowerCase();
+      if (type === 'search' || role === 'searchbox' || /\\b(search|search-btn|search-submit)\\b/.test(hay)) {
+        push('search_used', {
+          element_text: elementText(el).slice(0, 80),
+          page_url: String(location.href || '').slice(0, 500),
+          path: String(location.pathname || '').slice(0, 500)
+        });
+      }
+    }
+
+    function onProviderChange(e){
+      var el = e.target;
+      if (!el || !el.tagName) return;
+      var tag = String(el.tagName).toUpperCase();
+      if (tag !== 'SELECT' && tag !== 'INPUT') return;
+      var name = String(el.name || el.id || '').toLowerCase();
+      var val = String(el.value || '').trim().slice(0, 120);
+      if (!val) return;
+      if (!/(provider|carrier|isp|plan|company)/.test(name) && !(el.getAttribute && el.getAttribute('data-provider') != null)) return;
+      push('provider_selected', {
+        provider: val,
+        field: name.slice(0, 80),
+        page_url: String(location.href || '').slice(0, 500),
+        path: String(location.pathname || '').slice(0, 500)
+      });
+    }
+
+    function bindVideoTracking(){
+      function attach(v){
+        if (!v || v.__pmVideoBound) return;
+        v.__pmVideoBound = true;
+        v.addEventListener('play', function(){
+          push('video_played', {
+            src: String(v.currentSrc || v.src || '').slice(0, 500),
+            page_url: String(location.href || '').slice(0, 500),
+            path: String(location.pathname || '').slice(0, 500)
+          });
+        });
+        v.addEventListener('ended', function(){
+          push('video_completed', {
+            src: String(v.currentSrc || v.src || '').slice(0, 500),
+            page_url: String(location.href || '').slice(0, 500),
+            path: String(location.pathname || '').slice(0, 500)
+          });
+        });
+      }
+      try {
+        var vids = document.querySelectorAll('video');
+        for (var i = 0; i < vids.length && i < 20; i++) attach(vids[i]);
+      } catch (e) {}
+    }
 
     var formsSeen = {};
     function observeFormsInView(){
@@ -874,6 +995,7 @@ class TagController extends Controller
     }
 
     var formStarted = {};
+    var fieldsFocused = {};
     function formKey(el){
       if (!el) return 'form';
       return String(el.id || el.getAttribute('name') || el.getAttribute('action') || 'form').slice(0, 120);
@@ -890,6 +1012,16 @@ class TagController extends Controller
       if (isSensitiveInput(el)) return;
       var form = el.form || (el.closest && el.closest('form'));
       if (!form) return;
+      var fieldKey = formKey(form) + '|' + String(el.name || el.id || tag);
+      if (!fieldsFocused[fieldKey]) {
+        fieldsFocused[fieldKey] = true;
+        push('form_field_focused', {
+          form_id: formKey(form),
+          field_name: String(el.name || el.id || '').slice(0, 120),
+          page_url: String(location.href || '').slice(0, 500),
+          path: String(location.pathname || '').slice(0, 500)
+        });
+      }
       var key = formKey(form);
       if (formStarted[key]) return;
       formStarted[key] = true;
@@ -907,6 +1039,12 @@ class TagController extends Controller
       var form = el.form || (el.closest && el.closest('form'));
       if (!form) return;
       form.__pmInvalid = true;
+      push('form_validation_failed', {
+        form_id: formKey(form),
+        field_name: String(el.name || el.id || '').slice(0, 120),
+        page_url: String(location.href || '').slice(0, 500),
+        path: String(location.pathname || '').slice(0, 500)
+      });
     }
     function onFormSubmit(e){
       var form = e.target;
@@ -917,7 +1055,7 @@ class TagController extends Controller
       } catch (err) { valid = true; }
       if (form.__pmInvalid) valid = false;
       form.__pmInvalid = false;
-      push('form_submit', {
+      var payload = {
         form_id: formKey(form),
         form_name: formName(form),
         page_url: String(location.href || '').slice(0, 500),
@@ -925,7 +1063,11 @@ class TagController extends Controller
         title: String(document.title || '').slice(0, 255),
         success: valid ? 1 : 0,
         status: valid ? 'success' : 'failed'
-      });
+      };
+      push('form_submit', payload);
+      if (!valid) {
+        push('form_submit_failed', payload);
+      }
       // Form posts often navigate away — flush so submit is not lost.
       finishRecording();
     }
@@ -997,8 +1139,11 @@ class TagController extends Controller
       if (!firstPageMarked) {
         firstPageMarked = true;
         push('page_view', pagePayload);
+        push('landing_page_viewed', pagePayload);
       } else {
+        pushTimeOnPage(pagePayload.path);
         push('page_change', pagePayload);
+        push('next_page_viewed', pagePayload);
       }
       var intent = pageIntentFromPath(pagePayload.path, pagePayload.title);
       if (intent) {
@@ -1009,6 +1154,7 @@ class TagController extends Controller
         });
       }
       observeFormsInView();
+      bindVideoTracking();
     }
     var pageTimer = null;
     function markPageSoon(){
@@ -1056,7 +1202,10 @@ class TagController extends Controller
     window.addEventListener('scroll', onScroll, { passive: true });
     document.addEventListener('click', onClick, true);
     document.addEventListener('click', onClickCaptureExtras, true);
+    document.addEventListener('click', onNavOrSearchClick, true);
     document.addEventListener('input', onInput, true);
+    document.addEventListener('input', onZipInput, true);
+    document.addEventListener('change', onProviderChange, true);
     document.addEventListener('focusin', onFormFocus, true);
     document.addEventListener('focusout', onZipBlur, true);
     document.addEventListener('invalid', onFormInvalid, true);
@@ -1064,6 +1213,7 @@ class TagController extends Controller
     window.addEventListener('popstate', markPageSoon);
     window.addEventListener('hashchange', markPageSoon);
     observeFormsInView();
+    bindVideoTracking();
 
     // Public API for site custom events (no plugin update required).
     window.__pmRecordingPush = function(name, data){
@@ -1090,6 +1240,7 @@ class TagController extends Controller
       if (sent) return;
       sent = true;
       if (recordingTimer) clearTimeout(recordingTimer);
+      try { pushTimeOnPage(''); } catch (tErr) {}
       push('session_exit', {
         page_url: String(location.href || '').slice(0, 500),
         path: String(location.pathname || '').slice(0, 500),
@@ -1100,7 +1251,10 @@ class TagController extends Controller
       window.removeEventListener('scroll', onScroll);
       document.removeEventListener('click', onClick, true);
       document.removeEventListener('click', onClickCaptureExtras, true);
+      document.removeEventListener('click', onNavOrSearchClick, true);
       document.removeEventListener('input', onInput, true);
+      document.removeEventListener('input', onZipInput, true);
+      document.removeEventListener('change', onProviderChange, true);
       document.removeEventListener('focusin', onFormFocus, true);
       document.removeEventListener('focusout', onZipBlur, true);
       document.removeEventListener('invalid', onFormInvalid, true);

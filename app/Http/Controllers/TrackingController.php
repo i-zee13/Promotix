@@ -359,8 +359,8 @@ class TrackingController extends Controller
             $device = (string) $fpSignals['device_type'];
         }
         $isCrawler = $this->isCrawlerUa($ua);
-        // Paid attribution only when Google Ads is linked on this domain.
-        // Bot-protection tag alone must not treat gclid visits as Google Ads paid traffic.
+        // Always capture gclid/gbraid/wbraid into visits. Paid Marketing UI only lists
+        // Ads-linked domains; paid_marketing_* rows + is_paid_traffic flag require Ads link.
         $paidEnabled = $domain->hasGoogleAdsConnection();
         $hasPaidClickId = GoogleClickAttribution::isPaidTraffic($data, (int) $domain->id);
         $isPaidTraffic = $paidEnabled && $hasPaidClickId;
@@ -393,7 +393,13 @@ class TrackingController extends Controller
                 'reasons' => ['bot_protection_off'],
             ]);
         }
-        $skipVisitLog = $protection->shouldSkipOrganicRepeatVisit($domain, $sessionId, $isPaidTraffic, $visitedAt);
+        // Never drop a Google click-id hit as an "organic repeat" — even before Ads is linked.
+        $skipVisitLog = $protection->shouldSkipOrganicRepeatVisit(
+            $domain,
+            $sessionId,
+            $isPaidTraffic || $hasPaidClickId,
+            $visitedAt
+        );
 
         $paidId = (string) ($googleClick['id'] ?? '');
         $priorPaidClick = ($isPaidTraffic && $paidEnabled && $paidId !== '')

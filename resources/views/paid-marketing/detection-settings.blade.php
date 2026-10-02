@@ -76,7 +76,7 @@
      ]))"
      x-init="window.promotixPageLoader?.hide()"
 >
-    <section class="mx-auto w-full max-w-[1120px] px-[12px] pb-[28px] pt-[28px] sm:px-[18px] xl:max-w-none xl:px-[19px] xl:pt-[68px]">
+    <section class="mx-auto w-full max-w-[1120px] px-[18px] pb-[28px] pt-[28px] sm:px-[22px] xl:max-w-none xl:px-[24px] xl:pt-[68px]">
         <style>
             .figma-filter-bar--detection {
                 width: fit-content !important;
@@ -372,7 +372,7 @@
             }
             @media (min-width: 720px) { .figma-dem-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
             @media (min-width: 1100px) { .figma-dem-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-            @media (min-width: 1400px) { .figma-dem-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+            @media (min-width: 1600px) { .figma-dem-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
             .figma-dem-card {
                 min-width: 0;
                 border-radius: 12px;
@@ -422,7 +422,7 @@
                 margin-bottom: 18px;
                 align-items: stretch;
             }
-            @media (min-width: 1100px) {
+            @media (min-width: 1280px) {
                 .figma-bip-gaem { grid-template-columns: 1.15fr 0.85fr; }
             }
             .figma-bip, .figma-gaem {
@@ -536,7 +536,7 @@
             }
             .figma-gaem-quick .figma-gaem-ghost-btn,
             .figma-gaem-quick .figma-gaem-push-btn { align-self: auto; }
-            .figma-gaem-campaign-wrap { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+            .figma-gaem-campaign-wrap { display: flex; flex-direction: column; gap: 4px; min-width: 0; position: relative; z-index: 5; }
             .figma-gaem-campaign-label { font-size: 10px; font-weight: 600; color: #6b6578; text-transform: uppercase; letter-spacing: 0.02em; }
             .figma-gaem-campaign-select {
                 height: 34px;
@@ -547,20 +547,60 @@
                 font-size: 12px;
                 padding: 0 10px;
             }
-            .figma-gaem-campaign-multi {
-                border: 1px solid #e4dceb;
+            .figma-gaem-campaign-trigger {
+                width: 100%;
+                height: 34px;
                 border-radius: 6px;
+                border: 1px solid #e4dceb;
+                background: #101010;
+                color: #8c8787;
+                font-size: 11px;
+                padding: 0 28px 0 10px;
+                text-align: left;
+                position: relative;
+                cursor: pointer;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .figma-gaem-campaign-trigger::after {
+                content: '';
+                position: absolute;
+                right: 10px;
+                top: 50%;
+                width: 6px;
+                height: 6px;
+                border-right: 1.5px solid #8c8787;
+                border-bottom: 1.5px solid #8c8787;
+                transform: translateY(-60%) rotate(45deg);
+                pointer-events: none;
+            }
+            .figma-gaem-campaign-multi {
+                display: none;
+                position: absolute;
+                left: 0;
+                right: 0;
+                top: calc(100% + 4px);
+                z-index: 40;
+                border: 1px solid #e4dceb;
+                border-radius: 8px;
                 background: #fff;
                 padding: 8px 10px;
-                flex: 1;
-                min-height: 88px;
-                max-height: 140px;
+                max-height: min(220px, 40vh);
                 overflow: auto;
+                box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+            }
+            .figma-gaem-campaign-multi.is-open { display: block; }
+            .figma-gaem-campaign-multi.is-disabled { opacity: 0.55; pointer-events: none; }
+            @media (max-width: 1100px) {
+                .figma-gaem-quick { grid-template-columns: 1fr; }
+                .figma-gaem-campaign-multi {
+                    max-height: min(180px, 36vh);
+                }
             }
             @media (max-width: 640px) {
                 .figma-gaem-quick { grid-template-columns: 1fr; }
             }
-            .figma-gaem-campaign-multi.is-disabled { opacity: 0.55; pointer-events: none; }
             .figma-gaem-campaign-all,
             .figma-gaem-campaign-item {
                 display: flex;
@@ -2140,9 +2180,21 @@
                                         <button type="button" class="figma-gaem-push-btn" :disabled="loading || !adsConnected" @click="syncPending()">Push all pending</button>
                                     </div>
                                 </div>
-                                <div class="figma-gaem-campaign-wrap">
+                                <div class="figma-gaem-campaign-wrap" @click.outside="campaignPickerOpen = false">
                                     <span class="figma-gaem-campaign-label">Campaigns</span>
-                                    <div class="figma-gaem-campaign-multi" :class="{ 'is-disabled': loading || !adsConnected }">
+                                    <button
+                                        type="button"
+                                        class="figma-gaem-campaign-trigger"
+                                        :disabled="loading || !adsConnected"
+                                        @click="campaignPickerOpen = !campaignPickerOpen"
+                                        x-text="campaignPickerLabel()"
+                                    ></button>
+                                    <div
+                                        class="figma-gaem-campaign-multi"
+                                        :class="{ 'is-open': campaignPickerOpen, 'is-disabled': loading || !adsConnected }"
+                                        x-show="campaignPickerOpen"
+                                        x-cloak
+                                    >
                                         <label class="figma-gaem-campaign-all">
                                             <input type="checkbox" :checked="selectedCampaignIds.length === 0" @change="toggleAllCampaigns($event.target.checked)" :disabled="loading || !adsConnected">
                                             <span>All eligible campaigns</span>
@@ -2741,6 +2793,7 @@ function googleExclusionPanel(config) {
         hostname: config.hostname || '',
         campaignOptions: [],
         selectedCampaignIds: [],
+        campaignPickerOpen: false,
         pushUrl: config.pushUrl,
         pushRowUrl: config.pushRowUrl,
         toggleRowUrl: config.toggleRowUrl,
@@ -2791,6 +2844,14 @@ function googleExclusionPanel(config) {
         },
         toggleAllCampaigns(checked) {
             this.selectedCampaignIds = checked ? [] : this.campaignOptions.map((c) => String(c.id));
+        },
+        campaignPickerLabel() {
+            if (!this.selectedCampaignIds.length) return 'All eligible campaigns';
+            if (this.selectedCampaignIds.length === 1) {
+                const hit = this.campaignOptions.find((c) => String(c.id) === String(this.selectedCampaignIds[0]));
+                return hit?.name || '1 campaign';
+            }
+            return this.selectedCampaignIds.length + ' campaigns selected';
         },
         toggleCampaign(id, checked) {
             const value = String(id);

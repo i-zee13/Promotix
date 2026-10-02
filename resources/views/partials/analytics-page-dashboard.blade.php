@@ -325,7 +325,8 @@
             max-height: 320px;
             overflow: hidden;
         }
-        @media (max-width: 1100px) {
+        /* 12–13" laptops: stack before cards get too narrow */
+        @media (max-width: 1400px) {
             .pa-dash .pa-row-3 { grid-template-columns: 1fr; }
             .pa-dash .pa-row-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .pa-dash .pa-row-4 > .pa-card {
@@ -348,6 +349,10 @@
             min-height: 280px;
             display: flex;
             flex-direction: column;
+            min-width: 0;
+            overflow: hidden;
+            container-type: inline-size;
+            container-name: pa-card;
         }
         .pa-dash .pa-card--compact { min-height: 240px; }
         .pa-dash .pa-card__title {
@@ -635,27 +640,35 @@
 
         .pa-dash .pa-funnel {
             display: grid;
-            grid-template-columns: minmax(0, 1.35fr) minmax(180px, 0.9fr);
+            grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.9fr);
             gap: 14px;
             flex: 1;
             min-height: 0;
+            min-width: 0;
             align-items: stretch;
+            overflow: hidden;
         }
-        @media (max-width: 900px) {
+        /* Stack before count/% overlaps side cards on 12–13" */
+        @media (max-width: 1400px) {
+            .pa-dash .pa-funnel { grid-template-columns: 1fr; }
+        }
+        @container pa-card (max-width: 420px) {
             .pa-dash .pa-funnel { grid-template-columns: 1fr; }
         }
         .pa-dash .pa-funnel__steps {
             display: flex;
             flex-direction: column;
             min-width: 0;
+            overflow: hidden;
         }
         .pa-dash .pa-funnel__row {
             display: grid;
-            grid-template-columns: 28px minmax(0, 1fr) auto auto;
-            gap: 10px;
+            grid-template-columns: 28px minmax(0, 1fr) minmax(3.5ch, auto) minmax(4.5ch, auto);
+            gap: 8px;
             align-items: center;
             padding: 9px 0;
             border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            min-width: 0;
         }
         .pa-dash .pa-funnel__row:last-child { border-bottom: 0; }
         .pa-dash .pa-funnel__icon {
@@ -688,10 +701,12 @@
             font-weight: 600;
             color: rgba(255, 255, 255, 0.88);
             text-align: right;
+            white-space: nowrap;
+            flex-shrink: 0;
         }
-        .pa-dash .pa-funnel__count { min-width: 5.5ch; }
+        .pa-dash .pa-funnel__count { min-width: 0; }
         .pa-dash .pa-funnel__pct {
-            min-width: 5.2ch;
+            min-width: 0;
             color: rgba(255, 255, 255, 0.55);
             font-weight: 500;
         }
@@ -700,6 +715,7 @@
             flex-direction: column;
             gap: 10px;
             min-width: 0;
+            overflow: hidden;
         }
         .pa-dash .pa-funnel__box {
             border: 1px solid rgba(255, 102, 0, 0.35);
@@ -708,8 +724,10 @@
             padding: 12px;
             flex: 1;
             min-height: 0;
+            min-width: 0;
             display: flex;
             flex-direction: column;
+            overflow: hidden;
         }
         .pa-dash .pa-funnel__box-label {
             display: block;

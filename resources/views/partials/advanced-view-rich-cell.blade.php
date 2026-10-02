@@ -71,10 +71,18 @@
 </template>
 <template x-if="col.key === 'event_actions'">
     <span class="tc-events-cell">
-        <template x-for="ev in eventActionRows({{ $item }})" :key="ev.key">
-            <span class="tc-events-cell__row" x-text="ev.key + ' (' + ev.count + ')'"></span>
-        </template>
-        <span x-show="!eventActionRows({{ $item }}).length" class="text-[#8c8787]">—</span>
+        <span
+            class="block text-[10px] leading-snug text-white/85"
+            x-show="!!sessionActivityStory({{ $item }})"
+            x-text="sessionActivityStory({{ $item }})"
+            :title="sessionActivityStory({{ $item }})"
+        ></span>
+        <span x-show="!sessionActivityStory({{ $item }})">
+            <template x-for="ev in eventActionRows({{ $item }})" :key="ev.key">
+                <span class="tc-events-cell__row" x-text="ev.key + ' (' + ev.count + ')'"></span>
+            </template>
+            <span x-show="!eventActionRows({{ $item }}).length" class="text-[#8c8787]">—</span>
+        </span>
     </span>
 </template>
 <template x-if="col.key === 'entry_time' || col.key === 'exit_time' || col.key === 'last_click_datetime_label'">

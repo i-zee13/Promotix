@@ -19,10 +19,12 @@ use App\Support\GoogleInvalidClickReconciler;
 use App\Support\GoogleVerifiedPaidTraffic;
 use App\Support\AccountCurrency;
 use App\Support\CurrencyConverter;
+use App\Support\PaidTrafficCaptureActivator;
 use App\Support\UserTimezone;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
@@ -59,6 +61,7 @@ class PaidAdvertisingDashboardController extends Controller
         $domains = $this->scopedDomains($request, $domainIds);
         // Refresh missing API currency before cache lookup so PKR (etc.) invalidates USD stubs.
         $this->ensureGoogleAdsCurrencyMetadata($domains);
+        $this->activatePreLinkPaidCaptures($domains);
 
         return $this->rememberPaidDashboardJson(
             $request,
@@ -1686,13 +1689,13 @@ class PaidAdvertisingDashboardController extends Controller
     private function scopedDomainIds(Request $request)
     {
         // Always this user's domains only — never another account's domains.
-        $userDomainIds = Domain::query()
-            ->where('user_id', $request->user()->id)
-            ->forPaidMarketingSetup()
-            ->pluck('id');
-
         if ($id = (int) $request->query('domain_id', 0)) {
-            return $userDomainIds->filter(fn ($v) => (int) $v === $id)->values();
+            return Domain::query()
+                ->where('user_id', $request->user()->id)
+                ->forPaidMarketing()
+                ->where('id', $id)
+                ->pluck('id')
+                ->values();
         }
 
         if ($accountId = (int) $request->query('google_ads_account_id', 0)) {
@@ -1710,6 +1713,30 @@ class PaidAdvertisingDashboardController extends Controller
             ->forPaidMarketing()
             ->pluck('id')
             ->values();
+    }
+
+    /**
+     * Promote pre-link gclid captures into Paid Marketing for Ads-linked domains.
+     *
+     * @param  \Illuminate\Support\Collection<int, Domain>  $domains
+     */
+    private function activatePreLinkPaidCaptures($domains): void
+    {
+        foreach ($domains as $domain) {
+            if (! $domain instanceof Domain || ! $domain->hasGoogleAdsConnection()) {
+                continue;
+            }
+            $cacheKey = 'paid-capture-activated:'.$domain->id;
+            if (! Cache::add($cacheKey, 1, now()->addHours(6))) {
+                continue;
+            }
+            try {
+                app(PaidTrafficCaptureActivator::class)->activateDomain($domain);
+            } catch (\Throwable $e) {
+                Cache::forget($cacheKey);
+                report($e);
+            }
+        }
     }
 
     private function scopedVisitsQuery(Request $request, $domainIds, string $fromDate, string $toDate)
@@ -1738,7 +1765,13 @@ class PaidAdvertisingDashboardController extends Controller
         }
 
         if (Schema::hasColumn('visits', 'is_paid_traffic')) {
-            $query->where('is_paid_traffic', true);
+            // Ads-linked domains: include flagged paid rows AND pre-link gclid captures.
+            $query->where(function ($group) {
+                $group->where('is_paid_traffic', true)
+                    ->orWhere(function ($clickIds) {
+                        GoogleClickAttribution::applyHasClickIdFilter($clickIds);
+                    });
+            });
         } else {
             GoogleClickAttribution::applyHasClickIdFilter($query);
         }

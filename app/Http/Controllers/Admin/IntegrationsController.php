@@ -1449,6 +1449,8 @@ class IntegrationsController extends Controller
         $domain->paid_marketing_connected = true;
         $domain->save();
 
+        app(\App\Support\PaidTrafficCaptureActivator::class)->activateDomain($domain->fresh());
+
         return back()->with('status', 'Domain linked to Google Ads.');
     }
 
@@ -2632,6 +2634,8 @@ class IntegrationsController extends Controller
                 'settings' => ['linked_at' => now()->toISOString(), 'via' => 'domain_paid_setup'],
             ]
         );
+
+        app(\App\Support\PaidTrafficCaptureActivator::class)->activateDomain($domain->fresh());
 
         $metricsSaved = 0;
         $metricsMessage = null;

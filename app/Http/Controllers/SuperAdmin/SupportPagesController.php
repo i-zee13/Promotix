@@ -701,17 +701,17 @@ class SupportPagesController extends Controller
             }
             if ($row['name'] === 'audience-exclusion') {
                 $row['settings'] = array_merge($row['settings'] ?? [], [
-                    'note' => 'Toggle Off hides Audience Exclusion in the customer portal',
+                    'note' => 'Toggle Off hides Audience Exclusion, Placement Exclusions, and Pixel Guard in the customer portal',
                 ]);
             }
             if ($row['name'] === 'placement-exclusion') {
                 $row['settings'] = array_merge($row['settings'] ?? [], [
-                    'note' => 'Toggle Off hides Placement Exclusions in the customer portal',
+                    'note' => 'Requires Audience Exclusion On. Toggle Off hides Placement Exclusions only.',
                 ]);
             }
             if ($row['name'] === 'pixel-guard') {
                 $row['settings'] = array_merge($row['settings'] ?? [], [
-                    'note' => 'Toggle Off hides Open Pixel Guard in the customer portal',
+                    'note' => 'Requires Audience Exclusion On. Toggle Off hides Open Pixel Guard only.',
                 ]);
             }
 

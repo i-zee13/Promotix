@@ -163,8 +163,11 @@ class AdminIntegrationCatalog
         return [
             'cross_domain' => $crossDomain,
             'audience_exclusion' => $audienceExclusion,
-            'placement_exclusion' => self::tenantOptionalEnabled('placement-exclusion', defaultIfMissing: true),
-            'pixel_guard' => self::tenantOptionalEnabled('pixel-guard', defaultIfMissing: true),
+            // Placement + Pixel Guard ride with Audience Exclusion (SA Integrations toggle).
+            'placement_exclusion' => $audienceExclusion
+                && self::tenantOptionalEnabled('placement-exclusion', defaultIfMissing: true),
+            'pixel_guard' => $audienceExclusion
+                && self::tenantOptionalEnabled('pixel-guard', defaultIfMissing: true),
             'chatbot' => self::integrationEnabledForTenants('guidance-chatbot'),
         ];
     }
@@ -203,20 +206,26 @@ class AdminIntegrationCatalog
         );
     }
 
-    /** Super Admin → Integrations → Placement Exclusion toggle. */
+    /**
+     * Placement Exclusion: requires Audience Exclusion available (SA + plan),
+     * then its own Super Admin → Integrations toggle.
+     */
     public static function placementExclusionAvailableForUser(?\App\Models\User $user): bool
     {
-        if ($user === null) {
+        if (! self::audienceExclusionAvailableForUser($user)) {
             return false;
         }
 
         return self::tenantOptionalEnabled('placement-exclusion', defaultIfMissing: true);
     }
 
-    /** Super Admin → Integrations → Pixel Guard toggle. */
+    /**
+     * Pixel Guard: requires Audience Exclusion available (SA + plan),
+     * then its own Super Admin → Integrations toggle.
+     */
     public static function pixelGuardAvailableForUser(?\App\Models\User $user): bool
     {
-        if ($user === null) {
+        if (! self::audienceExclusionAvailableForUser($user)) {
             return false;
         }
 
@@ -342,17 +351,17 @@ class AdminIntegrationCatalog
             ],
             'audience-exclusion' => [
                 'icon' => 'A',
-                'subtitle' => 'Show Audience Exclusion setup / apply on customer Integrations (Google Ads). Off = hidden everywhere in the portal.',
+                'subtitle' => 'Show Audience Exclusion, Placement Exclusions, and Pixel Guard on customer Integrations. Off = all three hidden in the portal.',
                 'connected_label' => 'Enabled for tenants',
             ],
             'placement-exclusion' => [
                 'icon' => 'P',
-                'subtitle' => 'Show Placement Exclusions on customer Integrations (Google Ads). Off = hidden everywhere in the portal.',
+                'subtitle' => 'Show Placement Exclusions when Audience Exclusion is also On. Off = hidden even if Audience Exclusion is On.',
                 'connected_label' => 'Enabled for tenants',
             ],
             'pixel-guard' => [
                 'icon' => 'G',
-                'subtitle' => 'Show Open Pixel Guard on customer Integrations (Google Ads). Off = hidden everywhere in the portal.',
+                'subtitle' => 'Show Open Pixel Guard when Audience Exclusion is also On. Off = hidden even if Audience Exclusion is On.',
                 'connected_label' => 'Enabled for tenants',
             ],
             'guidance-chatbot' => [

@@ -86,6 +86,44 @@ window.promotixAdvTableHelpers = {
         push('form_submit', row?.form_fills ?? row?.form_submits);
         return fallback;
     },
+    /**
+     * Human timed story for Traffic Control: "CTA at 1:20 → Form at 2:05 → Call at 2:40"
+     */
+    sessionActivityStory(row) {
+        const timeline = Array.isArray(row?.event_detail?.timeline) ? row.event_detail.timeline : [];
+        const elapsed = (ev) => {
+            if (Number(ev?.elapsed_sec) > 0) return Number(ev.elapsed_sec);
+            const raw = Number(ev?.t || 0);
+            return raw >= 1000 ? Math.floor(raw / 1000) : Math.max(0, raw);
+        };
+        const clock = (sec) => {
+            const n = Math.max(0, Math.round(sec || 0));
+            return Math.floor(n / 60) + ':' + String(n % 60).padStart(2, '0');
+        };
+        const labelOf = (ev) => {
+            const t = String(ev?.type || ev?.kind || '').toLowerCase();
+            if (['cta', 'cta_click'].includes(t)) return 'CTA';
+            if (['phone', 'phone_click', 'tel_click'].includes(t)) return 'Call';
+            if (['form_submit', 'form_fill', 'form'].includes(t)) return 'Form';
+            if (t === 'form_start') return 'Form start';
+            if (t === 'scroll') return 'Scroll';
+            if (t === 'zip_checked' || t === 'zip_entered') return 'ZIP';
+            return '';
+        };
+        const parts = [];
+        timeline.forEach((ev) => {
+            const name = labelOf(ev);
+            if (!name) return;
+            parts.push(name + ' at ' + clock(elapsed(ev)));
+        });
+        if (parts.length) return parts.slice(0, 5).join(' → ');
+        // Fallback from counts only (no exact times).
+        const bits = [];
+        if (Number(row?.cta_clicks || 0) > 0) bits.push('CTA ×' + Number(row.cta_clicks));
+        if (Number(row?.form_fills || row?.form_submits || 0) > 0) bits.push('Form ×' + Number(row.form_fills || row.form_submits));
+        if (Number(row?.tel_clicks || 0) > 0) bits.push('Call ×' + Number(row.tel_clicks));
+        return bits.join(' · ');
+    },
     countryCode(rowOrCode) {
         const raw = (rowOrCode && typeof rowOrCode === 'object')
             ? String(rowOrCode.country || rowOrCode.code || '').trim()

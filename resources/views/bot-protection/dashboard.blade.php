@@ -16,7 +16,7 @@
 
 @section('content')
 <div class="brand-page-bg analytics-skin min-h-[calc(100vh-49px)]" x-data="botProtectionFigma(@js(['useDemo' => $useDemo]))" x-init="init()">
-    <section class="mx-auto w-full px-[12px] pb-[24px] pt-[28px] sm:px-[18px] xl:px-[19px] xl:pt-[68px]">
+    <section class="mx-auto w-full px-[18px] pb-[24px] pt-[28px] sm:px-[22px] xl:px-[24px] xl:pt-[68px]">
         {{-- Header --}}
         <div class="bp-adv-page-head mb-[14px]">
             <div class="flex flex-wrap items-center gap-[8px] shrink-0">
@@ -199,8 +199,8 @@
                     width: 14px;
                     height: 14px;
                 }
-                /* Narrow content (sidebars): keep packed; allow scroll if needed */
-                @media (max-width: 900px) {
+                /* 12–13" / sidebars: wrap filter chips so Domain isn’t crushed to the edge */
+                @media (max-width: 1280px) {
                     .figma-filter-bar--bp-dash.ov-filter-bar,
                     .figma-filter-bar--bp-dash {
                         width: 100% !important;
@@ -208,25 +208,28 @@
                         margin-left: 0 !important;
                         align-self: stretch;
                         display: flex !important;
+                        flex-wrap: wrap !important;
                         overflow: visible !important;
+                        row-gap: 6px !important;
                     }
                     .figma-filter-bar--bp-dash > label {
-                        flex: 0 0 auto !important;
+                        flex: 1 1 140px !important;
                         width: auto !important;
-                        min-width: 96px !important;
-                        max-width: 150px !important;
+                        min-width: 120px !important;
+                        max-width: 220px !important;
                     }
-                    .figma-filter-bar--bp-dash > label.bp-dash-f-search { width: 130px !important; flex: 0 0 130px !important; }
-                    .figma-filter-bar--bp-dash > label.bp-dash-f-account { width: 120px !important; flex: 0 0 120px !important; }
-                    .figma-filter-bar--bp-dash > label.bp-dash-f-domain { width: 100px !important; flex: 0 0 100px !important; }
-                    .figma-filter-bar--bp-dash > label.bp-dash-f-campaign { width: 110px !important; flex: 0 0 110px !important; }
-                    .figma-filter-bar--bp-dash > label.bp-dash-f-device { width: 88px !important; flex: 0 0 88px !important; }
-                    .figma-filter-bar--bp-dash > label.bp-dash-f-path { width: 120px !important; flex: 0 0 120px !important; }
+                    .figma-filter-bar--bp-dash > label.bp-dash-f-search { flex: 1 1 160px !important; min-width: 140px !important; }
+                    .figma-filter-bar--bp-dash > label.bp-dash-f-account { flex: 1 1 150px !important; }
+                    .figma-filter-bar--bp-dash > label.bp-dash-f-domain { flex: 1 1 150px !important; min-width: 140px !important; }
+                    .figma-filter-bar--bp-dash > label.bp-dash-f-campaign { flex: 1 1 140px !important; }
+                    .figma-filter-bar--bp-dash > label.bp-dash-f-device { flex: 1 1 120px !important; }
+                    .figma-filter-bar--bp-dash > label.bp-dash-f-path { flex: 1 1 150px !important; }
                     .figma-filter-bar--bp-dash .bp-dash-f-actions {
-                        margin-left: 0 !important;
+                        margin-left: auto !important;
                         position: sticky;
                         right: 0;
                         background: #d9d9d9;
+                        flex: 0 0 auto !important;
                     }
                 }
                 /* Phone: wrap calendar row cleanly */

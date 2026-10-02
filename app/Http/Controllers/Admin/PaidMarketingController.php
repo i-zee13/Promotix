@@ -54,7 +54,7 @@ class PaidMarketingController extends Controller
     {
         $domains = Domain::query()
             ->where('user_id', $request->user()->id)
-            ->forPaidMarketingSetup()
+            ->forPaidMarketing()
             ->with('googleAdsAccount')
             ->orderBy('hostname')
             ->get(['id', 'hostname', 'google_ads_account_id']);
@@ -148,7 +148,7 @@ class PaidMarketingController extends Controller
 
         $domains = Domain::query()
             ->where('user_id', $request->user()->id)
-            ->forPaidMarketingSetup()
+            ->forPaidMarketing()
             ->when($request->query('domain_id'), fn ($q, $id) => $q->where('id', (int) $id))
             ->with('googleAdsAccount')
             ->get();
