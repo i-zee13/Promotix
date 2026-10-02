@@ -5561,7 +5561,8 @@ select.figma-sa-subs-status-pill {
 .figma-rightbar {
     position: fixed;
     inset: 0 0 0 auto;
-    z-index: 20;
+    /* Above page filter heads (z~50) so chips never paint over the panel */
+    z-index: 90;
     width: var(--figma-right);
     overflow-x: hidden;
     overflow-y: auto;
@@ -5607,7 +5608,7 @@ select.figma-sa-subs-status-pill {
 .figma-rightbar-edge-toggle {
     position: fixed;
     top: 50%;
-    z-index: 40;
+    z-index: 95;
     display: flex;
     height: 40px;
     width: 22px;
