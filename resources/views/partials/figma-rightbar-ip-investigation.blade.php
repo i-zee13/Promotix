@@ -288,7 +288,7 @@
             <div class="pm-ip-invest__grid">
                 <div class="pm-ip-invest__field">
                     <p class="pm-ip-invest__label">Primary Detection</p>
-                    <p class="pm-ip-invest__value" x-text="visit.primary_detection || '—'"></p>
+                    <p class="pm-ip-invest__value" :title="visit.primary_detection_code || visit.ads_primary_rule_code || ''" x-text="visit.primary_detection || visit.ads_primary_rule || '—'"></p>
                 </div>
                 <div class="pm-ip-invest__field">
                     <p class="pm-ip-invest__label">Paid Risk Score</p>
@@ -424,7 +424,7 @@ window.promotixIpInvestigation = function promotixIpInvestigation() {
             const rules = (this.visit?.ads_detections || [])
                 .map((r) => String(r?.rule_code || r?.code || '').toUpperCase())
                 .join(' ');
-            const primary = String(this.visit?.primary_detection || '').toUpperCase();
+            const primary = String(this.visit?.primary_detection_code || this.visit?.ads_primary_rule_code || this.visit?.primary_detection || '').toUpperCase();
             return rules.includes(String(needle).toUpperCase()) || primary.includes(String(needle).toUpperCase());
         },
         get detectionRows() {

@@ -2209,12 +2209,15 @@ class PaidAdvertisingDashboardController extends Controller
 
             $actionHint = (string) ($meta['latest_action_taken'] ?? $row['action'] ?? '');
             $multi = (bool) ($meta['multi_identity'] ?? false);
+            $rawPrimary = (string) ($meta['primary_detection'] ?? '');
 
             return array_merge($this->withPaidIdentityDefaults($row), $meta, [
                 'clicks_60m' => $clicks60 > 0 ? $clicks60 : (int) ($row['total'] ?? 0),
+                'primary_detection_code' => $rawPrimary !== '' ? $rawPrimary : null,
+                'primary_detection' => \App\Support\PaidAdvertising\AdsDetectionLabels::label($rawPrimary) ?: ($rawPrimary !== '' ? $rawPrimary : null),
                 'ip_exclusion' => $this->ipExclusionLabel(
                     $actionHint,
-                    (string) ($meta['primary_detection'] ?? ''),
+                    $rawPrimary,
                     $multi,
                 ),
                 // Shared IP with many devices → do not imply a single device was blocked.

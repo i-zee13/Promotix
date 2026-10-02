@@ -1303,7 +1303,7 @@
                                     <td>
                                         <span class="paid-outline-badge" :class="riskBadgeClass(row.risk_level)" x-text="row.risk_level || '—'"></span>
                                     </td>
-                                    <td class="max-w-[140px] truncate text-white/80" :title="row.primary_detection || threatsLabel(row)" x-text="row.primary_detection || threatsLabel(row)"></td>
+                                    <td class="max-w-[140px] truncate text-white/80" :title="row.primary_detection_code || row.primary_detection || threatsLabel(row)" x-text="row.primary_detection || threatsLabel(row)"></td>
                                     <td class="whitespace-nowrap text-white" x-text="fmt(row.total)"></td>
                                     <td>
                                         <span class="paid-outline-badge" :class="actionToneClass(row)" x-text="actionLabel(row)"></span>
@@ -1421,7 +1421,7 @@
                                 <td class="pt-col-num text-white/90" x-text="fmt(row.clicks_60m ?? row.total)"></td>
                                 <td class="pt-col-num text-rose-300" x-text="fmt(row.invalid)"></td>
                                 <td class="pt-col-num text-emerald-300" x-text="fmt(row.valid ?? Math.max(0, Number(row.total || 0) - Number(row.invalid || 0)))"></td>
-                                <td class="pt-col-detect max-w-[190px] truncate text-[10px] text-white/85" :title="row.primary_detection || threatsLabel(row)" x-text="row.primary_detection || threatsLabel(row)"></td>
+                                <td class="pt-col-detect max-w-[190px] truncate text-[10px] text-white/85" :title="row.primary_detection_code || row.primary_detection || threatsLabel(row)" x-text="row.primary_detection || threatsLabel(row)"></td>
                                 <td class="pt-col-risk">
                                     <span class="paid-risk-badge" :class="riskBadgeClass(row.risk_level)" x-text="(row.risk_level || '—') + (row.risk_score != null ? ' ' + row.risk_score : '')"></span>
                                 </td>

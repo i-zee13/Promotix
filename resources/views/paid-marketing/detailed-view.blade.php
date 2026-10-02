@@ -1800,6 +1800,8 @@
             { key: 'page_flow', label: 'Page Flow / Pages Visited', primary: false, min: 220 },
             { key: 'entry_time', label: 'Entry Time', primary: false, min: 120 },
             { key: 'exit_time', label: 'Exit Time', primary: false, min: 120 },
+            { key: 'utc_timestamp', label: 'UTC Timestamp', primary: false, min: 150 },
+            { key: 'exit_timestamps', label: 'Exit Timestamps', primary: false, min: 150 },
             { key: 'invalid_entry_times', label: 'Invalid Entry Times', primary: false, min: 180 },
             { key: 'invalid_exit_times', label: 'Invalid Exit Times', primary: false, min: 180 },
             { key: 'time_on_site', label: 'Time on Site', primary: false, min: 88 },
@@ -1869,7 +1871,7 @@
             {
                 id: 'session_behavior',
                 label: 'Session / Behavior',
-                keys: ['ip', 'session_id', 'landing_page', 'page_flow', 'entry_time', 'exit_time', 'invalid_entry_times', 'invalid_exit_times', 'device_id', 'time_on_site', 'event_actions', 'cta_clicks', 'tel_clicks', 'page_changes', 'scroll_events', 'session_recording', 'status'],
+                keys: ['ip', 'session_id', 'landing_page', 'page_flow', 'entry_time', 'exit_time', 'utc_timestamp', 'exit_timestamps', 'invalid_entry_times', 'invalid_exit_times', 'device_id', 'time_on_site', 'event_actions', 'cta_clicks', 'tel_clicks', 'page_changes', 'scroll_events', 'session_recording', 'status'],
             },
             {
                 id: 'conversion_lead',
@@ -1880,7 +1882,7 @@
                 id: 'traffic_control',
                 label: 'Traffic Control',
                 keys: [
-                    'ip', 'session_id', 'keyword', 'landing_page', 'page_flow', 'entry_time', 'exit_time', 'time_on_site',
+                    'ip', 'session_id', 'keyword', 'landing_page', 'page_flow', 'entry_time', 'exit_time', 'utc_timestamp', 'exit_timestamps', 'time_on_site',
                     'event_actions', 'cta_clicks', 'add_to_cart', 'checkout', 'purchase', 'revenue',
                     'device', 'browser', 'os', 'crawler_score', 'automation_score', 'malicious_score',
                     'fingerprint_id', 'campaign', 'headline', 'scroll_events', 'tel_clicks', 'form_starts', 'form_fills',
@@ -2844,6 +2846,10 @@
             cellValue(visit, key) {
                 if (key === 'ip') return this.ipLabel(visit);
                 if (key === 'campaign') return visit.campaign || 'N/A';
+                if (key === 'ads_primary_rule') {
+                    const labeled = visit.ads_primary_rule || visit.primary_detection || '';
+                    return labeled ? String(labeled) : '—';
+                }
                 if (key === 'google_verified_label') {
                     const label = visit.google_verified_label || '—';
                     return label;

@@ -51,6 +51,8 @@ class ClickronixTrafficReport
         'invalid_entry_times' => 'Invalid Entry Times',
         'invalid_exit_times' => 'Invalid Exit Times',
         'invalid_click_timeline' => 'Invalid Click Timeline',
+        'utc_timestamp' => 'UTC Timestamp',
+        'exit_timestamps' => 'Exit Timestamps',
         'time_on_site' => 'Time on Site',
         'event_actions' => 'Events / Actions',
         'add_to_cart' => 'Add to Cart',
@@ -156,7 +158,7 @@ class ClickronixTrafficReport
         ],
         'session_behavior' => [
             'label' => 'Session / Behavior',
-            'keys' => ['ip', 'session_id', 'landing_page', 'page_flow', 'entry_time', 'exit_time', 'invalid_entry_times', 'invalid_exit_times', 'device_id', 'time_on_site', 'event_actions', 'cta_clicks', 'tel_clicks', 'page_changes', 'scroll_events', 'session_recording', 'status'],
+            'keys' => ['ip', 'session_id', 'landing_page', 'page_flow', 'entry_time', 'exit_time', 'utc_timestamp', 'exit_timestamps', 'invalid_entry_times', 'invalid_exit_times', 'device_id', 'time_on_site', 'event_actions', 'cta_clicks', 'tel_clicks', 'page_changes', 'scroll_events', 'session_recording', 'status'],
         ],
         'conversion_lead' => [
             'label' => 'Conversion / Lead',
@@ -165,7 +167,7 @@ class ClickronixTrafficReport
         'traffic_control' => [
             'label' => 'Traffic Control',
             'keys' => [
-                'ip', 'session_id', 'keyword', 'landing_page', 'page_flow', 'entry_time', 'exit_time', 'time_on_site',
+                'ip', 'session_id', 'keyword', 'landing_page', 'page_flow', 'entry_time', 'exit_time', 'utc_timestamp', 'exit_timestamps', 'time_on_site',
                 'event_actions', 'cta_clicks', 'add_to_cart', 'checkout', 'purchase', 'revenue',
                 'device', 'browser', 'os', 'crawler_score', 'automation_score', 'malicious_score',
                 'fingerprint_id', 'campaign', 'headline', 'scroll_events', 'tel_clicks', 'form_starts', 'form_fills',
@@ -237,6 +239,8 @@ class ClickronixTrafficReport
             'Last Page',
             'Last CTA',
             'Checked At',
+            'UTC Timestamp',
+            'Exit Timestamps',
         ];
     }
 
@@ -381,6 +385,8 @@ class ClickronixTrafficReport
             $row['last_path'] ?? '',
             $row['last_cta'] ?? '',
             $row['intel_checked_at'] ?? '',
+            $row['utc_timestamp'] ?? '',
+            $row['exit_timestamps'] ?? '',
         ];
     }
 

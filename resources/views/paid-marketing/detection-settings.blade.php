@@ -87,11 +87,21 @@
                 align-items: stretch;
                 gap: 0 !important;
                 overflow: visible;
+                box-sizing: border-box;
             }
             .figma-filter-bar--detection > label {
                 flex: 0 0 auto !important;
+                min-width: 0 !important;
                 padding-left: 8px !important;
                 padding-right: 8px !important;
+                box-sizing: border-box;
+            }
+            .figma-filter-bar--detection .figma-filter-select-wrap,
+            .figma-filter-bar--detection .figma-filter-control,
+            .figma-filter-bar--detection .figma-filter-path-wrap {
+                box-sizing: border-box !important;
+                height: 23px !important;
+                min-height: 23px !important;
             }
             .figma-filter-bar--detection .figma-filter-calendar-host {
                 display: flex;
@@ -102,17 +112,39 @@
                 border-left: 1px solid rgba(0, 0, 0, 0.2);
                 padding: 6px 10px;
                 margin: 0;
+                box-sizing: border-box;
             }
-            @media (max-width: 900px) {
+            .figma-filter-bar--detection .figma-filter-calendar-btn--responsive {
+                height: 32px !important;
+                min-height: 32px !important;
+                box-sizing: border-box !important;
+            }
+            /* 12–13" + sidebars: wrap so calendar isn’t clipped */
+            @media (max-width: 1400px) {
                 .figma-filter-bar--detection {
                     width: 100% !important;
                     display: flex !important;
-                    flex-wrap: wrap;
-                    margin-left: 0;
+                    flex-wrap: wrap !important;
+                    margin-left: 0 !important;
+                    row-gap: 6px !important;
                 }
-                .figma-filter-bar--detection > label { flex: 1 1 140px !important; }
+                .figma-filter-bar--detection > label {
+                    flex: 1 1 132px !important;
+                    max-width: 220px !important;
+                }
                 .figma-filter-bar--detection .figma-filter-calendar-host {
-                    flex: 1 1 100%;
+                    flex: 0 0 auto !important;
+                    margin-left: auto;
+                    border-left: 1px solid rgba(0, 0, 0, 0.2);
+                    border-top: 0;
+                    align-self: stretch;
+                }
+            }
+            @media (max-width: 640px) {
+                .figma-filter-bar--detection > label { flex: 1 1 100% !important; max-width: none !important; }
+                .figma-filter-bar--detection .figma-filter-calendar-host {
+                    flex: 1 1 100% !important;
+                    margin-left: 0;
                     border-left: 0;
                     border-top: 1px solid rgba(0, 0, 0, 0.12);
                     justify-content: flex-start;
@@ -421,6 +453,9 @@
                 gap: 14px;
                 margin-bottom: 18px;
                 align-items: stretch;
+                overflow: visible;
+                position: relative;
+                z-index: 10;
             }
             @media (min-width: 1280px) {
                 .figma-bip-gaem { grid-template-columns: 1.15fr 0.85fr; }
@@ -434,6 +469,7 @@
                 border: 1px solid #e4dceb;
                 background: #fff;
                 padding: 16px;
+                overflow: visible;
             }
             .figma-bip-head, .figma-gaem-head {
                 display: flex; flex-wrap: wrap; align-items: center;
@@ -497,7 +533,10 @@
                 grid-template-columns: minmax(180px, 1fr) minmax(220px, 1fr);
                 gap: 8px;
                 margin-bottom: 12px;
-                align-items: stretch;
+                align-items: start;
+                position: relative;
+                z-index: 20;
+                overflow: visible;
             }
             .figma-gaem-quick-left {
                 display: flex;
@@ -536,7 +575,15 @@
             }
             .figma-gaem-quick .figma-gaem-ghost-btn,
             .figma-gaem-quick .figma-gaem-push-btn { align-self: auto; }
-            .figma-gaem-campaign-wrap { display: flex; flex-direction: column; gap: 4px; min-width: 0; position: relative; z-index: 5; }
+            .figma-gaem-campaign-wrap {
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+                min-width: 0;
+                position: relative;
+                z-index: 30;
+                isolation: isolate;
+            }
             .figma-gaem-campaign-label { font-size: 10px; font-weight: 600; color: #6b6578; text-transform: uppercase; letter-spacing: 0.02em; }
             .figma-gaem-campaign-select {
                 height: 34px;
@@ -562,6 +609,7 @@
                 overflow: hidden;
                 text-overflow: ellipsis;
                 white-space: nowrap;
+                box-sizing: border-box;
             }
             .figma-gaem-campaign-trigger::after {
                 content: '';
@@ -576,12 +624,13 @@
                 pointer-events: none;
             }
             .figma-gaem-campaign-multi {
-                display: none;
                 position: absolute;
                 left: 0;
                 right: 0;
                 top: calc(100% + 4px);
-                z-index: 40;
+                width: 100%;
+                min-width: 0;
+                z-index: 80;
                 border: 1px solid #e4dceb;
                 border-radius: 8px;
                 background: #fff;
@@ -589,10 +638,10 @@
                 max-height: min(220px, 40vh);
                 overflow: auto;
                 box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+                box-sizing: border-box;
             }
-            .figma-gaem-campaign-multi.is-open { display: block; }
             .figma-gaem-campaign-multi.is-disabled { opacity: 0.55; pointer-events: none; }
-            @media (max-width: 1100px) {
+            @media (max-width: 1280px) {
                 .figma-gaem-quick { grid-template-columns: 1fr; }
                 .figma-gaem-campaign-multi {
                     max-height: min(180px, 36vh);
@@ -2191,9 +2240,10 @@
                                     ></button>
                                     <div
                                         class="figma-gaem-campaign-multi"
-                                        :class="{ 'is-open': campaignPickerOpen, 'is-disabled': loading || !adsConnected }"
+                                        :class="{ 'is-disabled': loading || !adsConnected }"
                                         x-show="campaignPickerOpen"
                                         x-cloak
+                                        x-transition
                                     >
                                         <label class="figma-gaem-campaign-all">
                                             <input type="checkbox" :checked="selectedCampaignIds.length === 0" @change="toggleAllCampaigns($event.target.checked)" :disabled="loading || !adsConnected">
