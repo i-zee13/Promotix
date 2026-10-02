@@ -59,7 +59,7 @@
     ];
 @endphp
 
-<div class="brand-page-bg min-h-[calc(100vh-49px)]"
+<div class="brand-page-bg min-h-[calc(100vh-49px)] min-w-0 max-w-full overflow-x-clip"
      x-data="detectionPageFilters(@js([
          'domainId' => request()->filled('domain_id') ? (string) ($domain?->id ?? '') : '',
          'path' => (string) request('path', ''),
@@ -120,7 +120,7 @@
                 box-sizing: border-box !important;
             }
             /* 12–13" + sidebars: wrap so calendar isn’t clipped */
-            @media (max-width: 1400px) {
+            @media (max-width: 1600px) {
                 .figma-filter-bar--detection {
                     width: 100% !important;
                     display: flex !important;
@@ -152,7 +152,11 @@
             }
 
             /* Primary Access Control summary cards */
-            .figma-pac { margin-bottom: 18px; }
+            .figma-pac {
+                margin-bottom: 18px;
+                min-width: 0;
+                max-width: 100%;
+            }
             .figma-pac-head {
                 display: flex;
                 flex-wrap: wrap;
@@ -184,16 +188,30 @@
                 cursor: pointer;
             }
             .figma-pac-manage-all:hover { background: rgba(255, 255, 255, 0.06); }
+            /* auto-fit: left+right sidebars shrink main width well below viewport */
             .figma-pac-grid {
                 display: grid;
                 grid-template-columns: 1fr;
                 gap: 12px;
+                min-width: 0;
+                width: 100%;
             }
             @media (min-width: 720px) {
-                .figma-pac-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+                .figma-pac-grid {
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
+                }
             }
-            @media (min-width: 1100px) {
-                .figma-pac-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+            /* ~1480+ viewport ≈ usable main after sidebars; still 2–3 cols */
+            @media (min-width: 1480px) {
+                .figma-pac-grid {
+                    grid-template-columns: repeat(3, minmax(0, 1fr));
+                }
+            }
+            /* wide desktops only — 5 cards (incl. Cross-domain) need room */
+            @media (min-width: 1780px) {
+                .figma-pac-grid {
+                    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+                }
             }
             .figma-pac-card {
                 display: flex;
@@ -401,10 +419,18 @@
                 display: grid;
                 grid-template-columns: 1fr;
                 gap: 12px;
+                min-width: 0;
+                width: 100%;
             }
-            @media (min-width: 720px) { .figma-dem-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-            @media (min-width: 1100px) { .figma-dem-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-            @media (min-width: 1600px) { .figma-dem-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+            @media (min-width: 720px) {
+                .figma-dem-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            }
+            @media (min-width: 1480px) {
+                .figma-dem-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            }
+            @media (min-width: 1780px) {
+                .figma-dem-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+            }
             .figma-dem-card {
                 min-width: 0;
                 border-radius: 12px;
@@ -1639,7 +1665,7 @@
                     ],
                 ])->filter(fn ($mod) => $pdf($mod['plan_flag']))->values()->all();
             @endphp
-                <form id="detection-settings-form" method="POST" action="{{ route('paid-marketing.detection-settings.update', $domain) }}">
+                <form id="detection-settings-form" class="min-w-0 max-w-full" method="POST" action="{{ route('paid-marketing.detection-settings.update', $domain) }}">
                     @csrf
                     <input type="hidden" name="control_mode" value="{{ old('control_mode', $settings->control_mode ?? 'mixed') }}">
                     @php
