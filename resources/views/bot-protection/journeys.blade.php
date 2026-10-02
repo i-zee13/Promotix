@@ -52,16 +52,28 @@
                 border-left: 1px solid rgba(0,0,0,.2);
                 min-height: 100%;
             }
-            @media (max-width: 820px) {
+            @media (max-width: 1600px) {
                 .figma-filter-bar--vj {
                     flex-wrap: wrap !important;
                     width: 100% !important;
                     max-width: none !important;
+                    margin-left: 0 !important;
+                    row-gap: 6px !important;
                 }
                 .figma-filter-bar--vj > label {
-                    flex: 1 1 46% !important;
+                    flex: 1 1 132px !important;
                     width: auto !important;
-                    border-bottom: 1px solid rgba(0,0,0,.12);
+                    max-width: 220px !important;
+                }
+                .figma-filter-bar--vj .vj-f-actions {
+                    margin-left: auto;
+                    flex: 0 0 auto !important;
+                }
+            }
+            @media (max-width: 640px) {
+                .figma-filter-bar--vj > label {
+                    flex: 1 1 100% !important;
+                    max-width: none !important;
                 }
                 .figma-filter-bar--vj .vj-f-actions {
                     width: 100%;

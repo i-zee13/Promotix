@@ -78,16 +78,28 @@
             }
             .figma-filter-bar--tc .tc-export-btn:hover { filter: brightness(1.08); }
             .figma-filter-bar--tc .tc-export-btn svg { width: 15px; height: 15px; }
-            @media (max-width: 720px) {
+            @media (max-width: 1600px) {
                 .figma-filter-bar--tc {
                     flex-wrap: wrap !important;
                     width: 100% !important;
                     max-width: none !important;
+                    margin-left: 0 !important;
+                    row-gap: 6px !important;
                 }
                 .figma-filter-bar--tc > label {
-                    flex: 1 1 46% !important;
+                    flex: 1 1 132px !important;
                     width: auto !important;
-                    border-bottom: 1px solid rgba(0,0,0,.12);
+                    max-width: 220px !important;
+                }
+                .figma-filter-bar--tc .tc-f-actions {
+                    margin-left: auto;
+                    flex: 0 0 auto !important;
+                }
+            }
+            @media (max-width: 640px) {
+                .figma-filter-bar--tc > label {
+                    flex: 1 1 100% !important;
+                    max-width: none !important;
                 }
                 .figma-filter-bar--tc .tc-f-actions {
                     width: 100%;

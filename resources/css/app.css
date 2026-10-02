@@ -12155,6 +12155,68 @@ button.figma-bp-advanced-select-wrap:focus {
     overflow: visible;
 }
 
+/* 12–13" + dual sidebars: wrap Search/Domains/calendar so they aren't clipped */
+@media (max-width: 1600px) {
+    .figma-filter-bar.figma-filter-bar--overview {
+        width: 100% !important;
+        max-width: 100% !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        margin-left: 0 !important;
+        align-self: stretch;
+        row-gap: 6px !important;
+        box-sizing: border-box;
+    }
+
+    .figma-filter-bar.figma-filter-bar--overview > label {
+        flex: 1 1 132px !important;
+        width: auto !important;
+        min-width: 120px !important;
+        max-width: 220px !important;
+    }
+
+    .figma-filter-bar.figma-filter-bar--overview .figma-filter-calendar-host,
+    .figma-filter-bar.figma-filter-bar--overview .bp-dash-f-actions,
+    .figma-filter-bar.figma-filter-bar--overview .bp-adv-f-actions,
+    .figma-filter-bar.figma-filter-bar--overview .tc-f-actions,
+    .figma-filter-bar.figma-filter-bar--overview .vj-f-actions {
+        flex: 0 0 auto !important;
+        margin-left: auto;
+        align-self: stretch;
+    }
+
+    .figma-filter-bar.figma-filter-bar--overview .figma-filter-calendar-host {
+        border-left: 1px solid rgba(0, 0, 0, 0.2);
+        border-top: 0;
+    }
+
+    .figma-filter-bar.figma-filter-bar--overview .paid-filter-secondary {
+        flex: 1 1 100% !important;
+        flex-wrap: wrap !important;
+        width: 100%;
+        border-top: 1px solid rgba(0, 0, 0, 0.12);
+    }
+}
+
+@media (max-width: 640px) {
+    .figma-filter-bar.figma-filter-bar--overview > label {
+        flex: 1 1 100% !important;
+        max-width: none !important;
+    }
+
+    .figma-filter-bar.figma-filter-bar--overview .figma-filter-calendar-host,
+    .figma-filter-bar.figma-filter-bar--overview .bp-dash-f-actions,
+    .figma-filter-bar.figma-filter-bar--overview .bp-adv-f-actions,
+    .figma-filter-bar.figma-filter-bar--overview .tc-f-actions,
+    .figma-filter-bar.figma-filter-bar--overview .vj-f-actions {
+        flex: 1 1 100% !important;
+        margin-left: 0 !important;
+        border-left: 0;
+        border-top: 1px solid rgba(0, 0, 0, 0.12);
+        justify-content: flex-start;
+    }
+}
+
 /* Paid filter: full-width under title; calendar stays in-bar */
 .figma-filter-bar--paid {
     width: 100% !important;

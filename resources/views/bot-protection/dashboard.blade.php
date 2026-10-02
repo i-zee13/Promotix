@@ -200,7 +200,7 @@
                     height: 14px;
                 }
                 /* 12–13" / sidebars: wrap filter chips so Domain isn’t crushed to the edge */
-                @media (max-width: 1280px) {
+                @media (max-width: 1600px) {
                     .figma-filter-bar--bp-dash.ov-filter-bar,
                     .figma-filter-bar--bp-dash {
                         width: 100% !important;

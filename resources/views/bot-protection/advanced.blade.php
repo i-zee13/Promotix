@@ -101,24 +101,35 @@
             }
             .figma-filter-bar--bp-adv .bp-adv-export-btn:hover { filter: brightness(1.06); }
             .figma-filter-bar--bp-adv .bp-adv-export-btn svg { width: 15px; height: 15px; }
-            @media (max-width: 900px) {
+            @media (max-width: 1600px) {
                 .figma-filter-bar--bp-adv {
                     width: 100% !important;
                     align-self: stretch;
                     margin-left: 0 !important;
                     flex-wrap: wrap !important;
                     display: flex !important;
+                    row-gap: 6px !important;
                 }
                 .figma-filter-bar--bp-adv > label {
-                    flex: 1 1 130px !important;
+                    flex: 1 1 132px !important;
                     width: auto !important;
+                    max-width: 220px !important;
                 }
                 .figma-filter-bar--bp-adv .bp-adv-f-actions {
-                    margin-left: 0 !important;
+                    margin-left: auto !important;
+                    flex: 0 0 auto !important;
                 }
                 .figma-filter-bar--bp-adv .figma-filter-calendar-host {
                     flex: 0 0 auto !important;
-                    justify-content: flex-start;
+                }
+            }
+            @media (max-width: 640px) {
+                .figma-filter-bar--bp-adv > label { flex: 1 1 100% !important; max-width: none !important; }
+                .figma-filter-bar--bp-adv .bp-adv-f-actions {
+                    flex: 1 1 100% !important;
+                    margin-left: 0 !important;
+                    border-top: 1px solid rgba(0, 0, 0, 0.12);
+                    justify-content: flex-end;
                 }
             }
             .bp-adv-kpi-grid {

@@ -319,6 +319,39 @@
     .figma-filter-bar--paid .figma-filter-calendar-host {
         flex: 0 0 auto !important;
     }
+    @media (max-width: 1600px) {
+        .figma-filter-bar--paid {
+            width: 100% !important;
+            display: flex !important;
+            flex-wrap: wrap !important;
+            margin-left: 0 !important;
+            row-gap: 6px !important;
+        }
+        .figma-filter-bar--paid > label {
+            flex: 1 1 132px !important;
+            max-width: 220px !important;
+        }
+        .figma-filter-bar--paid .paid-filter-secondary {
+            flex: 1 1 100% !important;
+            flex-wrap: wrap !important;
+            width: 100%;
+            border-top: 1px solid rgba(0, 0, 0, 0.12);
+        }
+        .figma-filter-bar--paid .figma-filter-calendar-host {
+            margin-left: auto;
+            align-self: stretch;
+        }
+    }
+    @media (max-width: 640px) {
+        .figma-filter-bar--paid > label { flex: 1 1 100% !important; max-width: none !important; }
+        .figma-filter-bar--paid .figma-filter-calendar-host {
+            flex: 1 1 100% !important;
+            margin-left: 0;
+            border-left: 0;
+            border-top: 1px solid rgba(0, 0, 0, 0.12);
+            justify-content: flex-start;
+        }
+    }
     @container paid-page (max-width: 900px) {
         .figma-filter-bar--paid .paid-filter-secondary {
             flex: 1 1 100%;

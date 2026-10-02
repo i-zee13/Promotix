@@ -240,28 +240,13 @@
                     gap: 10px;
                 }
             }
-            @media (min-width: 1100px) and (max-width: 1399px) {
-                .pm-adv-page-head__title { font-size: 17px; }
-                .pm-adv-page-head__divider { height: 26px; }
-                .figma-filter-bar--pm-adv {
-                    min-height: 48px !important;
-                    max-width: min(100%, calc(100vw - 300px));
-                    overflow-x: auto;
-                    overscroll-behavior-x: contain;
-                }
-                .figma-filter-bar--pm-adv > label.pm-adv-f-domain { width: 104px !important; }
-                .figma-filter-bar--pm-adv > label.pm-adv-f-traffic { width: 94px !important; }
-                .figma-filter-bar--pm-adv > label.pm-adv-f-account { width: 104px !important; }
-                .figma-filter-bar--pm-adv > label.pm-adv-f-campaign { width: 96px !important; }
-                .figma-filter-bar--pm-adv > label.pm-adv-f-path { width: 92px !important; }
-                .figma-filter-bar--pm-adv > label {
-                    padding-left: 5px !important;
-                    padding-right: 5px !important;
-                }
-            }
             @media (min-width: 1400px) {
                 .pm-adv-page-head__title { font-size: 22px; }
                 .pm-adv-page-head__divider { height: 32px; }
+            }
+            @media (min-width: 1100px) and (max-width: 1399px) {
+                .pm-adv-page-head__title { font-size: 17px; }
+                .pm-adv-page-head__divider { height: 26px; }
             }
             html.light-mode .pm-adv-page-head__title {
                 color: #2d2d3a;
@@ -316,20 +301,31 @@
                 height: 32px !important;
                 min-width: 32px !important;
             }
-            @media (max-width: 900px) {
+            @media (max-width: 1600px) {
                 .figma-filter-bar--pm-adv {
                     width: 100% !important;
                     align-self: stretch;
                     margin-left: 0 !important;
                     flex-wrap: wrap !important;
                     display: flex !important;
+                    row-gap: 6px !important;
                 }
                 .figma-filter-bar--pm-adv > label {
-                    flex: 1 1 130px !important;
+                    flex: 1 1 132px !important;
                     width: auto !important;
+                    max-width: 220px !important;
                 }
                 .figma-filter-bar--pm-adv .figma-filter-calendar-host {
+                    flex: 0 0 auto !important;
+                    margin-left: auto;
+                    align-self: stretch;
+                }
+            }
+            @media (max-width: 640px) {
+                .figma-filter-bar--pm-adv > label { flex: 1 1 100% !important; max-width: none !important; }
+                .figma-filter-bar--pm-adv .figma-filter-calendar-host {
                     flex: 1 1 100% !important;
+                    margin-left: 0;
                     justify-content: flex-start;
                     border-left: 0;
                     border-top: 1px solid rgba(0, 0, 0, 0.12);

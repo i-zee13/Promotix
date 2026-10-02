@@ -429,10 +429,31 @@ document.addEventListener('DOMContentLoaded', () => {
             .figma-filter-bar--pi .figma-filter-calendar-host {
                 flex: 0 0 auto;
             }
-            @media (max-width: 900px) {
+            @media (max-width: 1600px) {
                 .figma-filter-bar--pi {
-                    width: 100%;
-                    flex-wrap: wrap;
+                    width: 100% !important;
+                    display: flex !important;
+                    flex-wrap: wrap !important;
+                    margin-left: 0 !important;
+                    row-gap: 6px !important;
+                }
+                .figma-filter-bar--pi > label {
+                    flex: 1 1 132px !important;
+                    max-width: 220px !important;
+                }
+                .figma-filter-bar--pi .figma-filter-calendar-host {
+                    margin-left: auto;
+                    align-self: stretch;
+                }
+            }
+            @media (max-width: 640px) {
+                .figma-filter-bar--pi > label { flex: 1 1 100% !important; max-width: none !important; }
+                .figma-filter-bar--pi .figma-filter-calendar-host {
+                    flex: 1 1 100% !important;
+                    margin-left: 0;
+                    border-left: 0;
+                    border-top: 1px solid rgba(0, 0, 0, 0.12);
+                    justify-content: flex-start;
                 }
             }
             .pi-connect-card,
