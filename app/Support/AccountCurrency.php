@@ -42,20 +42,36 @@ class AccountCurrency
             return 'USD';
         }
 
+        $upper = strtoupper($tz);
+
+        // Abbreviations often shown in the header chip (PKT, IST, …).
+        if (in_array($upper, ['PKT', 'PKST'], true) || str_contains($upper, 'KARACHI')) {
+            return 'PKR';
+        }
+        if (in_array($upper, ['GST', 'GST+4'], true) && (str_contains($tz, 'Dubai') || str_contains($tz, 'Gulf'))) {
+            return 'AED';
+        }
+        if ($upper === 'IST' || str_contains($upper, 'KOLKATA') || str_contains($upper, 'CALCUTTA')) {
+            // India Standard Time (not Israel) — used with Asia/Kolkata.
+            if (str_starts_with($tz, 'Asia/') || $upper === 'IST') {
+                return 'INR';
+            }
+        }
+
         // PKT / Pakistan accounts → PKR on All Domains.
-        if ($tz === 'Asia/Karachi' || str_contains(strtoupper($tz), 'KARACHI')) {
+        if ($tz === 'Asia/Karachi') {
             return 'PKR';
         }
         // UAE (Dubai / Abu Dhabi / Muscat Gulf hubs) → AED.
         if (
             str_starts_with($tz, 'Asia/Dubai')
             || str_starts_with($tz, 'Asia/Muscat')
-            || str_contains(strtoupper($tz), 'DUBAI')
-            || str_contains(strtoupper($tz), 'ABU_DHABI')
+            || str_contains($upper, 'DUBAI')
+            || str_contains($upper, 'ABU_DHABI')
         ) {
             return 'AED';
         }
-        if (str_starts_with($tz, 'Asia/Riyadh') || str_contains(strtoupper($tz), 'RIYADH')) {
+        if (str_starts_with($tz, 'Asia/Riyadh') || str_contains($upper, 'RIYADH')) {
             return 'SAR';
         }
         if (str_starts_with($tz, 'Europe/London') || $tz === 'GB') {
@@ -106,8 +122,11 @@ class AccountCurrency
             return self::fromDomain($domain);
         }
 
-        // All Domains: always roll up to USD so mixed Ads currencies (PKR/AED/…) convert cleanly.
-        return 'USD';
+        // All Domains: FX still pivots through USD; display currency follows viewer timezone
+        // (e.g. Asia/Karachi / PKT → PKR) so the header timezone and waste currency match.
+        $tz = UserTimezone::reportingTimezoneForUser($request->user());
+
+        return self::fromTimezone($tz);
     }
 
     public static function symbol(string $currencyCode): string

@@ -262,7 +262,8 @@ class PaidAdvertisingDashboardController extends Controller
         $costSaved = round($avgCpc * $invalidForSavings, 2);
         $costSavedBreakdown = [];
 
-        // All Domains: per-domain waste → convert each to USD → sum (never mix raw PKR+USD).
+        // All Domains: per-domain waste → convert each to USD → sum (never mix raw PKR+USD),
+        // then convert the USD total into the viewer timezone currency (PKT→PKR, etc.).
         $isAllDomains = ! $request->filled('domain_id');
         if ($isAllDomains && $adsLinkedDomainIds->count() > 1) {
             $fx = $this->allDomainsWasteInUsd(
@@ -273,11 +274,12 @@ class PaidAdvertisingDashboardController extends Controller
                 $metricTo,
                 $reportingTz,
             );
-            $googleCost = $fx['google_cost_usd'];
-            $avgCpc = $fx['avg_cpc_usd'];
-            $costSaved = $fx['cost_saved_usd'];
+            $displayCurrency = AccountCurrency::fromTimezone($reportingTz);
+            $googleCost = round(CurrencyConverter::convert($fx['google_cost_usd'], 'USD', $displayCurrency), 2);
+            $avgCpc = round(CurrencyConverter::convert($fx['avg_cpc_usd'], 'USD', $displayCurrency), 4);
+            $costSaved = round(CurrencyConverter::convert($fx['cost_saved_usd'], 'USD', $displayCurrency), 2);
             $costSavedBreakdown = $fx['breakdown'];
-            $currencyCode = 'USD';
+            $currencyCode = $displayCurrency;
         }
 
         $selectedDomain = $request->filled('domain_id') && $domains->count() === 1

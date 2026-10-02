@@ -30,6 +30,7 @@ class AccountCurrencyTest extends TestCase
     public function test_from_timezone_maps_karachi_to_pkr(): void
     {
         $this->assertSame('PKR', AccountCurrency::fromTimezone('Asia/Karachi'));
+        $this->assertSame('PKR', AccountCurrency::fromTimezone('PKT'));
         $this->assertSame('USD', AccountCurrency::fromTimezone('America/New_York'));
         $this->assertSame('GBP', AccountCurrency::fromTimezone('Europe/London'));
     }

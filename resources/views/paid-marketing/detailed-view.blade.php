@@ -2425,8 +2425,17 @@
                         return map[entry.currency_code] || `${entry.currency_code} `;
                     }
                 }
-                // All Domains: always USD display currency.
-                if (!id) return '$';
+                // All Domains: follow header timezone currency (PKT→Rs, etc.).
+                if (!id) {
+                    const tz = String(this.reportingTimezone || this.profileTimezone || this.timezoneContext?.reporting_timezone || '');
+                    if (tz === 'Asia/Karachi' || /karachi|PKT/i.test(tz)) return 'Rs ';
+                    if (tz.startsWith('Asia/Dubai') || /dubai/i.test(tz)) return 'د.إ';
+                    if (tz.startsWith('Europe/London')) return '£';
+                    if (tz.startsWith('Europe/')) return '€';
+                    if (tz.startsWith('Asia/Kolkata') || tz.startsWith('Asia/Calcutta') || /^IST$/i.test(tz)) return '₹';
+                    if (tz.startsWith('Australia/')) return 'A$';
+                    return '$';
+                }
                 const tz = String(this.reportingTimezone || this.profileTimezone || '');
                 if (tz === 'Asia/Karachi' || /karachi/i.test(tz)) return 'Rs ';
                 if (tz.startsWith('Europe/London')) return '£';
