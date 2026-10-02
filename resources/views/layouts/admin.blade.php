@@ -20,8 +20,8 @@
             background: color-mix(in srgb, var(--brand-primary) 25%, transparent);
             color: #fff;
         }
-        .figma-shell { --figma-right: 220px; }
-        .figma-shell.figma-rightbar-collapsed { --figma-right: 0px; padding-right: 0; }
+        .figma-shell { --figma-right: 220px; --figma-right-gap: 14px; }
+        .figma-shell.figma-rightbar-collapsed { --figma-right: 0px; --figma-right-gap: 0px; padding-right: 0; }
 
         /* Compact blocks (icons / tools / quick actions) stay centered */
         .figma-rightbar-center {

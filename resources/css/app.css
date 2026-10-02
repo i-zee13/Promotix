@@ -4582,22 +4582,26 @@ select.figma-sa-subs-status-pill {
 .figma-shell {
     --figma-left: 261px;
     --figma-right: 220px;
+    /* Gap so edge-toggle peek never covers Landing Page / filter chips */
+    --figma-right-gap: 14px;
     --figma-chrome-border: color-mix(in srgb, var(--brand-primary) 55%, #141414);
     --figma-chrome-accent-hover: color-mix(in srgb, var(--brand-primary) 82%, white);
     min-height: 100vh;
     padding-left: var(--figma-left);
-    padding-right: var(--figma-right);
+    padding-right: calc(var(--figma-right) + var(--figma-right-gap));
     background:
         radial-gradient(circle at 50% 45%, rgba(217, 217, 217, .035) 0 22%, transparent 23%),
         radial-gradient(circle at 50% 45%, rgba(217, 217, 217, .025) 0 38%, transparent 39%),
         #0d0d0d;
     color: #ffffff;
     overflow-x: hidden;
+    transition: padding-right 0.22s ease;
 }
 
 /* Super admin: no right panel — must override .figma-shell vars (defined above) */
 .figma-shell.figma-shell-super {
     --figma-right: 0px;
+    --figma-right-gap: 0px;
     padding-right: 0;
 }
 
@@ -4607,6 +4611,7 @@ select.figma-sa-subs-status-pill {
 
 .figma-shell.figma-hide-rightbar {
     --figma-right: 0px;
+    --figma-right-gap: 0px;
     padding-right: 0;
 }
 
@@ -4682,7 +4687,7 @@ select.figma-sa-subs-status-pill {
     /* Cover viewport top so scrolled page content never peeks above the bar */
     top: 0;
     left: var(--figma-left);
-    right: var(--figma-right);
+    right: calc(var(--figma-right) + var(--figma-right-gap, 0px));
     /* Above page sticky heads / filter bars (often z-30–80); below impersonate bar + modals */
     z-index: 100;
     /* Keep controls visually at the old 17px offset; fill the gap with solid chrome */
@@ -4693,6 +4698,7 @@ select.figma-sa-subs-status-pill {
     background: #0e0e0e;
     /* Opaque paint layer so scrolled titles/filters cannot show through */
     isolation: isolate;
+    transition: right 0.22s ease;
 }
 
 /* Impersonation strip — always above header, sidebar, page content */
@@ -4774,6 +4780,14 @@ select.figma-sa-subs-status-pill {
 .figma-main {
     min-height: 100vh;
     padding-top: 75px; /* top:17 + header:58 */
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    overflow-x: clip;
+    /* Filters respond when right sidebar opens/closes (available width changes) */
+    container-type: inline-size;
+    container-name: figma-main;
 }
 
 .figma-header .figma-portal-switch {
@@ -5568,11 +5582,13 @@ select.figma-sa-subs-status-pill {
 
 .figma-rightbar-collapsed {
     --figma-right: 0px;
+    --figma-right-gap: 0px;
     padding-right: 0;
 }
 
 .figma-shell.figma-rightbar-collapsed {
     --figma-right: 0px;
+    --figma-right-gap: 0px;
     padding-right: 0;
 }
 
@@ -5609,7 +5625,8 @@ select.figma-sa-subs-status-pill {
 }
 
 .figma-shell:not(.figma-rightbar-collapsed) .figma-rightbar-edge-toggle {
-    right: calc(var(--figma-right) - 1px);
+    /* Peek from rightbar edge into reserved gap — not over filter fields */
+    right: calc(var(--figma-right) + var(--figma-right-gap, 14px) - 22px);
 }
 
 .figma-rightbar-collapsed .figma-rightbar-edge-toggle {
@@ -5699,6 +5716,7 @@ select.figma-sa-subs-status-pill {
 @media (max-width: 1279px) {
     .figma-shell {
         --figma-right: 0px;
+        --figma-right-gap: 0px;
         padding-right: 0;
     }
 
@@ -12310,6 +12328,73 @@ button.figma-bp-advanced-select-wrap:focus {
         border-left: 0;
         border-top: 1px solid rgba(0, 0, 0, 0.12);
         justify-content: flex-start;
+    }
+}
+
+/*
+ * Right sidebar open → main width shrinks. Match filter text/padding to
+ * available content width (not viewport), so chips don't climb under the panel.
+ */
+@container figma-main (max-width: 1180px) {
+    .figma-filter-bar.figma-filter-bar--overview {
+        width: 100% !important;
+        max-width: 100% !important;
+        flex-wrap: nowrap !important;
+    }
+
+    .figma-filter-bar.figma-filter-bar--overview > label {
+        flex: 1 1 0 !important;
+        min-width: 0 !important;
+        padding-left: 5px !important;
+        padding-right: 5px !important;
+    }
+
+    .figma-filter-bar.figma-filter-bar--overview > label > span:first-child,
+    .figma-filter-bar.figma-filter-bar--overview .figma-filter-label {
+        font-size: clamp(5.5px, 0.7cqi, 7px) !important;
+    }
+
+    .figma-filter-bar.figma-filter-bar--overview .figma-filter-control,
+    .figma-filter-bar.figma-filter-bar--overview .figma-filter-select-wrap {
+        font-size: clamp(8px, 0.9cqi, 10px) !important;
+    }
+}
+
+@container figma-main (max-width: 980px) {
+    .figma-filter-bar.figma-filter-bar--overview > label {
+        padding-left: 4px !important;
+        padding-right: 4px !important;
+    }
+
+    .figma-filter-bar.figma-filter-bar--overview > label > span:first-child,
+    .figma-filter-bar.figma-filter-bar--overview .figma-filter-label {
+        font-size: 5.5px !important;
+    }
+
+    .figma-filter-bar.figma-filter-bar--overview .figma-filter-control,
+    .figma-filter-bar.figma-filter-bar--overview .figma-filter-select-wrap {
+        font-size: 8px !important;
+        height: 20px !important;
+        min-height: 20px !important;
+    }
+
+    .figma-filter-bar.figma-filter-bar--overview .figma-filter-calendar-btn--responsive,
+    .figma-filter-bar.figma-filter-bar--overview .figma-filter-calendar-btn {
+        width: 26px !important;
+        min-width: 26px !important;
+        height: 26px !important;
+    }
+}
+
+@container figma-main (max-width: 820px) {
+    .figma-filter-bar.figma-filter-bar--overview {
+        flex-wrap: wrap !important;
+        row-gap: 6px !important;
+    }
+
+    .figma-filter-bar.figma-filter-bar--overview > label {
+        flex: 1 1 120px !important;
+        max-width: 220px !important;
     }
 }
 
