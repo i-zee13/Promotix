@@ -83,7 +83,7 @@
                     box-sizing: border-box;
                     position: relative;
                     z-index: 1;
-                    overflow: hidden;
+                    overflow: visible;
                 }
                 .figma-filter-bar--bp-dash > label.bp-dash-f-search,
                 .figma-filter-bar--bp-dash > label.bp-dash-f-account,
@@ -161,7 +161,7 @@
                 .figma-filter-bar--bp-dash .paid-advanced-campaign-menu,
                 .figma-filter-bar--bp-dash .figma-gads-calendar,
                 .figma-filter-bar--bp-dash .figma-date-range-popover {
-                    z-index: 120 !important;
+                    z-index: 130 !important;
                 }
                 .figma-filter-bar--bp-dash .figma-filter-calendar-btn--responsive {
                     width: 30px !important;
@@ -285,7 +285,7 @@
                     <button type="button" @click="toggleFilterMenu('account')" class="figma-filter-select-wrap flex h-[22px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[10px] text-[#8c8787]">
                         <span class="truncate" x-text="accountFilterLabel()"></span>
                     </button>
-                    <div x-show="filterMenus.account" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[7px] !right-auto !min-w-[240px] !z-[80]">
+                    <div x-show="filterMenus.account" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[7px] !right-auto !min-w-[240px] !z-[130]">
                         <button type="button" @click="pickAccountFilter('')" class="paid-advanced-campaign-option" :class="!filters.google_ads_account_id && 'is-active'">
                             <span class="paid-advanced-campaign-option__label">All Accounts</span>
                         </button>
@@ -303,7 +303,7 @@
                     <button type="button" @click="toggleFilterMenu('domain')" class="figma-filter-select-wrap flex h-[22px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[10px] text-[#8c8787]">
                         <span class="truncate" x-text="domainFilterLabel()"></span>
                     </button>
-                    <div x-show="filterMenus.domain" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[7px] !right-auto !z-[80]">
+                    <div x-show="filterMenus.domain" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[7px] !right-auto !z-[130]">
                         <button type="button" @click="pickDomainFilter('')" class="paid-advanced-campaign-option" :class="!filters.domain_id && 'is-active'">
                             <span class="paid-advanced-campaign-option__label">All Domains</span>
                         </button>
@@ -319,7 +319,7 @@
                     <button type="button" @click="toggleFilterMenu('campaign')" class="figma-filter-select-wrap flex h-[22px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[10px] text-[#8c8787]">
                         <span class="truncate" x-text="filters.campaign || 'All Campaigns'"></span>
                     </button>
-                    <div x-show="filterMenus.campaign" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[7px] !right-auto !min-w-[200px] !z-[80]">
+                    <div x-show="filterMenus.campaign" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[7px] !right-auto !min-w-[200px] !z-[130]">
                         <button type="button" @click="pickCampaignFilter('')" class="paid-advanced-campaign-option" :class="!filters.campaign && 'is-active'">
                             <span class="paid-advanced-campaign-option__label">All Campaigns</span>
                         </button>
@@ -335,7 +335,7 @@
                     <button type="button" @click="toggleFilterMenu('device')" class="figma-filter-select-wrap flex h-[22px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[10px] text-[#8c8787]">
                         <span class="truncate" x-text="deviceFilterLabel()"></span>
                     </button>
-                    <div x-show="filterMenus.device" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[7px] !right-auto !z-[80]">
+                    <div x-show="filterMenus.device" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[7px] !right-auto !z-[130]">
                         <template x-for="opt in deviceOptions" :key="'bp-dev-' + opt.value">
                             <button type="button" @click="pickDeviceFilter(opt.value)" class="paid-advanced-campaign-option" :class="filters.device === opt.value && 'is-active'">
                                 <span class="paid-advanced-campaign-option__label" x-text="opt.label"></span>

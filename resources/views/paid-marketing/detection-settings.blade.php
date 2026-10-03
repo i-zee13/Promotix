@@ -59,7 +59,7 @@
     ];
 @endphp
 
-<div class="brand-page-bg min-h-[calc(100vh-49px)] min-w-0 max-w-full overflow-x-clip"
+<div class="brand-page-bg min-h-[calc(100vh-49px)] min-w-0 max-w-full overflow-x-visible"
      x-data="detectionPageFilters(@js([
          'domainId' => request()->filled('domain_id') ? (string) ($domain?->id ?? '') : '',
          'path' => (string) request('path', ''),

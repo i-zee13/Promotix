@@ -645,7 +645,7 @@ html.light-mode .figma-click-modal-sidebar {
     position: absolute;
     top: calc(100% + 4px);
     left: 0;
-    z-index: 120;
+    z-index: 130;
     width: max(100%, 220px);
     max-height: 240px;
     overflow: auto;
@@ -4784,7 +4784,8 @@ select.figma-sa-subs-status-pill {
     max-width: 100%;
     min-width: 0;
     box-sizing: border-box;
-    overflow-x: clip;
+    /* Do not clip filter dropdowns / calendars (overflow-x:clip forces y containment) */
+    overflow: visible;
     /* Filters respond when right sidebar opens/closes (available width changes) */
     container-type: inline-size;
     container-name: figma-main;
@@ -12186,7 +12187,8 @@ button.figma-bp-advanced-select-wrap:focus {
 
 .figma-filter-bar.figma-filter-bar--overview > label {
     min-width: 0 !important;
-    overflow: hidden;
+    /* Must stay visible — absolute dropdown menus render outside the chip */
+    overflow: visible;
 }
 
 .figma-filter-bar.figma-filter-bar--overview > label > span:first-child,
