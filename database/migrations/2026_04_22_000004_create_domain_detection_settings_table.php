@@ -15,7 +15,7 @@ return new class extends Migration
             $table->string('invalid_malicious_action')->default('block');
             $table->boolean('suspicious_enabled')->default(true);
             $table->json('suspicious_matrix')->nullable(); // vpn/proxy/datacenter/rate_limit actions
-            $table->boolean('session_recordings')->default(false);
+            $table->boolean('session_recordings')->default(true);
             $table->boolean('frequency_capping')->default(false);
             $table->boolean('out_of_geo_enabled')->default(false);
             $table->json('out_of_geo_countries')->nullable();

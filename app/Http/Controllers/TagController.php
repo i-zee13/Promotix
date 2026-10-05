@@ -772,6 +772,8 @@ class TagController extends Controller
 
       if (tel) {
         push('phone_click', Object.assign({}, meta, {
+          x: e.clientX,
+          y: e.clientY,
           tel_number: telNumberFromHref(meta.href) || (looksLikePhoneNumber(meta.element_text) ? String(meta.element_text).replace(/[^\\d+]/g, '').slice(0, 64) : ''),
           link_type: 'tel'
         }));
@@ -779,22 +781,29 @@ class TagController extends Controller
         finishRecording();
       } else if (commerce) {
         push(commerce, Object.assign({}, meta, {
+          x: e.clientX,
+          y: e.clientY,
           product_name: meta.element_text || undefined
         }));
         finishRecording();
       } else if (cta) {
-        push('cta_click', meta);
+        push('cta_click', Object.assign({}, meta, {
+          x: e.clientX,
+          y: e.clientY
+        }));
         // CTA navigations often unload before pagehide — flush so the click is stored.
         finishRecording();
       } else if (meta.href && /^mailto:/i.test(meta.href)) {
         push('email_click', Object.assign({}, meta, {
+          x: e.clientX,
+          y: e.clientY,
           email: String(meta.href).replace(/^mailto:/i, '').split('?')[0].slice(0, 120),
           link_type: 'email'
         }));
       } else if (meta.href && isDownloadHref(meta.href)) {
-        push('file_download', Object.assign({}, meta, { link_type: 'download' }));
+        push('file_download', Object.assign({}, meta, { x: e.clientX, y: e.clientY, link_type: 'download' }));
       } else if (meta.tag === 'A' && meta.href && isExternalHref(meta.href)) {
-        push('external_link', Object.assign({}, meta, { link_type: 'external' }));
+        push('external_link', Object.assign({}, meta, { x: e.clientX, y: e.clientY, link_type: 'external' }));
       } else {
         push('click', {
           x: e.clientX,

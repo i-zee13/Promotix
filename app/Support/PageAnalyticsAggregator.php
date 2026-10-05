@@ -1828,20 +1828,25 @@ class PageAnalyticsAggregator
             $candidates[] = ['key' => 'checkout', 'label' => 'Initiated Checkout', 'value' => $checkout];
             $candidates[] = ['key' => 'purchase', 'label' => 'Purchases', 'value' => $purchase];
         }
-        // Domain-specific lead steps — omit zeros so formless sites never show Form Fills, etc.
+        // Always surface CTA / call capture in the conversion funnel (Session Recording).
+        $candidates[] = ['key' => 'cta', 'label' => 'CTA Clicks', 'value' => $cta];
+        $candidates[] = ['key' => 'tel', 'label' => 'Call Clicks', 'value' => $tel];
+        // Domain-specific lead steps — omit zero form fills so formless sites stay clean.
         if ($forms > 0) {
             $candidates[] = ['key' => 'form', 'label' => 'Form Fills', 'value' => $forms];
         }
-        if ($cta > 0) {
-            $candidates[] = ['key' => 'cta', 'label' => 'CTA Clicks', 'value' => $cta];
-        }
-        if ($tel > 0) {
-            $candidates[] = ['key' => 'tel', 'label' => 'Call Clicks', 'value' => $tel];
-        }
 
+        // Keep Visitors + CTA + Call even at 0; drop other empty commerce/form steps.
         $steps = array_values(array_filter(
             $candidates,
-            static fn (array $s): bool => (int) ($s['value'] ?? 0) > 0
+            static function (array $s): bool {
+                $key = (string) ($s['key'] ?? '');
+                if (in_array($key, ['views', 'cta', 'tel'], true)) {
+                    return true;
+                }
+
+                return (int) ($s['value'] ?? 0) > 0;
+            }
         ));
         if ($steps === []) {
             return [];

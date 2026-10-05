@@ -1476,7 +1476,7 @@
         <div class="figma-modal-overlay"
              x-show="recordingModal.open" x-cloak x-transition
              @keydown.escape.window="closeRecording()" @click.self="closeRecording()">
-            <div class="figma-modal max-w-[640px]">
+            <div class="figma-modal max-w-[720px]">
                 <header class="mb-4 flex items-center justify-between gap-3">
                     <h3 class="figma-modal-title">Session Recording</h3>
                     <button type="button" class="rounded-lg p-1.5 text-white/50 hover:bg-white/10 hover:text-white" @click="closeRecording()" aria-label="Close">
@@ -1486,6 +1486,16 @@
                 <p class="mb-3 text-[12px] text-white/70" x-text="recordingModal.ip ? `IP: ${recordingModal.ip}` : ''"></p>
                 <div class="overflow-hidden rounded-[8px] border border-white/20 bg-[#101010]">
                     <canvas x-ref="recordingCanvas" width="600" height="320" class="h-auto w-full"></canvas>
+                </div>
+                <div class="mt-3 max-h-[160px] overflow-auto rounded-[8px] border border-white/10 bg-[#0d0d0d] px-3 py-2" x-show="(recordingModal.behaviors || []).length">
+                    <p class="mb-2 text-[10px] font-semibold uppercase tracking-wide text-white/45">Behaviour · event time</p>
+                    <template x-for="(ev, idx) in (recordingModal.behaviors || [])" :key="'beh-' + idx">
+                        <div class="flex items-start gap-2 border-b border-white/5 py-1.5 text-[11px] last:border-0">
+                            <span class="shrink-0 font-mono text-[#FF6600]" x-text="ev.clock"></span>
+                            <span class="min-w-0 flex-1 text-white/85" x-text="ev.label"></span>
+                            <span class="shrink-0 text-white/35" x-text="ev.type"></span>
+                        </div>
+                    </template>
                 </div>
             </div>
         </div>
@@ -1650,10 +1660,10 @@ function botProtectionAdvancedFigma(config = {}) {
         { key: 'status', label: 'Status', primary: true, min: 56 },
         { key: 'domain', label: 'Domain', primary: false, min: 100 },
         { key: 'path', label: 'Path', primary: false, min: 100 },
-        { key: 'cta_clicks', label: 'CTA Clicks', primary: false, min: 64 },
-        { key: 'tel_clicks', label: 'Tel Clicks', primary: false, min: 64 },
+        { key: 'cta_clicks', label: 'CTA Clicks', primary: true, min: 64 },
+        { key: 'tel_clicks', label: 'Tel Clicks', primary: true, min: 64 },
         { key: 'page_changes', label: 'Page Changes', primary: false, min: 72 },
-        { key: 'session_recording', label: 'Recording', primary: false, min: 44 },
+        { key: 'session_recording', label: 'Recording', primary: true, min: 44 },
         { key: 'referrer', label: 'Referrer', primary: false, min: 100 },
         { key: 'threat_score', label: 'Threat Score', primary: false, min: 72 },
         { key: 'utm_source', label: 'UTM Source', primary: false, min: 80 },
@@ -1708,14 +1718,14 @@ function botProtectionAdvancedFigma(config = {}) {
         { key: 'last_seen', label: 'Last Seen', primary: false, min: 96 },
         { key: 'timezone', label: 'Timezone', primary: false, min: 88 },
         { key: 'scroll_events', label: 'Scroll Events', primary: false, min: 72 },
-        { key: 'tel_clicks', label: 'Tel Clicks', primary: false, min: 64 },
+        { key: 'tel_clicks', label: 'Tel Clicks', primary: true, min: 64 },
         { key: 'form_starts', label: 'Form Starts', primary: false, min: 72 },
         { key: 'form_fills', label: 'Form Fills', primary: false, min: 72 },
         { key: 'country', label: 'Country', primary: false, min: 72 },
         { key: 'region', label: 'Region', primary: false, min: 80 },
         { key: 'referrer', label: 'Referrer URL', primary: false, min: 100 },
         { key: 'exit_page', label: 'Exit Page', primary: false, min: 100 },
-        { key: 'session_recording', label: 'Recording', primary: false, min: 44 },
+        { key: 'session_recording', label: 'Recording', primary: true, min: 44 },
     ];
 
     const analyticsMode = Boolean(config.analyticsMode);
@@ -1808,7 +1818,7 @@ function botProtectionAdvancedFigma(config = {}) {
         loadError: '',
         columnCatalog,
         optionalColumnKeys: Array.isArray(savedOptional) ? savedOptional : [],
-        recordingModal: { open: false, ip: '', page_url: '', events: [] },
+        recordingModal: { open: false, ip: '', page_url: '', events: [], behaviors: [] },
         eventModal: { open: false, title: '', subtitle: '', events: [] },
         journeyDrawer: { open: false, row: null },
         sessionKpis: {},
@@ -2540,7 +2550,7 @@ function botProtectionAdvancedFigma(config = {}) {
                 });
                 if (!res.ok) throw new Error('recording fetch failed');
                 const data = await res.json();
-                this.recordingModal = { open: true, ip: data.ip || row.ip, page_url: data.page_url || '', events: data.events || [] };
+                this.recordingModal = { open: true, ip: data.ip || row.ip, page_url: data.page_url || '', events: data.events || [], behaviors: [] };
                 this.$nextTick(() => this.renderRecording(data.events || []));
             } catch (e) { console.error(e); }
         },
@@ -2549,7 +2559,7 @@ function botProtectionAdvancedFigma(config = {}) {
                 this.recordingStop();
                 this.recordingStop = null;
             }
-            this.recordingModal = { open: false, ip: '', page_url: '', events: [] };
+            this.recordingModal = { open: false, ip: '', page_url: '', events: [], behaviors: [] };
         },
         renderRecording(events) {
             if (this.recordingStop) {
@@ -2561,6 +2571,9 @@ function botProtectionAdvancedFigma(config = {}) {
             this.recordingStop = window.PromotixSessionRecordingPlayer.play(canvas, events, () => {
                 this.recordingStop = null;
             });
+            this.recordingModal.behaviors = Array.isArray(this.recordingStop?.behaviors)
+                ? this.recordingStop.behaviors
+                : [];
         },
     };
 }

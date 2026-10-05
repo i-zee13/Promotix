@@ -5607,7 +5607,7 @@ class PaidMarketingController extends Controller
                     'data_center' => 'block',
                     'abnormal_rate_limit' => 'allow',
                 ],
-                'session_recordings' => false,
+                'session_recordings' => true,
                 'frequency_capping' => false,
                 'out_of_geo_enabled' => false,
                 'out_of_geo_countries' => [],

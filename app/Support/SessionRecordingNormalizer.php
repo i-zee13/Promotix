@@ -96,6 +96,48 @@ class SessionRecordingNormalizer
             ];
         }
 
+        $behaviorTypes = [
+            'cta_click', 'phone_click', 'tel_click', 'call_click',
+            'form_start', 'form_submit', 'form_fill',
+            'add_to_cart', 'checkout', 'purchase',
+            'email_click', 'external_link', 'file_download',
+        ];
+        if (in_array($type, $behaviorTypes, true)) {
+            $normalizedType = match ($type) {
+                'tel_click', 'call_click' => 'phone_click',
+                'form_fill' => 'form_submit',
+                default => $type,
+            };
+            $label = trim((string) ($event['element_text'] ?? $event['text'] ?? $event['label'] ?? ''));
+            if ($label === '') {
+                $label = match ($normalizedType) {
+                    'cta_click' => 'CTA click',
+                    'phone_click' => 'Call click',
+                    'form_start' => 'Form start',
+                    'form_submit' => 'Form submit',
+                    'add_to_cart' => 'Add to cart',
+                    'checkout' => 'Checkout',
+                    'purchase' => 'Purchase',
+                    'email_click' => 'Email click',
+                    'external_link' => 'External link',
+                    'file_download' => 'Download',
+                    default => $normalizedType,
+                };
+            }
+            $x = $event['x'] ?? ($event['data']['x'] ?? null);
+            $y = $event['y'] ?? ($event['data']['y'] ?? null);
+
+            return [
+                't' => $t,
+                'type' => $normalizedType,
+                'label' => mb_substr($label, 0, 120),
+                'href' => (string) ($event['href'] ?? $event['data']['href'] ?? ''),
+                'page_url' => (string) ($event['page_url'] ?? $event['path'] ?? ''),
+                'x' => is_numeric($x) ? (float) $x : null,
+                'y' => is_numeric($y) ? (float) $y : null,
+            ];
+        }
+
         return null;
     }
 }
