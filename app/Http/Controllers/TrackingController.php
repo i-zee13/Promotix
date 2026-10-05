@@ -1052,7 +1052,6 @@ class TrackingController extends Controller
             'duration_ms' => $durationMs,
             'page_url' => $data['page_url'] ?? null,
             'events' => json_encode($events),
-            'created_at' => UserTimezone::nowUtc(),
             'updated_at' => UserTimezone::nowUtc(),
         ];
 
@@ -1078,20 +1077,61 @@ class TrackingController extends Controller
             $payload['last_cta_href'] = (string) $analysis['last_cta_href'];
         }
 
-        $recordingId = DB::table('visit_session_recordings')->insertGetId($payload);
+        // Soft-flush + pagehide both POST the same session — upsert so tel clicks are not double-counted.
+        $sessionKey = trim((string) ($data['session_id'] ?? ''));
+        $existing = null;
+        if ($sessionKey !== '' && Schema::hasColumn('visit_session_recordings', 'session_id')) {
+            $existing = DB::table('visit_session_recordings')
+                ->where('domain_id', $domain->id)
+                ->where('session_id', $sessionKey)
+                ->where('created_at', '>=', UserTimezone::nowUtc()->subHours(6))
+                ->orderByDesc('id')
+                ->first();
+        }
+
+        $recordingId = null;
+        $prevScore = 0;
+        $nextScore = count($events)
+            + ((int) $analysis['tel_clicks'] * 10)
+            + ((int) $analysis['cta_clicks'] * 5)
+            + $durationMs;
+
+        if ($existing) {
+            $prevEvents = json_decode((string) ($existing->events ?? '[]'), true);
+            if (! is_array($prevEvents)) {
+                $prevEvents = [];
+            }
+            $prevScore = count($prevEvents)
+                + ((int) ($existing->tel_clicks ?? 0) * 10)
+                + ((int) ($existing->cta_clicks ?? 0) * 5)
+                + (int) ($existing->duration_ms ?? 0);
+
+            if ($nextScore >= $prevScore) {
+                DB::table('visit_session_recordings')->where('id', (int) $existing->id)->update($payload);
+                if (Schema::hasTable('visit_behavior_events') && Schema::hasColumn('visit_behavior_events', 'recording_id')) {
+                    DB::table('visit_behavior_events')->where('recording_id', (int) $existing->id)->delete();
+                }
+            }
+            $recordingId = (int) $existing->id;
+        } else {
+            $payload['created_at'] = UserTimezone::nowUtc();
+            $recordingId = (int) DB::table('visit_session_recordings')->insertGetId($payload);
+        }
 
         $startedAt = UserTimezone::nowUtc()->subMilliseconds(max(0, $durationMs));
-        BehaviorEventPersister::insert(
-            BehaviorEventPersister::extractRows(
-                $events,
-                (int) $domain->id,
-                (int) $recordingId,
-                isset($data['visit_id']) ? (int) $data['visit_id'] : null,
-                isset($data['session_id']) ? (string) $data['session_id'] : null,
-                isset($data['visitor_id']) ? (string) $data['visitor_id'] : null,
-                $startedAt,
-            )
-        );
+        if ($existing === null || $nextScore >= $prevScore) {
+            BehaviorEventPersister::insert(
+                BehaviorEventPersister::extractRows(
+                    $events,
+                    (int) $domain->id,
+                    (int) $recordingId,
+                    isset($data['visit_id']) ? (int) $data['visit_id'] : null,
+                    isset($data['session_id']) ? (string) $data['session_id'] : null,
+                    isset($data['visitor_id']) ? (string) $data['visitor_id'] : null,
+                    $startedAt,
+                )
+            );
+        }
 
         // Attach behavior signals / actions to the visit record when present.
         if (

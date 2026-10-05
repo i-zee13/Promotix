@@ -42,12 +42,15 @@ class SessionBehaviorTimeline
             if (in_array($type, ['page', 'page_view'], true)) {
                 $url = trim((string) ($raw['url'] ?? $raw['page_url'] ?? ''));
                 $title = trim((string) ($raw['title'] ?? $raw['headline'] ?? ''));
+                $path = trim((string) ($raw['path'] ?? ($url !== '' ? TrafficSourceClassifier::pathFromUrl($url) : '')));
+                $name = $path !== '' ? $path : ($title !== '' ? $title : ($url !== '' ? $url : 'Page View'));
                 $rows[] = array_merge($base, [
-                    'label' => 'Page View',
-                    'detail' => trim(($title !== '' ? $title.' · ' : '').($url !== '' ? $url : 'page')),
+                    'label' => $name,
+                    'detail' => trim(($title !== '' && $title !== $name ? $title.' · ' : '').($url !== '' ? $url : $name)),
                     'kind' => 'page',
                     'type' => 'page_view',
                     'page_url' => $url !== '' ? $url : ($base['page_url'] ?? null),
+                    'page' => $path !== '' ? $path : $name,
                     'title' => $title !== '' ? $title : null,
                 ]);
 
@@ -58,12 +61,14 @@ class SessionBehaviorTimeline
                 $url = trim((string) ($raw['url'] ?? $raw['page_url'] ?? ''));
                 $title = trim((string) ($raw['title'] ?? $raw['headline'] ?? ''));
                 $path = trim((string) ($raw['path'] ?? ($url !== '' ? TrafficSourceClassifier::pathFromUrl($url) : '')));
+                $name = $path !== '' ? $path : ($title !== '' ? $title : ($url !== '' ? $url : 'Page Change'));
                 $rows[] = array_merge($base, [
-                    'label' => 'Page Change',
-                    'detail' => $path !== '' ? $path : ($url !== '' ? $url : ($title !== '' ? $title : 'page change')),
+                    'label' => $name,
+                    'detail' => $title !== '' && $title !== $name ? $title : $name,
                     'kind' => 'page',
                     'type' => 'page_change',
                     'page_url' => $url !== '' ? $url : ($base['page_url'] ?? null),
+                    'page' => $path !== '' ? $path : $name,
                     'title' => $title !== '' ? $title : null,
                 ]);
 

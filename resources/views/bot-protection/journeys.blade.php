@@ -2516,11 +2516,18 @@ function visitorJourneyPage() {
                 }
                 // Prefer a readable action label over raw path for mid-session markers.
                 let label = String(ev.label || ev.event || type || 'event');
+                const pageName = String(ev.page || ev.path || '').trim();
                 if (type === 'phone' && (!label || label === 'phone' || label.startsWith('/'))) label = 'Phone click';
                 if (type === 'cta' && (!label || label === 'cta' || label.startsWith('/'))) label = 'CTA click';
                 if (type === 'form' && (!label || label === 'form' || label.startsWith('/'))) label = 'Form submit';
                 if (type === 'scroll' && (!label || label.startsWith('/'))) label = 'Scroll';
                 if (type === 'exit') label = 'Exit';
+                if (type === 'page') {
+                    if (pageName) label = pageName;
+                    else if (['page', 'page change', 'page view', 'page_change', 'page_view'].includes(label.toLowerCase())) {
+                        label = pageName || label;
+                    }
+                }
                 const key = type + '|' + sec + '|' + label.toLowerCase();
                 if (seen.has(key)) return;
                 seen.add(key);

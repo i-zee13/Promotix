@@ -25,7 +25,7 @@ class SessionBehaviorTimelineTest extends TestCase
 
         $labels = array_column($timeline, 'label');
         $this->assertContains('Session Start', $labels);
-        $this->assertContains('Page View', $labels);
+        $this->assertContains('/shop', $labels);
         $this->assertContains('Scroll', $labels);
         $this->assertContains('CTA Click', $labels);
         $this->assertContains('Phone Click', $labels);
@@ -33,8 +33,9 @@ class SessionBehaviorTimelineTest extends TestCase
         $this->assertContains('Form Submit', $labels);
         $this->assertContains('Add to Cart', $labels);
         $this->assertContains('Purchase', $labels);
-        $this->assertContains('Page Change', $labels);
+        $this->assertContains('/product/wireless-headphones', $labels);
         $this->assertContains('Session Exit', $labels);
+        $this->assertNotContains('Page Change', $labels);
 
         $cta = null;
         foreach ($timeline as $row) {

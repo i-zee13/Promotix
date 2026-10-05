@@ -777,8 +777,9 @@ class TagController extends Controller
           tel_number: telNumberFromHref(meta.href) || (looksLikePhoneNumber(meta.element_text) ? String(meta.element_text).replace(/[^\\d+]/g, '').slice(0, 64) : ''),
           link_type: 'tel'
         }));
-        // Dialer freezes/unloads the page before pagehide on many mobiles — flush now.
-        finishRecording();
+        // Dialer may unload before pagehide — soft-flush now but keep listening
+        // so a second tel click in the same session is still captured.
+        softFlushRecording();
       } else if (commerce) {
         push(commerce, Object.assign({}, meta, {
           x: e.clientX,
@@ -1247,6 +1248,45 @@ class TagController extends Controller
     function finishRecordingOnHide(){
       if (document.visibilityState === 'hidden') finishRecording();
     }
+    function buildRecordingBody(){
+      return JSON.stringify({
+        domainKey: domainKey,
+        session_id: sessionId(),
+        visitor_id: visitorId(),
+        visit_id: meta.visit_id || null,
+        page_url: String(location.href || ''),
+        duration_ms: Date.now() - started,
+        threat_group: meta.threat_group || null,
+        events: events
+      });
+    }
+    function postRecordingBody(body){
+      if (navigator.sendBeacon) {
+        try {
+          var blob = new Blob([body], { type: 'application/json' });
+          if (navigator.sendBeacon(sessionRecordingUrl, blob)) return true;
+        } catch (eBeacon) {}
+      }
+      try {
+        fetch(sessionRecordingUrl, {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: body,
+          mode: 'cors',
+          credentials: 'omit',
+          keepalive: true
+        });
+        return true;
+      } catch (eFetch) {
+        return false;
+      }
+    }
+    /** Beacon without stopping listeners — keeps multi tel/CTA clicks in one session. */
+    function softFlushRecording(){
+      try {
+        postRecordingBody(buildRecordingBody());
+      } catch (eSoft) {}
+    }
     function finishRecording(){
       if (sent) return;
       sent = true;
@@ -1281,30 +1321,7 @@ class TagController extends Controller
       window.__pmRecordingPush = null;
       window.__pmRecording = false;
       try {
-        var body = JSON.stringify({
-          domainKey: domainKey,
-          session_id: sessionId(),
-          visitor_id: visitorId(),
-          visit_id: meta.visit_id || null,
-          page_url: String(location.href || ''),
-          duration_ms: Date.now() - started,
-          threat_group: meta.threat_group || null,
-          events: events
-        });
-        if (navigator.sendBeacon) {
-          try {
-            var blob = new Blob([body], { type: 'application/json' });
-            if (navigator.sendBeacon(sessionRecordingUrl, blob)) return;
-          } catch (eBeacon) {}
-        }
-        fetch(sessionRecordingUrl, {
-          method: 'POST',
-          headers: {'Content-Type':'application/json'},
-          body: body,
-          mode: 'cors',
-          credentials: 'omit',
-          keepalive: true
-        });
+        postRecordingBody(buildRecordingBody());
       } catch (e) {}
     }
 

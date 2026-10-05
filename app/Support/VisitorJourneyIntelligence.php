@@ -625,6 +625,11 @@ class VisitorJourneyIntelligence
                 $page = $this->shortPath((string) ($ev['page'] ?? $ev['path'] ?? $ev['page_url'] ?? ($pages[min($i, max(0, count($pages) - 1))] ?? '/')));
                 // Wall-clock = session entry + elapsed (never reuse a stuck entry stamp).
                 $clock = $this->formatClock($base + $elapsed);
+                if ($type === 'page' || in_array(strtolower(trim($label)), ['page change', 'page view', 'page', 'event'], true)) {
+                    if ($page !== '') {
+                        $label = $page;
+                    }
+                }
                 $out[] = $this->timelineEvent([
                     'type' => $type,
                     'label' => $this->shortEventLabel($label, $type),

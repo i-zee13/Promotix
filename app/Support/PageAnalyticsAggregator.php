@@ -552,7 +552,12 @@ class PageAnalyticsAggregator
             return round((($cur - $prev) / $prev) * 100, 1);
         };
 
-        $productViewCount = max($productViews, (int) ($recordingStats['product_views'] ?? 0), (int) round($total * 0.35));
+        $productViewCount = max(
+            $productViews,
+            ($carts > 0 || $checkouts > 0 || $purchases > 0)
+                ? (int) ($recordingStats['product_views'] ?? 0)
+                : 0
+        );
         $geoSource = $adsCountries !== [] ? $adsCountries : [];
         $geoTotal = max(1, array_sum($geoSource) ?: 1);
 
@@ -1328,7 +1333,7 @@ class PageAnalyticsAggregator
                 ->whereBetween('occurred_at', [$from, $to])
                 ->whereIn('event_type', [
                     'form_submit', 'form_fill', 'form_start',
-                    'cta_click', 'phone_click', 'tel_click',
+                    'cta_click', 'phone_click', 'tel_click', 'call_click',
                     'add_to_cart', 'checkout', 'begin_checkout',
                     'purchase', 'sale', 'order', 'transaction',
                 ]);
@@ -1345,7 +1350,26 @@ class PageAnalyticsAggregator
                 : collect();
 
             $ctaFromEvents = (int) ($eventCounts['cta_click'] ?? 0);
-            $telFromEvents = (int) ($eventCounts['phone_click'] ?? 0) + (int) ($eventCounts['tel_click'] ?? 0);
+            $telFromEvents = (int) ($eventCounts['phone_click'] ?? 0)
+                + (int) ($eventCounts['tel_click'] ?? 0)
+                + (int) ($eventCounts['call_click'] ?? 0);
+
+            // Also count tel: / call hrefs stored under generic click / cta when present.
+            if ($eventQuery !== null && Schema::hasColumn('visit_behavior_events', 'href')) {
+                $telHrefQuery = DB::table('visit_behavior_events')
+                    ->whereIn('domain_id', $domainIds)
+                    ->whereBetween('occurred_at', [$from, $to])
+                    ->where(function ($q): void {
+                        $q->where('href', 'like', 'tel:%')
+                            ->orWhere('href', 'like', 'TEL:%')
+                            ->orWhere('href', 'like', 'callto:%');
+                    })
+                    ->whereNotIn('event_type', ['phone_click', 'tel_click', 'call_click']);
+                if ($paidSessionIds !== [] && Schema::hasColumn('visit_behavior_events', 'session_id')) {
+                    $telHrefQuery->whereIn('session_id', $paidSessionIds);
+                }
+                $telFromEvents += (int) $telHrefQuery->count();
+            }
 
             // Historical "Call Now" buttons were stored as cta_click — reattribute by label.
             if ($eventQuery !== null && Schema::hasColumn('visit_behavior_events', 'element_text') && $ctaFromEvents > 0) {
@@ -1797,7 +1821,6 @@ class PageAnalyticsAggregator
     private function buildFunnel(int $total, array $stats): array
     {
         $productViews = (int) ($stats['product_views'] ?? 0);
-        $views = $productViews > 0 ? $productViews : max(0, $total);
         $cart = (int) ($stats['carts'] ?? 0);
         $checkout = (int) ($stats['checkouts'] ?? 0);
         $purchase = (int) ($stats['purchases'] ?? 0);
@@ -1816,10 +1839,14 @@ class PageAnalyticsAggregator
             }
         }
 
+        // Product sites → Product Views; everyone else → Page Views (not inflated "Visitors").
+        $views = ($hasCommerce && $productViews > 0) ? $productViews : max(0, $total);
+        $viewsLabel = $hasCommerce ? 'Product Views' : 'Page Views';
+
         $candidates = [
             [
                 'key' => 'views',
-                'label' => ($hasCommerce || $productViews > 0) ? 'Product Views' : 'Visitors',
+                'label' => $viewsLabel,
                 'value' => $views,
             ],
         ];
@@ -1836,7 +1863,7 @@ class PageAnalyticsAggregator
             $candidates[] = ['key' => 'form', 'label' => 'Form Fills', 'value' => $forms];
         }
 
-        // Keep Visitors + CTA + Call even at 0; drop other empty commerce/form steps.
+        // Keep Page/Product Views + CTA + Call even at 0; drop other empty commerce/form steps.
         $steps = array_values(array_filter(
             $candidates,
             static function (array $s): bool {
