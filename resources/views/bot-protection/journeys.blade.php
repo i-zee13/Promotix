@@ -529,28 +529,36 @@
             }
             .vj-et__sid .vj-et__id-line { color:rgba(255,255,255,.55); }
             .vj-et__track {
-                position:relative; height:78px; margin:8px 10px 10px;
+                position:relative; height:108px; margin:8px 10px 10px;
                 border-bottom:1px dotted rgba(255,255,255,.18);
             }
             .vj-et__marker {
-                position:absolute; top:12px; transform:translateX(-50%); text-align:center; z-index:2;
-                width: 64px; pointer-events: auto;
+                position:absolute; top:50%; left:0;
+                transform:translate(-50%, calc(-50% + var(--stack, 0px)));
+                text-align:center; z-index:2;
+                width: 28px; pointer-events: auto;
             }
-            .vj-et__marker.is-hover { z-index: 30; }
+            .vj-et__marker.is-hover { z-index: 40; }
             .vj-et__marker.is-selected .vj-ev-icon { outline:2px solid var(--brand-primary, #FF6600); outline-offset:2px; }
             .vj-et__m-label {
-                font-size:9px; color:rgba(255,255,255,.72); white-space:nowrap; margin-bottom:5px;
-                max-width:64px; overflow:hidden; text-overflow:ellipsis; margin-left:auto; margin-right:auto;
-                line-height:1.15; height:12px;
+                position:absolute; left:50%; bottom:calc(100% + 6px);
+                transform:translateX(-50%);
+                font-size:9px; color:rgba(255,255,255,.9); white-space:nowrap;
+                max-width:120px; overflow:hidden; text-overflow:ellipsis;
+                line-height:1.2; padding:3px 6px; border-radius:4px;
+                background:rgba(15,15,15,.92); border:1px solid rgba(255,102,0,.45);
+                opacity:0; visibility:hidden; pointer-events:none;
+                box-shadow:0 6px 14px rgba(0,0,0,.4);
             }
-            .vj-et__m-label.is-hidden,
-            .vj-et__m-time.is-hidden {
-                visibility: hidden;
+            .vj-et__marker.is-hover .vj-et__m-label {
+                opacity:1; visibility:visible;
             }
-            .vj-et__marker.is-hover .vj-et__m-label { visibility: hidden; }
             .vj-et__m-time {
                 font-size:9px; color:rgba(255,255,255,.45); margin-top:5px;
                 white-space:nowrap; line-height:1.15; height:12px;
+            }
+            .vj-et__m-time.is-hidden {
+                visibility: hidden;
             }
             .vj-ev-icon {
                 width:14px; height:14px; display:inline-flex; align-items:center; justify-content:center;
@@ -886,7 +894,11 @@
             html.light-mode .vj-et__track {
                 border-bottom-color: rgba(255, 102, 0, 0.28) !important;
             }
-            html.light-mode .vj-et__m-label { color: #2d2d3a !important; }
+            html.light-mode .vj-et__m-label {
+                color: #2d2d3a !important;
+                background: rgba(255,255,255,.96) !important;
+                border-color: rgba(255,102,0,.4) !important;
+            }
             html.light-mode .vj-et__m-time { color: #6b6578 !important; }
             html.light-mode .vj-ev-icon.is-page { color:#0284C7 !important; }
             html.light-mode .vj-ev-icon.is-scroll { color:#7C3AED !important; }
@@ -1477,18 +1489,12 @@
                                                         'is-selected': isEventSelected(row, ev),
                                                         'is-hover': hoverEvent && hoverEvent.session === row.session_key && hoverEvent.id === ev.id
                                                     }"
-                                                    :style="'left:' + ev.leftPct + '%'"
+                                                    :style="'left:' + ev.leftPct + '%; --stack:' + (ev.stackOffset || 0) + 'px'"
                                                     @click.stop="selectEvent(row, ev)"
                                                     @mouseenter="hoverEvent = { session: row.session_key, id: ev.id }"
                                                     @mouseleave="hoverEvent = null"
                                                 >
-                                                    <div
-                                                        class="vj-tooltip"
-                                                        x-show="hoverEvent && hoverEvent.session === row.session_key && hoverEvent.id === ev.id"
-                                                        x-cloak
-                                                        x-text="eventHoverLabel(ev)"
-                                                    ></div>
-                                                    <div class="vj-et__m-label" :class="{ 'is-hidden': !ev.showLabel }" x-text="ev.label"></div>
+                                                    <div class="vj-et__m-label" x-text="ev.label"></div>
                                                     <span class="vj-ev-icon" :class="'is-' + (ev.type || 'page')" x-html="eventTypeIconSvg(ev.type || 'page')"></span>
                                                     <div class="vj-et__m-time" :class="{ 'is-hidden': !ev.showTime }" x-text="ev.timeText"></div>
                                                 </div>
@@ -2483,7 +2489,7 @@ function visitorJourneyPage() {
         },
         /**
          * Build clean lane markers: sync Exit → session duration, dedupe,
-         * precompute left%, and avoid stacked labels/times.
+         * hover-only titles, vertical stack when multiple events share a second.
          */
         laneEvents(row) {
             const axisMax = Math.max(1, this.timelineMaxSec);
@@ -2579,26 +2585,27 @@ function visitorJourneyPage() {
                 }
             }
 
-            // Cluster by second for label/time visibility + horizontal nudge.
+            // Cluster by second: same spot → stack vertically (up / down), no label merge.
             const buckets = {};
             visible.forEach((e, i) => {
                 const b = Math.round(e.elapsed_sec);
                 (buckets[b] || (buckets[b] = [])).push(i);
             });
 
+            const STACK_GAP = 22;
             return visible.map((e, i) => {
                 const b = Math.round(e.elapsed_sec);
                 const peers = buckets[b] || [i];
                 const pIdx = peers.indexOf(i);
                 const clustered = peers.length > 1;
-                // Exact position on the selected scale (14s on 30s axis ≈ 46.7%).
-                let left = (e.elapsed_sec / axisMax) * 100;
-                if (clustered) {
-                    left += (pIdx - (peers.length - 1) / 2) * 3.5;
-                }
+                const left = (e.elapsed_sec / axisMax) * 100;
+                // First above, next below, etc. (…, -22, 0, +22, …)
+                const stackOffset = clustered
+                    ? (pIdx - (peers.length - 1) / 2) * STACK_GAP
+                    : 0;
                 return Object.assign({}, e, {
                     leftPct: Math.min(98.5, Math.max(1.5, left)),
-                    showLabel: !clustered || pIdx === 0,
+                    stackOffset,
                     showTime: !clustered || pIdx === peers.length - 1,
                 });
             });
