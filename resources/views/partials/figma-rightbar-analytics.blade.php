@@ -25,6 +25,10 @@
             @include('partials.sidebar-icon', ['name' => 'repeat', 'class' => 'h-[16px] w-[16px]'])
             <span>Visitor Journey</span>
         </a>
+        <a href="{{ route('analytics.cta-clicks') }}" class="paid-quick-action pa-quick-action" title="CTA Clicks">
+            @include('partials.sidebar-icon', ['name' => 'eye', 'class' => 'h-[16px] w-[16px]'])
+            <span>CTA Clicks</span>
+        </a>
         <button
             type="button"
             onclick="window.dispatchEvent(new CustomEvent('open-promotix-settings',{detail:{tab:'reports'}}))"

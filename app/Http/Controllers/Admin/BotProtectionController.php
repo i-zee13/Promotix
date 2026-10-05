@@ -53,6 +53,132 @@ class BotProtectionController extends Controller
         ]);
     }
 
+    public function ctaClicks(Request $request): View
+    {
+        $domains = Domain::query()
+            ->where('user_id', $request->user()->id)
+            ->forBotProtection()
+            ->orderBy('hostname')
+            ->get(['id', 'hostname']);
+
+        $domainIds = $this->scopedDomainIds($request);
+        [$from, $to] = $this->dateRange($request);
+        $q = trim((string) $request->query('q', ''));
+        $path = trim((string) $request->query('path', ''));
+
+        $events = collect();
+        $total = 0;
+        $uniqueSessions = 0;
+        $uniquePages = 0;
+        $topLabels = collect();
+
+        if (Schema::hasTable('visit_behavior_events') && $domainIds !== []) {
+            $base = DB::table('visit_behavior_events as e')
+                ->leftJoin('domains as d', 'd.id', '=', 'e.domain_id')
+                ->whereIn('e.domain_id', $domainIds)
+                ->where('e.event_type', 'cta_click')
+                ->when(
+                    Schema::hasColumn('visit_behavior_events', 'occurred_at'),
+                    fn ($query) => $query->whereBetween('e.occurred_at', [$from, $to]),
+                    fn ($query) => $query->whereBetween('e.created_at', [$from, $to])
+                );
+
+            if ($q !== '') {
+                $like = '%'.$q.'%';
+                $base->where(function ($query) use ($like) {
+                    foreach (['element_text', 'href', 'page_url', 'page_path', 'session_id', 'visitor_id', 'element_id', 'element_class'] as $col) {
+                        if (Schema::hasColumn('visit_behavior_events', $col)) {
+                            $query->orWhere('e.'.$col, 'like', $like);
+                        }
+                    }
+                });
+            }
+
+            if ($path !== '' && Schema::hasColumn('visit_behavior_events', 'page_path')) {
+                $base->where('e.page_path', 'like', '%'.$path.'%');
+            }
+
+            $total = (clone $base)->count();
+            if (Schema::hasColumn('visit_behavior_events', 'session_id')) {
+                $uniqueSessions = (int) (clone $base)->distinct('e.session_id')->count('e.session_id');
+            }
+            if (Schema::hasColumn('visit_behavior_events', 'page_path')) {
+                $uniquePages = (int) (clone $base)->whereNotNull('e.page_path')->where('e.page_path', '!=', '')->distinct('e.page_path')->count('e.page_path');
+            }
+            if (Schema::hasColumn('visit_behavior_events', 'element_text')) {
+                $topLabels = (clone $base)
+                    ->select('e.element_text', DB::raw('COUNT(*) as clicks'))
+                    ->whereNotNull('e.element_text')
+                    ->where('e.element_text', '!=', '')
+                    ->groupBy('e.element_text')
+                    ->orderByDesc('clicks')
+                    ->limit(8)
+                    ->get();
+            }
+
+            $select = ['e.id', 'e.domain_id', 'd.hostname as domain'];
+            foreach ([
+                'occurred_at', 'created_at', 'session_id', 'visitor_id', 'page_url', 'page_path',
+                'title', 'element_text', 'href', 'element_id', 'element_class', 'link_type',
+                'relative_ms', 'payload',
+            ] as $col) {
+                if (Schema::hasColumn('visit_behavior_events', $col)) {
+                    $select[] = 'e.'.$col;
+                }
+            }
+
+            $events = (clone $base)
+                ->select($select)
+                ->orderByDesc(Schema::hasColumn('visit_behavior_events', 'occurred_at') ? 'e.occurred_at' : 'e.id')
+                ->limit(200)
+                ->get()
+                ->map(function ($row) {
+                    $payload = [];
+                    if (! empty($row->payload)) {
+                        $decoded = is_string($row->payload) ? json_decode($row->payload, true) : (array) $row->payload;
+                        $payload = is_array($decoded) ? $decoded : [];
+                    }
+
+                    return [
+                        'id' => (int) ($row->id ?? 0),
+                        'domain' => (string) ($row->domain ?? ''),
+                        'occurred_at' => (string) ($row->occurred_at ?? $row->created_at ?? ''),
+                        'session_id' => (string) ($row->session_id ?? ''),
+                        'visitor_id' => (string) ($row->visitor_id ?? ''),
+                        'page_url' => (string) ($row->page_url ?? ($payload['page_url'] ?? '')),
+                        'page_path' => (string) ($row->page_path ?? ($payload['path'] ?? '')),
+                        'title' => (string) ($row->title ?? ($payload['title'] ?? '')),
+                        'element_text' => (string) ($row->element_text ?? ($payload['element_text'] ?? $payload['text'] ?? '')),
+                        'href' => (string) ($row->href ?? ($payload['href'] ?? '')),
+                        'element_id' => (string) ($row->element_id ?? ($payload['element_id'] ?? $payload['id'] ?? '')),
+                        'element_class' => (string) ($row->element_class ?? ($payload['element_class'] ?? $payload['class'] ?? '')),
+                        'link_type' => (string) ($row->link_type ?? ($payload['link_type'] ?? '')),
+                        'relative_ms' => (int) ($row->relative_ms ?? ($payload['t'] ?? 0)),
+                    ];
+                });
+        }
+
+        return view('bot-protection.cta-clicks', [
+            'domains' => $domains,
+            'events' => $events,
+            'total' => $total,
+            'uniqueSessions' => $uniqueSessions,
+            'uniquePages' => $uniquePages,
+            'topLabels' => $topLabels,
+            'filters' => [
+                'domain_id' => (string) $request->query('domain_id', ''),
+                'from' => (string) ($request->query('from') ?: $from->copy()->timezone(\App\Support\UserTimezone::forUser($request->user()))->toDateString()),
+                'to' => (string) ($request->query('to') ?: $to->copy()->timezone(\App\Support\UserTimezone::forUser($request->user()))->toDateString()),
+                'q' => $q,
+                'path' => $path,
+            ],
+            'range' => [
+                'from' => $from?->toDateTimeString(),
+                'to' => $to?->toDateTimeString(),
+            ],
+        ]);
+    }
+
     public function visitorJourneyIntelligence(Request $request): JsonResponse
     {
         try {

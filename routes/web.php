@@ -309,6 +309,7 @@ Route::middleware(['auth', 'admin', 'portal-product'])
         Route::redirect('/analytics/sources', '/analytics/dashboard');
         Route::redirect('/analytics/sales', '/analytics/dashboard');
         Route::get('/analytics/traffic-control', [BotProtectionController::class, 'advancedView'])->name('analytics.traffic-control');
+        Route::get('/analytics/cta-clicks', [BotProtectionController::class, 'ctaClicks'])->name('analytics.cta-clicks');
         Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics');
         Route::get('/security-logs', [SecurityLogsController::class, 'index'])->name('security-logs');
         Route::get('/system-settings', [SystemSettingsController::class, 'index'])->name('system-settings');
