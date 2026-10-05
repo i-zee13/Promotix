@@ -623,13 +623,8 @@ class VisitorJourneyIntelligence
                 $prevElapsed = $elapsed;
                 $label = (string) ($ev['label'] ?? $ev['name'] ?? $ev['path'] ?? $ev['detail'] ?? 'event');
                 $page = $this->shortPath((string) ($ev['page'] ?? $ev['path'] ?? $ev['page_url'] ?? ($pages[min($i, max(0, count($pages) - 1))] ?? '/')));
-                $clock = (string) ($ev['time'] ?? '');
-                if ($clock === '' && ! empty($ev['at'])) {
-                    $clock = $this->extractClock((string) $ev['at']) ?: $this->formatClock($base + $elapsed);
-                }
-                if ($clock === '') {
-                    $clock = $this->formatClock($base + $elapsed);
-                }
+                // Wall-clock = session entry + elapsed (never reuse a stuck entry stamp).
+                $clock = $this->formatClock($base + $elapsed);
                 $out[] = $this->timelineEvent([
                     'type' => $type,
                     'label' => $this->shortEventLabel($label, $type),

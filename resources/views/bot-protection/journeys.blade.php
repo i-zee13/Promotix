@@ -2714,6 +2714,7 @@ function visitorJourneyPage() {
         sessionJourneyEvents(row) {
             if (!row) return [];
             const list = Array.isArray(row.timeline) ? row.timeline : [];
+            const startSec = this.parseClockToSec(row?.start_time || row?.entry_clock || '');
             return list.map((ev, idx) => {
                 let type = String(ev?.type || ev?.kind || '').toLowerCase();
                 if (type === 'session_exit' || type === 'session_end') type = 'exit';
@@ -2723,12 +2724,15 @@ function visitorJourneyPage() {
                 else if (type === 'scroll') type = 'scroll';
                 else if (['page_view', 'page_change', 'meta', 'page'].includes(type)) type = 'page';
                 const sec = Math.max(0, Number(ev?.elapsed_sec || 0));
+                const wall = startSec >= 0
+                    ? this.formatClockHms(startSec + sec)
+                    : (ev?.time || '');
                 return Object.assign({}, ev, {
                     id: String(ev?.id || (type + '-' + sec + '-' + idx)),
                     type,
                     elapsed_sec: sec,
                     elapsed: ev?.elapsed || this.formatClockPad(sec),
-                    time: ev?.time || '',
+                    time: wall,
                     note: ev?.note || '',
                     page: ev?.page || '',
                     label: ev?.label || '',
@@ -2737,6 +2741,22 @@ function visitorJourneyPage() {
                     event: ev?.event || '',
                 });
             });
+        },
+        parseClockToSec(clock) {
+            const s = String(clock || '').trim();
+            if (!s) return -1;
+            const parts = s.split(':').map((p) => Number(p));
+            if (parts.some((n) => !Number.isFinite(n))) return -1;
+            if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+            if (parts.length === 2) return parts[0] * 3600 + parts[1] * 60;
+            return -1;
+        },
+        formatClockHms(totalSec) {
+            const sec = Math.max(0, Math.floor(Number(totalSec) || 0)) % 86400;
+            const h = Math.floor(sec / 3600);
+            const m = Math.floor((sec % 3600) / 60);
+            const s = sec % 60;
+            return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
         },
         sessionJourneyTitle(ev) {
             const type = String(ev?.type || '').toLowerCase();

@@ -2270,9 +2270,15 @@
                                     >
                             <div class="figma-gaem-head">
                                 <div>
-                                    <h2 class="figma-gaem-title">{{ request()->filled('domain_id') ? 'Google Ads Exclusion Manager' : 'Select your domain first !' }}</h2>
-                                    <p class="figma-gaem-lead">{{ request()->filled('domain_id') ? 'Detected blocks and cross-domain IPs queued for Google Ads.' : 'Pick a domain from the filter above to manage Google Ads exclusions.' }}</p>
+                                    @if (request()->filled('domain_id'))
+                                        <h2 class="figma-gaem-title">Google Ads Exclusion Manager</h2>
+                                        <p class="figma-gaem-lead">Detected blocks and cross-domain IPs queued for Google Ads.</p>
+                                    @else
+                                        <h2 class="figma-gaem-title">Kindly select the domain</h2>
+                                        <p class="figma-gaem-lead">All Domains is selected above. Pick a single domain from the filter to manage Google Ads exclusions.</p>
+                                    @endif
                                         </div>
+                                @if (request()->filled('domain_id'))
                                 <div class="figma-gaem-head-actions" x-data="{
                                     saving: false,
                                     async setEnabled(checked) {
@@ -2316,8 +2322,15 @@
                                         @change="setEnabled($event.target.checked)"
                                     />
                                 </div>
+                                @endif
                             </div>
 
+                            @if (! request()->filled('domain_id'))
+                                <div class="figma-gaem-empty-domain rounded-[10px] border border-dashed border-black/20 bg-white/60 px-[18px] py-[28px] text-center">
+                                    <p class="text-[14px] font-semibold text-[#101010]">Kindly select the domain</p>
+                                    <p class="mt-[6px] text-[12px] text-black/55">Google Ads exclusions require one domain. Use the Domain filter above (not All Domains).</p>
+                                </div>
+                            @else
                             <div class="figma-gaem-quick">
                                 <div class="figma-gaem-quick-left">
                                     <label class="figma-gaem-search-field">
@@ -2493,6 +2506,7 @@
                                     </footer>
                                 </div>
                             </div>
+                            @endif
                         </section>
                                 </div>
 
