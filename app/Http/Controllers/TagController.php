@@ -274,6 +274,11 @@ class TagController extends Controller
     if (resp.fire_exclude_event) {
       fireExcludeAudienceEvent(resp);
     }
+    // Start recording before block/captcha returns — otherwise paid+blocked
+    // traffic never attaches CTA listeners despite record_session:true.
+    if (resp.record_session) {
+      startSessionRecording(resp);
+    }
     // Spec §13: never cancel the Google tag request with an immediate hide/redirect.
     // Audience signal must dispatch before website protection.
     if (resp.blocked) {
@@ -290,9 +295,6 @@ class TagController extends Controller
       } else {
         showCaptcha();
       }
-    }
-    if (resp.record_session) {
-      startSessionRecording(resp);
     }
   }
 
