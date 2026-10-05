@@ -194,6 +194,19 @@ class ProbeCtaCaptureCommand extends Command
                 'rows' => $rows,
             ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
             $this->info("JSON saved under: {$outDir}");
+
+            if ($this->option('domain') && is_dir($outDir)) {
+                $id = (int) $this->option('domain');
+                foreach (["domain-{$id}-visit.json", "domain-{$id}-recording.json"] as $file) {
+                    $path = "{$outDir}/{$file}";
+                    if (! is_file($path)) {
+                        continue;
+                    }
+                    $this->newLine();
+                    $this->info("── {$file} ──");
+                    $this->line((string) file_get_contents($path));
+                }
+            }
         }
 
         return self::SUCCESS;
