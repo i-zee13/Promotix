@@ -39,8 +39,17 @@
                     min-width: 0;
                     width: 100%;
                     position: relative;
-                    z-index: 50;
+                    /* Below mobile drawer (sidebar z-40 / overlay z-35) so filters never cover nav. */
+                    z-index: 20;
                     overflow: visible;
+                }
+                .figma-sidebar-open .bp-adv-page-head,
+                .figma-sidebar-open .figma-filter-bar--bp-dash {
+                    z-index: 1 !important;
+                    pointer-events: none;
+                }
+                .figma-sidebar-open .bp-adv-page-head .figma-filter-bar--bp-dash * {
+                    pointer-events: none;
                 }
                 @container figma-main (min-width: 1400px) {
                     .bp-adv-page-head {
@@ -244,18 +253,63 @@
                         margin-left: 0 !important;
                     }
                 }
-                @media (max-width: 640px) {
-                    .figma-filter-bar--bp-dash > label {
-                        flex: 1 1 calc(50% - 1px) !important;
-                        border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+                /* Mobile: row 1 = dropdowns (3×2), row 2 = calendar + export */
+                @media (max-width: 1023px) {
+                    .figma-filter-bar.figma-filter-bar--overview.figma-filter-bar--bp-dash,
+                    .figma-filter-bar--bp-dash.ov-filter-bar,
+                    .figma-filter-bar--bp-dash {
+                        flex-wrap: wrap !important;
+                        width: 100% !important;
+                        max-width: 100% !important;
+                        row-gap: 0 !important;
                     }
+                    .figma-filter-bar.figma-filter-bar--overview.figma-filter-bar--bp-dash > label,
+                    .figma-filter-bar--bp-dash > label {
+                        flex: 1 1 33.333% !important;
+                        width: 33.333% !important;
+                        max-width: 33.333% !important;
+                        min-width: 33.333% !important;
+                        border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+                        border-left: 0 !important;
+                        padding: 6px 8px !important;
+                    }
+                    .figma-filter-bar--bp-dash > label:nth-child(3n + 1) {
+                        border-left: 0 !important;
+                    }
+                    .figma-filter-bar--bp-dash > label > span:first-child,
+                    .figma-filter-bar--bp-dash .figma-filter-label {
+                        font-size: 8px !important;
+                    }
+                    .figma-filter-bar--bp-dash .figma-filter-control,
+                    .figma-filter-bar--bp-dash .figma-filter-select-wrap {
+                        font-size: 11px !important;
+                        height: 24px !important;
+                    }
+                    .figma-filter-bar.figma-filter-bar--overview.figma-filter-bar--bp-dash .bp-dash-f-actions,
                     .figma-filter-bar--bp-dash .bp-dash-f-actions {
                         flex: 1 1 100% !important;
-                        width: 100%;
-                        border-left: 0;
+                        width: 100% !important;
+                        max-width: 100% !important;
+                        min-width: 100% !important;
+                        margin-left: 0 !important;
+                        border-left: 0 !important;
                         border-top: 1px solid rgba(0, 0, 0, 0.12);
                         justify-content: flex-end;
-                        padding: 6px 8px;
+                        padding: 8px 10px !important;
+                        gap: 8px;
+                    }
+                    .figma-filter-bar--bp-dash .figma-filter-calendar-host,
+                    .figma-filter-bar--bp-dash .bp-dash-f-export {
+                        border-left: 0 !important;
+                    }
+                }
+                @media (max-width: 480px) {
+                    .figma-filter-bar.figma-filter-bar--overview.figma-filter-bar--bp-dash > label,
+                    .figma-filter-bar--bp-dash > label {
+                        flex: 1 1 50% !important;
+                        width: 50% !important;
+                        max-width: 50% !important;
+                        min-width: 50% !important;
                     }
                 }
                 html.light-mode .figma-filter-bar--bp-dash {
