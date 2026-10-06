@@ -43,8 +43,44 @@
             align-self: stretch;
         }
 
+        /* Mobile/tablet: full-bleed chrome — never reserve desktop rightbar. */
+        @media (max-width: 1279px) {
+            .figma-shell {
+                --figma-right: 0px !important;
+                --figma-right-gap: 0px !important;
+                padding-right: 0 !important;
+            }
+            .figma-header {
+                left: 0 !important;
+                right: 0 !important;
+                width: 100vw !important;
+                max-width: 100vw !important;
+                overflow: visible !important;
+            }
+        }
+
         /* Mobile nav: always show ☰; hide Super Admin / Customer chip. */
         @media (max-width: 1023px) {
+            .figma-shell {
+                --figma-left: 0px !important;
+                padding-left: 0 !important;
+            }
+            .figma-header {
+                display: flex !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+                gap: 8px !important;
+            }
+            .figma-header > .figma-header-left {
+                flex: 0 0 auto !important;
+                min-width: 0 !important;
+            }
+            .figma-header > .figma-header-right {
+                flex: 1 1 auto !important;
+                min-width: 0 !important;
+                justify-content: flex-end !important;
+                overflow: visible !important;
+            }
             .figma-header #figma-sidebar-toggle {
                 display: inline-flex !important;
                 align-items: center !important;
@@ -63,8 +99,46 @@
             .figma-header .figma-portal-switch {
                 display: none !important;
             }
+            .figma-header .figma-header-userchip {
+                max-width: min(42vw, 140px) !important;
+            }
+            /* User menu must not clip over ☰ — pin to viewport. */
+            .figma-user-menu {
+                position: fixed !important;
+                top: 68px !important;
+                right: 10px !important;
+                left: auto !important;
+                width: min(224px, calc(100vw - 20px)) !important;
+                max-width: calc(100vw - 20px) !important;
+                margin-top: 0 !important;
+                z-index: 130 !important;
+            }
             .figma-sidebar-close-btn {
                 display: inline-flex !important;
+            }
+            html, body {
+                overflow-x: hidden !important;
+                overflow-y: auto !important;
+                height: auto !important;
+                max-height: none !important;
+                overscroll-behavior-y: auto !important;
+            }
+            .figma-shell {
+                overflow-x: hidden !important;
+                overflow-y: visible !important;
+                min-height: 100dvh;
+                height: auto !important;
+                max-height: none !important;
+            }
+            .figma-main {
+                overflow: visible !important;
+                touch-action: pan-y !important;
+            }
+            .figma-rightbar {
+                position: static !important;
+                height: auto !important;
+                max-height: none !important;
+                overflow: visible !important;
             }
         }
         @media (min-width: 1024px) {
@@ -208,7 +282,7 @@
     <div id="figma-sidebar-overlay" class="figma-sidebar-overlay"></div>
 
     <header class="figma-header flex items-center justify-between gap-2 px-[10px] sm:px-[14px]">
-        <div class="flex shrink-0 items-center gap-[10px] pb-[15px] text-white/85">
+        <div class="figma-header-left flex shrink-0 items-center gap-[10px] pb-[15px] text-white/85">
             {{-- Mobile only: open nav drawer. Desktop left sidebar stays fixed (no toggle). --}}
             <button
                 id="figma-sidebar-toggle"
@@ -224,7 +298,7 @@
             </a>
         </div>
 
-        <div class="relative flex min-w-0 flex-1 items-center justify-end gap-[8px] pb-[15px]">
+        <div class="figma-header-right relative flex min-w-0 flex-1 items-center justify-end gap-[8px] pb-[15px]">
             @hasSection('header-actions')
                 <div class="hidden items-center gap-2 md:flex">@yield('header-actions')</div>
             @endif
@@ -254,7 +328,7 @@
             </div>
             @endif
 
-            <div class="relative" x-data="{ userMenuOpen: false }" @click.outside="userMenuOpen = false">
+            <div class="relative shrink-0" x-data="{ userMenuOpen: false }" @click.outside="userMenuOpen = false" @close-figma-user-menu.window="userMenuOpen = false">
                 <div class="figma-header-userchip flex h-[36px] max-w-[60vw] items-center overflow-hidden rounded-[4px] border border-[#6400B2] bg-[#0D0D0D] text-[11px] leading-none text-white sm:max-w-none">
                     @if ($user?->canInviteTeamMembers())
                         <button
@@ -407,6 +481,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Mobile drawer only (button is lg:hidden).
         if (window.matchMedia('(min-width: 1024px)').matches) return;
         shell?.classList.toggle('figma-sidebar-open');
+        window.dispatchEvent(new CustomEvent('close-figma-user-menu'));
     });
 
     // Close mobile drawer when a nav page is chosen.

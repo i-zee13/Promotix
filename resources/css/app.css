@@ -4836,7 +4836,18 @@ select.figma-sa-subs-status-pill {
     }
 
     .figma-header .figma-header-userchip {
-        max-width: min(46vw, 150px);
+        max-width: min(42vw, 140px);
+    }
+
+    .figma-header .figma-user-menu {
+        position: fixed !important;
+        top: 68px !important;
+        right: 10px !important;
+        left: auto !important;
+        width: min(224px, calc(100vw - 20px)) !important;
+        max-width: calc(100vw - 20px) !important;
+        margin-top: 0 !important;
+        z-index: 130 !important;
     }
 }
 
@@ -5770,12 +5781,21 @@ select.figma-sa-subs-status-pill {
         padding-right: 0;
     }
 
+    .figma-header {
+        left: 0;
+        right: 0;
+        width: auto;
+    }
+
     .figma-rightbar {
         position: static;
         width: auto;
         margin: 14px;
         border: 2px solid color-mix(in srgb, var(--brand-primary, #FF6600) 55%, #141414);
         border-radius: 12px;
+        height: auto;
+        max-height: none;
+        overflow: visible;
     }
 
     .figma-rightbar-toggle,
@@ -5828,9 +5848,36 @@ select.figma-sa-subs-status-pill {
 }
 
 @media (max-width: 1023px) {
+    html, body.figma-body {
+        overflow-x: hidden;
+        overflow-y: auto;
+        height: auto;
+        max-height: none;
+    }
+
     .figma-shell {
         --figma-left: 0px;
+        --figma-right: 0px;
+        --figma-right-gap: 0px;
         padding-left: 0;
+        padding-right: 0;
+        overflow-x: hidden;
+        overflow-y: visible;
+        height: auto;
+        max-height: none;
+        min-height: 100dvh;
+    }
+
+    .figma-header {
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+        max-width: 100vw;
+    }
+
+    .figma-main {
+        overflow: visible;
+        touch-action: pan-y;
     }
 
     /* Never keep Super Admin sidebar pinned on phones/tablets. */
