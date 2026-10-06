@@ -86,8 +86,11 @@
 
     <header class="figma-header flex items-center justify-between px-[10px] sm:px-[14px]">
         <div class="flex min-w-0 items-center gap-[13px] pb-[15px] text-white/85">
+            <button id="figma-sidebar-toggle" type="button" class="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[4px] hover:bg-white/10 lg:hidden" aria-label="Open menu" aria-controls="figma-shell">
+                <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7h16M4 12h16M4 17h16"/></svg>
+            </button>
             @if ($user?->isSuperAdmin())
-                <a href="{{ route('integrations') }}" class="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[4px] hover:bg-white/10 sm:flex" aria-label="Connections">
+                <a href="{{ route('integrations') }}" class="hidden h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[4px] hover:bg-white/10 sm:flex" aria-label="Connections">
                     <svg class="h-[16px] w-[16px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M10 13a5 5 0 007.07 0l2.12-2.12a5 5 0 00-7.07-7.07L11 4.93"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M14 11a5 5 0 00-7.07 0L4.8 13.12a5 5 0 007.07 7.07L13 19.07"/></svg>
                 </a>
             @endif
@@ -123,12 +126,32 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const shell = document.getElementById('figma-shell');
+    const overlay = document.getElementById('figma-sidebar-overlay');
     const sidebarKey = 'promotix-super-sidebar-collapsed';
     const themeKey = 'promotix-theme';
+    const isDesktopNav = () => window.matchMedia('(min-width: 1024px)').matches;
 
-    // Super Admin: sidebar always expanded — clear any stuck collapsed state
+    // Super Admin desktop: sidebar always expanded. Mobile starts closed (drawer).
     localStorage.setItem(sidebarKey, '0');
-    shell?.classList.remove('figma-sidebar-collapsed', 'figma-sidebar-open');
+    shell?.classList.remove('figma-sidebar-collapsed');
+    if (!isDesktopNav()) {
+        shell?.classList.remove('figma-sidebar-open');
+    }
+
+    document.getElementById('figma-sidebar-toggle')?.addEventListener('click', () => {
+        if (isDesktopNav()) return;
+        shell?.classList.toggle('figma-sidebar-open');
+    });
+    overlay?.addEventListener('click', () => shell?.classList.remove('figma-sidebar-open'));
+    // Close drawer after picking a page on mobile.
+    document.querySelectorAll('.figma-sidebar a.figma-nav-link, .figma-sidebar a.figma-sidebar-brand').forEach((link) => {
+        link.addEventListener('click', () => {
+            if (!isDesktopNav()) shell?.classList.remove('figma-sidebar-open');
+        });
+    });
+    window.matchMedia('(min-width: 1024px)').addEventListener('change', (e) => {
+        if (e.matches) shell?.classList.remove('figma-sidebar-open');
+    });
 
     function setTheme(theme) {
         document.documentElement.classList.toggle('light-mode', theme === 'light');

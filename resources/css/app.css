@@ -4636,28 +4636,57 @@ select.figma-sa-subs-status-pill {
     max-width: none;
 }
 
-.figma-shell.figma-shell-super.figma-sidebar-collapsed {
-    --figma-left: 261px !important;
-    padding-left: var(--figma-left) !important;
+/* Desktop only: Super Admin collapsed state still keeps full left rail width. */
+@media (min-width: 1024px) {
+    .figma-shell.figma-shell-super.figma-sidebar-collapsed {
+        --figma-left: 261px !important;
+        padding-left: var(--figma-left) !important;
+    }
+
+    .figma-shell-super.figma-sidebar-collapsed .figma-sidebar,
+    .figma-shell.figma-shell-super .figma-sidebar {
+        transform: none !important;
+        width: 261px !important;
+    }
 }
 
-.figma-shell-super.figma-sidebar-collapsed .figma-sidebar,
-.figma-shell.figma-shell-super .figma-sidebar {
-    transform: none !important;
-    width: 261px !important;
-}
-
-/* Super Admin: no theme toggle / no sidebar collapse control */
-.figma-shell-super #figma-sidebar-toggle {
-    display: none !important;
-}
-
+/* Super Admin: no theme toggle (sidebar hamburger is mobile-only). */
 .figma-shell-super .figma-sidebar-footer,
 .figma-shell-super .figma-theme-toggle,
 .figma-shell-super #theme-toggle,
 .figma-shell-super #theme-toggle-label,
 .figma-shell-super .figma-sidebar-theme-label {
     display: none !important;
+}
+
+/* Portal switch crowds the mobile header — use account menu instead. */
+@media (max-width: 767px) {
+    .figma-header .figma-portal-switch {
+        display: none !important;
+    }
+
+    .figma-header .figma-header-timezone {
+        max-width: 96px;
+        padding: 0 8px !important;
+        font-size: 11px;
+        overflow: hidden;
+    }
+
+    .figma-header .figma-header-timezone span:not(.sr-only) {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .figma-header .figma-header-userchip {
+        max-width: min(42vw, 140px);
+    }
+
+    .figma-header > .relative.flex.items-center {
+        gap: 6px;
+        flex-wrap: nowrap;
+        min-width: 0;
+    }
 }
 
 .figma-sidebar {
@@ -4848,7 +4877,6 @@ select.figma-sa-subs-status-pill {
 }
 
 .figma-header .figma-header-timezone {
-    display: inline-flex !important;
     align-items: center !important;
     height: 34px !important;
     gap: 8px;
@@ -4857,6 +4885,12 @@ select.figma-sa-subs-status-pill {
     line-height: 1 !important;
     border-radius: 4px;
     box-sizing: border-box !important;
+}
+
+@media (min-width: 640px) {
+    .figma-header .figma-header-timezone {
+        display: inline-flex !important;
+    }
 }
 
 .figma-header .figma-header-timezone svg {
@@ -5785,14 +5819,27 @@ select.figma-sa-subs-status-pill {
         padding-left: 0;
     }
 
+    /* Never keep Super Admin sidebar pinned on phones/tablets. */
+    .figma-shell.figma-shell-super,
+    .figma-shell.figma-shell-super.figma-sidebar-collapsed {
+        --figma-left: 0px !important;
+        padding-left: 0 !important;
+    }
+
     .figma-sidebar {
         width: 261px;
         transform: translateX(-100%);
         transition: transform .2s ease;
     }
 
-    .figma-sidebar-open .figma-sidebar {
-        transform: translateX(0);
+    .figma-shell.figma-shell-super .figma-sidebar {
+        transform: translateX(-100%) !important;
+        width: 261px !important;
+    }
+
+    .figma-sidebar-open .figma-sidebar,
+    .figma-shell.figma-shell-super.figma-sidebar-open .figma-sidebar {
+        transform: translateX(0) !important;
     }
 
     .figma-sidebar-open .figma-sidebar-overlay {

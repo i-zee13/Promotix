@@ -367,6 +367,14 @@ document.addEventListener('DOMContentLoaded', () => {
         shell?.classList.toggle('figma-sidebar-open');
     });
 
+    // Close mobile drawer when a nav page is chosen.
+    document.querySelectorAll('.figma-sidebar a.figma-nav-link, .figma-sidebar a.figma-add-domain-btn, .figma-sidebar a.figma-sidebar-brand').forEach((link) => {
+        link.addEventListener('click', () => {
+            if (window.matchMedia('(min-width: 1024px)').matches) return;
+            shell?.classList.remove('figma-sidebar-open');
+        });
+    });
+
     function syncRightbar() {
         const collapsed = localStorage.getItem(rightbarKey) === '1';
         const desktop = isDesktopRightbar();
