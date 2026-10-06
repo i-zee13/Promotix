@@ -4659,36 +4659,6 @@ select.figma-sa-subs-status-pill {
     display: none !important;
 }
 
-/* Portal switch crowds the mobile header — use account menu instead. */
-@media (max-width: 767px) {
-    .figma-header .figma-portal-switch {
-        display: none !important;
-    }
-
-    .figma-header .figma-header-timezone {
-        max-width: 96px;
-        padding: 0 8px !important;
-        font-size: 11px;
-        overflow: hidden;
-    }
-
-    .figma-header .figma-header-timezone span:not(.sr-only) {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .figma-header .figma-header-userchip {
-        max-width: min(42vw, 140px);
-    }
-
-    .figma-header > .relative.flex.items-center {
-        gap: 6px;
-        flex-wrap: nowrap;
-        min-width: 0;
-    }
-}
-
 .figma-sidebar {
     position: fixed;
     inset: 0 auto 0 0;
@@ -4830,6 +4800,50 @@ select.figma-sa-subs-status-pill {
     overflow: hidden;
     border: 1px solid var(--brand-primary, #FF6600);
     background: #0d0d0d;
+}
+
+/* Mobile: hide Super Admin / Customer chip — switch via account menu. */
+@media (max-width: 1023px) {
+    .figma-header .figma-portal-switch {
+        display: none !important;
+    }
+
+    /* ☰ always visible on phones/tablets (open sidebar). */
+    .figma-header #figma-sidebar-toggle {
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        flex-shrink: 0;
+        border-radius: 6px;
+        border: 1px solid color-mix(in srgb, var(--brand-primary, #FF6600) 55%, transparent);
+        background: #0d0d0d;
+        color: #fff;
+    }
+
+    .figma-header > .flex.min-w-0.items-center {
+        flex: 0 0 auto;
+        min-width: 34px;
+        overflow: visible;
+    }
+
+    .figma-header > .relative.flex.items-center {
+        flex: 1 1 auto;
+        justify-content: flex-end;
+        min-width: 0;
+        gap: 6px;
+    }
+
+    .figma-header .figma-header-userchip {
+        max-width: min(46vw, 150px);
+    }
+}
+
+@media (min-width: 1024px) {
+    .figma-header #figma-sidebar-toggle {
+        display: none !important;
+    }
 }
 
 .figma-header .figma-portal-switch a,
