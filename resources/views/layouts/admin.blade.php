@@ -42,6 +42,37 @@
             max-width: none !important;
             align-self: stretch;
         }
+
+        /* Mobile nav: always show ☰; hide Super Admin / Customer chip. */
+        @media (max-width: 1023px) {
+            .figma-header #figma-sidebar-toggle {
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                width: 36px !important;
+                height: 36px !important;
+                flex-shrink: 0 !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                z-index: 110 !important;
+                border: 1px solid color-mix(in srgb, var(--brand-primary, #FF6600) 60%, #fff) !important;
+                background: #0d0d0d !important;
+                color: #fff !important;
+                border-radius: 7px !important;
+            }
+            .figma-header .figma-portal-switch {
+                display: none !important;
+            }
+            .figma-sidebar-close-btn {
+                display: inline-flex !important;
+            }
+        }
+        @media (min-width: 1024px) {
+            .figma-header #figma-sidebar-toggle,
+            .figma-sidebar-close-btn {
+                display: none !important;
+            }
+        }
     </style>
 </head>
 <body class="figma-body min-h-screen overflow-x-hidden font-sans antialiased" x-data="{ portalTeamInviteOpen: false, portalTeamInviteMode: 'invite' }" @open-portal-team-invite.window="portalTeamInviteOpen = true; if ($event.detail?.mode) portalTeamInviteMode = $event.detail.mode">
@@ -176,10 +207,16 @@
 
     <div id="figma-sidebar-overlay" class="figma-sidebar-overlay"></div>
 
-    <header class="figma-header flex items-center justify-between px-[10px] sm:px-[14px]">
-        <div class="flex min-w-0 items-center gap-[13px] pb-[15px] text-white/85">
+    <header class="figma-header flex items-center justify-between gap-2 px-[10px] sm:px-[14px]">
+        <div class="flex shrink-0 items-center gap-[10px] pb-[15px] text-white/85">
             {{-- Mobile only: open nav drawer. Desktop left sidebar stays fixed (no toggle). --}}
-            <button id="figma-sidebar-toggle" type="button" class="figma-sidebar-toggle-btn flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[6px] border border-[color-mix(in_srgb,var(--brand-primary,#FF6600)_55%,transparent)] bg-[#0D0D0D] text-white hover:bg-white/10 lg:hidden" aria-label="Open menu" title="Open menu">
+            <button
+                id="figma-sidebar-toggle"
+                type="button"
+                class="figma-sidebar-toggle-btn"
+                aria-label="Toggle menu"
+                title="Menu"
+            >
                 <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7h16M4 12h16M4 17h16"/></svg>
             </button>
             <a href="{{ route('integrations') }}" class="hidden h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[4px] hover:bg-white/10 sm:flex" aria-label="Connections">
@@ -187,7 +224,7 @@
             </a>
         </div>
 
-        <div class="relative flex items-center gap-[8px] pb-[15px]">
+        <div class="relative flex min-w-0 flex-1 items-center justify-end gap-[8px] pb-[15px]">
             @hasSection('header-actions')
                 <div class="hidden items-center gap-2 md:flex">@yield('header-actions')</div>
             @endif
