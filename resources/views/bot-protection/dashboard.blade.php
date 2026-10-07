@@ -1462,6 +1462,7 @@ function botProtectionFigma(config = {}) {
         },
         pickDomainFilter(id) {
             this.filters.domain_id = String(id || '');
+            window.PromotixDomainFilter?.write(this.filters.domain_id);
             this.filterMenus.domain = false;
             this.reload();
         },
@@ -1490,6 +1491,14 @@ function botProtectionFigma(config = {}) {
         liveVisitorPollMs: 10000,
         keywordHeadlineSource: 'ads',
         perfMenuOpen: false,
+        funnelMenuOpen: false,
+        funnelSelectedKeys: (() => {
+            try {
+                const saved = JSON.parse(localStorage.getItem('pa-funnel-event-keys-v1') || 'null');
+                if (Array.isArray(saved)) return saved.map(String);
+            } catch (e) {}
+            return null;
+        })(),
         perfMetricCatalog: [
             { key: 'clicks', label: 'Clicks' },
             { key: 'visitors', label: 'Visitors' },
@@ -1754,7 +1763,7 @@ function botProtectionFigma(config = {}) {
                 {
                     key: 'conversions',
                     title: 'Total Conversions',
-                    value: this.fmt(k.total_conversions || 0),
+                    value: this.fmt(this.filteredTotalConversions()),
                     delta: Number(d.total_conversions || 0),
                     deltaLabel: this.formatDelta(d.total_conversions),
                     spark: sparks.bot_impact || [],
@@ -1773,7 +1782,18 @@ function botProtectionFigma(config = {}) {
             const keys = Array.isArray(this.perfCardKeys) && this.perfCardKeys.length
                 ? this.perfCardKeys
                 : ['clicks', 'visitors', 'conversions', 'valid'];
-            return keys.map((key) => byKey[key]).filter(Boolean);
+            const fullConv = Number(this.pageAnalytics?.kpis?.total_conversions || 0);
+            const filteredConv = this.filteredTotalConversions();
+            const scale = fullConv > 0 ? (filteredConv / fullConv) : 1;
+            return keys.map((key) => {
+                const series = byKey[key];
+                if (!series) return null;
+                if (key !== 'conversions' || scale === 1) return series;
+                const points = Array.isArray(series.points)
+                    ? series.points.map((p) => Math.round(Number(p || 0) * scale))
+                    : series.points;
+                return { ...series, total: filteredConv, points };
+            }).filter(Boolean);
         },
         isPerfCardSelected(key) {
             return (this.perfCardKeys || []).includes(key);
@@ -2013,8 +2033,83 @@ function botProtectionFigma(config = {}) {
         pageTopPages() {
             return this.pageAnalytics?.top_pages || [];
         },
-        pageFunnel() {
+        funnelEventCatalog() {
             return this.pageAnalytics?.funnel || [];
+        },
+        ensureFunnelSelection() {
+            const available = (this.funnelEventCatalog() || []).map((r) => String(r.key || '')).filter(Boolean);
+            if (!available.length) return;
+            let selected = Array.isArray(this.funnelSelectedKeys) ? this.funnelSelectedKeys.map(String) : null;
+            if (!selected) {
+                selected = [...available];
+            } else {
+                let prevAvailable = null;
+                try { prevAvailable = JSON.parse(localStorage.getItem('pa-funnel-event-available-v1') || 'null'); } catch (e) {}
+                const prevSet = Array.isArray(prevAvailable) ? new Set(prevAvailable.map(String)) : new Set(available);
+                selected = selected.filter((k) => available.includes(k));
+                available.forEach((k) => {
+                    if (!prevSet.has(k) && !selected.includes(k)) selected.push(k);
+                });
+                if (!selected.length) selected = [...available];
+            }
+            this.funnelSelectedKeys = selected;
+            this.persistFunnelEventKeys(available);
+        },
+        persistFunnelEventKeys(availableKeys) {
+            try {
+                localStorage.setItem('pa-funnel-event-keys-v1', JSON.stringify(this.funnelSelectedKeys || []));
+                if (Array.isArray(availableKeys)) {
+                    localStorage.setItem('pa-funnel-event-available-v1', JSON.stringify(availableKeys));
+                }
+            } catch (e) {}
+        },
+        isFunnelEventSelected(key) {
+            const k = String(key || '');
+            if (!Array.isArray(this.funnelSelectedKeys)) return true;
+            return this.funnelSelectedKeys.includes(k);
+        },
+        toggleFunnelEvent(key) {
+            const k = String(key || '');
+            if (!k) return;
+            if (!Array.isArray(this.funnelSelectedKeys)) this.ensureFunnelSelection();
+            const list = [...(this.funnelSelectedKeys || [])];
+            const idx = list.indexOf(k);
+            if (idx >= 0) {
+                if (list.length <= 1) return;
+                list.splice(idx, 1);
+            } else {
+                list.push(k);
+            }
+            this.funnelSelectedKeys = list;
+            this.persistFunnelEventKeys((this.funnelEventCatalog() || []).map((r) => String(r.key || '')).filter(Boolean));
+        },
+        pageFunnel() {
+            const rows = this.funnelEventCatalog();
+            if (!rows.length) return [];
+            if (!Array.isArray(this.funnelSelectedKeys)) return rows;
+            const selected = new Set(this.funnelSelectedKeys.map(String));
+            const filtered = rows.filter((r) => selected.has(String(r.key || '')));
+            if (!filtered.length) return [];
+            const visitors = Math.max(1, Number(this.pageAnalytics?.kpis?.total_visitors || filtered[0]?.value || 1));
+            const max = Math.max(1, Number(filtered[0]?.value || 0));
+            return filtered.map((r) => ({
+                ...r,
+                pct: Math.round((Number(r.value || 0) / visitors) * 1000) / 10,
+                bar: Math.max(6, Math.round((Number(r.value || 0) / max) * 100)),
+            }));
+        },
+        filteredTotalConversions() {
+            const rows = this.funnelEventCatalog();
+            if (!rows.length) return Number(this.pageAnalytics?.kpis?.total_conversions || 0);
+            const selected = Array.isArray(this.funnelSelectedKeys)
+                ? new Set(this.funnelSelectedKeys.map(String))
+                : null;
+            return rows.reduce((sum, r) => {
+                const key = String(r.key || '');
+                if (selected && !selected.has(key)) return sum;
+                if (r.counts_toward_conversions === false || key === 'views') return sum;
+                return sum + Number(r.value || 0);
+            }, 0);
         },
         funnelStepIcon(key) {
             const k = String(key || '').toLowerCase();
@@ -2040,7 +2135,22 @@ function botProtectionFigma(config = {}) {
             return wrap('<path d="M5 12h14M13 6l6 6-6 6"/>');
         },
         pageConversionSummary() {
-            return this.pageAnalytics?.conversion_summary || null;
+            const base = this.pageAnalytics?.conversion_summary || null;
+            if (!base) return null;
+            const purchaseOn = this.isFunnelEventSelected('purchase');
+            const visitors = Math.max(1, Number(this.pageAnalytics?.kpis?.total_visitors || 0));
+            const conversions = this.filteredTotalConversions();
+            const rate = visitors > 0 ? Math.round((conversions / visitors) * 10000) / 100 : 0;
+            const sym = base.currency_symbol || this.pageAnalytics?.currency_symbol || '$';
+            return {
+                ...base,
+                rate: rate.toFixed(2) + '%',
+                rate_raw: rate,
+                revenue: purchaseOn ? base.revenue : (sym + '0.00'),
+                transactions: purchaseOn ? base.transactions : '0',
+                revenue_raw: purchaseOn ? Number(base.revenue_raw || 0) : 0,
+                transactions_raw: purchaseOn ? Number(base.transactions_raw || 0) : 0,
+            };
         },
         pageReferrers() {
             return this.pageAnalytics?.referrers || [];
@@ -2348,6 +2458,7 @@ function botProtectionFigma(config = {}) {
             this.reload();
         },
         async init() {
+            window.PromotixDomainFilter?.applyTo(this.filters, this.domainOptions, 'domain_id');
             this.syncHeaderDates();
             if (!this.filters.from || !this.filters.to) {
                 const today = new Date();
@@ -2518,6 +2629,7 @@ function botProtectionFigma(config = {}) {
                         || `Page analytics failed to load (${pageAnalyticsPack?.status || 'error'}).`;
                 }
                 this.pageAnalytics = pageAnalytics?.kpis ? pageAnalytics : null;
+                if (this.pageAnalytics) this.ensureFunnelSelection();
                 const g = this.pageAnalytics?.performance?.granularity;
                 if (g === 'hourly' || g === 'daily') {
                     this.perfGranularity = g;

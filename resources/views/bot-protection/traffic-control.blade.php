@@ -1219,6 +1219,7 @@ function trafficControlIntel() {
         },
 
         init() {
+            window.PromotixDomainFilter?.applyTo(this.filters, this.domainOptions, 'domain_id');
             this.hydrateDates();
             try {
                 const q = new URLSearchParams(window.location.search).get('q');
@@ -1256,6 +1257,7 @@ function trafficControlIntel() {
         },
         pickDomainFilter(id) {
             this.filters.domain_id = String(id || '');
+            window.PromotixDomainFilter?.write(this.filters.domain_id);
             this.filterMenus.domain = false;
             this.reload();
         },

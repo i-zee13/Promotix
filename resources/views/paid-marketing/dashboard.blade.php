@@ -2299,6 +2299,7 @@ function paidAdvertisingFigma(config = {}) {
         },
         selectDomainFilter(id) {
             this.filters.domain_id = id ? String(id) : '';
+            window.PromotixDomainFilter?.write(this.filters.domain_id);
             this.closeFilterMenus();
             this.onDomainChange();
         },
@@ -2389,7 +2390,12 @@ function paidAdvertisingFigma(config = {}) {
         applyDomainFromUrl() {
             const params = new URLSearchParams(window.location.search);
             const id = params.get('domain_id');
-            if (id) this.filters.domain_id = id;
+            if (id) {
+                this.filters.domain_id = id;
+                window.PromotixDomainFilter?.write(id);
+            } else {
+                window.PromotixDomainFilter?.applyTo(this.filters, this.domainOptions, 'domain_id');
+            }
             const accountId = params.get('google_ads_account_id');
             if (accountId) this.filters.google_ads_account_id = accountId;
         },

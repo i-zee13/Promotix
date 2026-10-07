@@ -2159,6 +2159,7 @@ function visitorJourneyPage() {
         },
         pickDomainFilter(id) {
             this.filters.domain_id = String(id || '');
+            window.PromotixDomainFilter?.write(this.filters.domain_id);
             this.filterMenus.domain = false;
             this.reload();
         },
@@ -2337,6 +2338,7 @@ function visitorJourneyPage() {
         },
 
         init() {
+            window.PromotixDomainFilter?.applyTo(this.filters, this.domainOptions, 'domain_id');
             this.hydrateDates();
             try { localStorage.removeItem('promotix-vj-sample'); } catch (e) {}
             this.reload();

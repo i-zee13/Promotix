@@ -1792,6 +1792,7 @@ function botProtectionAdvancedFigma(config = {}) {
         },
         pickDomainFilter(id) {
             this.filters.domain_id = String(id || '');
+            window.PromotixDomainFilter?.write(this.filters.domain_id);
             this.filterMenus.domain = false;
             this.reload(true);
         },
@@ -2129,6 +2130,7 @@ function botProtectionAdvancedFigma(config = {}) {
             this.reload(true);
         },
         async init() {
+            window.PromotixDomainFilter?.applyTo(this.filters, this.domainOptions, 'domain_id');
             this.syncHeaderDates();
             if (!this.filters.from || !this.filters.to) {
                 const today = new Date();

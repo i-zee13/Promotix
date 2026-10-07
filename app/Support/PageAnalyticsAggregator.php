@@ -1848,28 +1848,33 @@ class PageAnalyticsAggregator
                 'key' => 'views',
                 'label' => $viewsLabel,
                 'value' => $views,
+                'counts_toward_conversions' => false,
             ],
         ];
+        // Commerce steps: always list when domain has commerce activity (incl. zeros for menu).
         if ($hasCommerce) {
-            $candidates[] = ['key' => 'cart', 'label' => 'Add to Cart', 'value' => $cart];
-            $candidates[] = ['key' => 'checkout', 'label' => 'Initiated Checkout', 'value' => $checkout];
-            $candidates[] = ['key' => 'purchase', 'label' => 'Purchases', 'value' => $purchase];
+            $candidates[] = ['key' => 'cart', 'label' => 'Add to Cart', 'value' => $cart, 'counts_toward_conversions' => true];
+            $candidates[] = ['key' => 'checkout', 'label' => 'Initiated Checkout', 'value' => $checkout, 'counts_toward_conversions' => true];
+            $candidates[] = ['key' => 'purchase', 'label' => 'Purchases', 'value' => $purchase, 'counts_toward_conversions' => true];
         }
-        // Always surface CTA / call capture in the conversion funnel (Session Recording).
-        $candidates[] = ['key' => 'cta', 'label' => 'CTA Clicks', 'value' => $cta];
-        $candidates[] = ['key' => 'tel', 'label' => 'Call Clicks', 'value' => $tel];
-        // Domain-specific lead steps — omit zero form fills so formless sites stay clean.
-        if ($forms > 0) {
-            $candidates[] = ['key' => 'form', 'label' => 'Form Fills', 'value' => $forms];
-        }
+        // Always surface CTA / call / form in catalog so customers can toggle them.
+        $candidates[] = ['key' => 'cta', 'label' => 'CTA Clicks', 'value' => $cta, 'counts_toward_conversions' => true];
+        $candidates[] = ['key' => 'tel', 'label' => 'Call Clicks', 'value' => $tel, 'counts_toward_conversions' => true];
+        $candidates[] = ['key' => 'form', 'label' => 'Form Fills', 'value' => $forms, 'counts_toward_conversions' => true];
 
-        // Keep Page/Product Views + CTA + Call even at 0; drop other empty commerce/form steps.
+        // Keep core steps always; keep commerce/form when they exist or have history on this site.
         $steps = array_values(array_filter(
             $candidates,
-            static function (array $s): bool {
+            static function (array $s) use ($hasCommerce, $forms): bool {
                 $key = (string) ($s['key'] ?? '');
                 if (in_array($key, ['views', 'cta', 'tel'], true)) {
                     return true;
+                }
+                if ($key === 'form') {
+                    return $forms > 0 || $hasCommerce;
+                }
+                if (in_array($key, ['cart', 'checkout', 'purchase'], true)) {
+                    return $hasCommerce;
                 }
 
                 return (int) ($s['value'] ?? 0) > 0;
@@ -1885,6 +1890,7 @@ class PageAnalyticsAggregator
             ...$s,
             'pct' => $this->pct($s['value'], max(1, $total)),
             'bar' => max(6, (int) round(($s['value'] / $max) * 100)),
+            'counts_toward_conversions' => (bool) ($s['counts_toward_conversions'] ?? false),
         ], $steps);
     }
 

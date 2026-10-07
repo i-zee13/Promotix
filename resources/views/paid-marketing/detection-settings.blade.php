@@ -3502,6 +3502,15 @@ window.detectionPageFilters = function detectionPageFilters(config) {
         trafficSourceOptions: config.trafficSourceOptions || [{ value: 'google_ads', label: 'Google Ads' }],
         campaignOptions: [],
         async init() {
+            if (!this.filters.domainId) {
+                window.PromotixDomainFilter?.applyTo(this.filters, this.domainOptions, 'domainId');
+                if (this.filters.domainId) {
+                    this.applyFilters();
+                    return;
+                }
+            } else {
+                window.PromotixDomainFilter?.write(this.filters.domainId);
+            }
             await this.loadCampaigns();
         },
         toggleFilterMenu(key) {
@@ -3527,6 +3536,7 @@ window.detectionPageFilters = function detectionPageFilters(config) {
         },
         selectDomainFilter(id) {
             this.filters.domainId = id ? String(id) : '';
+            window.PromotixDomainFilter?.write(this.filters.domainId);
             this.closeFilterMenus();
             this.applyFilters();
         },

@@ -2630,7 +2630,12 @@
             init() {
                 const params = new URLSearchParams(window.location.search);
                 const id = params.get('domain_id');
-                if (id) this.filters.domain_id = id;
+                if (id) {
+                    this.filters.domain_id = id;
+                    window.PromotixDomainFilter?.write(id);
+                } else {
+                    window.PromotixDomainFilter?.applyTo(this.filters, this.domainOptions, 'domain_id');
+                }
                 const ip = params.get('ip');
                 if (ip) this.filters.ip = ip;
                 const campaign = params.get('campaign');
@@ -2826,6 +2831,7 @@
             },
             selectDomainFilter(id) {
                 this.filters.domain_id = id ? String(id) : '';
+                window.PromotixDomainFilter?.write(this.filters.domain_id);
                 this.closeFilterMenus();
                 this.onDomainChange();
             },

@@ -1337,7 +1337,40 @@
         @if ($showFunnelBlock)
         <section class="pa-card">
             <div class="pa-card__head">
-                <h2 class="pa-card__title">Conversion Funnel</h2>
+                <div class="pa-perf__title-row">
+                    <h2 class="pa-card__title">Conversion Funnel</h2>
+                    <div class="pa-perf__menu" @click.outside="funnelMenuOpen = false">
+                        <button
+                            type="button"
+                            class="pa-perf__menu-btn"
+                            @click="funnelMenuOpen = !funnelMenuOpen"
+                            :aria-expanded="funnelMenuOpen"
+                            aria-label="Choose funnel events"
+                            title="Choose funnel events"
+                        >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                <circle cx="12" cy="5" r="1.8"/>
+                                <circle cx="12" cy="12" r="1.8"/>
+                                <circle cx="12" cy="19" r="1.8"/>
+                            </svg>
+                        </button>
+                        <div x-show="funnelMenuOpen" x-cloak class="paid-advanced-columns-menu pa-perf__menu-panel promotix-slim-scroll">
+                            <p class="mb-[8px] text-[10px] font-semibold uppercase text-white/55">Funnel events</p>
+                            <template x-for="opt in funnelEventCatalog()" :key="'funnel-opt-'+opt.key">
+                                <label class="paid-advanced-column-option" :class="{ 'is-locked': isFunnelEventSelected(opt.key) && funnelSelectedKeys.length <= 1 }">
+                                    <input
+                                        type="checkbox"
+                                        :checked="isFunnelEventSelected(opt.key)"
+                                        :disabled="isFunnelEventSelected(opt.key) && funnelSelectedKeys.length <= 1"
+                                        @change="toggleFunnelEvent(opt.key)"
+                                    >
+                                    <span x-text="opt.label"></span>
+                                </label>
+                            </template>
+                            <p x-show="!(funnelEventCatalog() || []).length" class="px-[4px] py-[6px] text-[11px] text-white/45">No events yet.</p>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="pa-funnel" x-show="(pageFunnel() || []).length">
                 <div class="pa-funnel__steps">
