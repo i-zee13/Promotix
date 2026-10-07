@@ -804,8 +804,8 @@ html.light-mode .figma-filter-bar .figma-filter-select-wrap.flex,
     cursor: default;
 }
 
-.paid-advanced-column-option input {
-    accent-color: var(--brand-primary, #FF6600);
+.paid-advanced-column-option input[type='checkbox'] {
+    accent-color: #FF6600 !important;
 }
 
 .pm-adv-grid {

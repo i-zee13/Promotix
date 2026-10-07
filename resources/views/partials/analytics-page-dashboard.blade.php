@@ -184,14 +184,17 @@
             color: #ffffff !important;
         }
         .pa-dash .pa-perf__title-row {
-            display: inline-flex;
+            display: flex;
             align-items: center;
+            justify-content: space-between;
             gap: 6px;
+            width: 100%;
             min-width: 0;
         }
         .pa-dash .pa-perf__menu {
             position: relative;
             flex-shrink: 0;
+            margin-left: auto;
         }
         .pa-dash .pa-perf__menu-btn {
             display: inline-flex;
@@ -211,9 +214,17 @@
             background: rgba(255, 102, 0, 0.12);
         }
         .pa-dash .pa-perf__menu-panel {
-            left: 0;
-            right: auto;
+            left: auto;
+            right: 0;
             width: 220px;
+        }
+        .pa-dash .pa-perf__menu-panel .paid-advanced-column-option input[type='checkbox'] {
+            accent-color: #FF6600 !important;
+            color-scheme: dark;
+        }
+        html.light-mode .pa-dash .pa-perf__menu-panel .paid-advanced-column-option input[type='checkbox'] {
+            accent-color: #FF6600 !important;
+            color-scheme: light;
         }
         .pa-dash .pa-card__head {
             overflow: visible;
