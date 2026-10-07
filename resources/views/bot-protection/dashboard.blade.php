@@ -215,7 +215,8 @@
                     width: 14px;
                     height: 14px;
                 }
-                @container figma-main (max-width: 1200px) {
+                /* Tablet / narrow desktop only — phones use the @media block below. */
+                @container figma-main (max-width: 1200px) and (min-width: 1024px) {
                     .figma-filter-bar--bp-dash > label {
                         flex: 1 1 100px !important;
                         padding-left: 4px !important;
@@ -243,7 +244,7 @@
                         justify-content: flex-end;
                     }
                 }
-                @container figma-main (max-width: 900px) {
+                @container figma-main (max-width: 900px) and (min-width: 1024px) {
                     .figma-filter-bar--bp-dash > label {
                         flex: 1 1 46% !important;
                     }
@@ -253,7 +254,7 @@
                         margin-left: 0 !important;
                     }
                 }
-                /* Mobile: row 1 = dropdowns (3×2), row 2 = calendar + export */
+                /* Mobile: 2-col filter grid + calendar/export on own row. */
                 @media (max-width: 1023px) {
                     .figma-filter-bar.figma-filter-bar--overview.figma-filter-bar--bp-dash,
                     .figma-filter-bar--bp-dash.ov-filter-bar,
@@ -261,55 +262,71 @@
                         flex-wrap: wrap !important;
                         width: 100% !important;
                         max-width: 100% !important;
+                        overflow: visible !important;
                         row-gap: 0 !important;
                     }
                     .figma-filter-bar.figma-filter-bar--overview.figma-filter-bar--bp-dash > label,
-                    .figma-filter-bar--bp-dash > label {
-                        flex: 1 1 33.333% !important;
-                        width: 33.333% !important;
-                        max-width: 33.333% !important;
-                        min-width: 33.333% !important;
+                    .figma-filter-bar--bp-dash > label,
+                    .figma-filter-bar--bp-dash > label.bp-dash-f-search,
+                    .figma-filter-bar--bp-dash > label.bp-dash-f-account,
+                    .figma-filter-bar--bp-dash > label.bp-dash-f-domain,
+                    .figma-filter-bar--bp-dash > label.bp-dash-f-campaign,
+                    .figma-filter-bar--bp-dash > label.bp-dash-f-device,
+                    .figma-filter-bar--bp-dash > label.bp-dash-f-path {
+                        flex: 1 1 50% !important;
+                        flex-grow: 1 !important;
+                        flex-shrink: 1 !important;
+                        flex-basis: 50% !important;
+                        width: 50% !important;
+                        max-width: 50% !important;
+                        min-width: 0 !important;
                         border-bottom: 1px solid rgba(0, 0, 0, 0.12);
                         border-left: 0 !important;
+                        border-right: 0 !important;
                         padding: 6px 8px !important;
-                    }
-                    .figma-filter-bar--bp-dash > label:nth-child(3n + 1) {
-                        border-left: 0 !important;
+                        overflow: hidden !important;
+                        box-sizing: border-box !important;
                     }
                     .figma-filter-bar--bp-dash > label > span:first-child,
                     .figma-filter-bar--bp-dash .figma-filter-label {
                         font-size: 8px !important;
                     }
                     .figma-filter-bar--bp-dash .figma-filter-control,
-                    .figma-filter-bar--bp-dash .figma-filter-select-wrap {
+                    .figma-filter-bar--bp-dash .figma-filter-select-wrap,
+                    .figma-filter-bar--bp-dash .figma-filter-path-wrap {
+                        width: 100% !important;
+                        max-width: 100% !important;
+                        min-width: 0 !important;
                         font-size: 11px !important;
                         height: 24px !important;
+                        box-sizing: border-box !important;
+                    }
+                    /* Dropdown panels stay inside the viewport on phones. */
+                    .figma-filter-bar--bp-dash .paid-advanced-campaign-menu {
+                        left: 8px !important;
+                        right: 8px !important;
+                        width: auto !important;
+                        min-width: 0 !important;
+                        max-width: calc(100vw - 32px) !important;
+                        z-index: 140 !important;
                     }
                     .figma-filter-bar.figma-filter-bar--overview.figma-filter-bar--bp-dash .bp-dash-f-actions,
                     .figma-filter-bar--bp-dash .bp-dash-f-actions {
                         flex: 1 1 100% !important;
                         width: 100% !important;
                         max-width: 100% !important;
-                        min-width: 100% !important;
+                        min-width: 0 !important;
                         margin-left: 0 !important;
                         border-left: 0 !important;
                         border-top: 1px solid rgba(0, 0, 0, 0.12);
                         justify-content: flex-end;
                         padding: 8px 10px !important;
                         gap: 8px;
+                        overflow: visible !important;
                     }
                     .figma-filter-bar--bp-dash .figma-filter-calendar-host,
                     .figma-filter-bar--bp-dash .bp-dash-f-export {
                         border-left: 0 !important;
-                    }
-                }
-                @media (max-width: 480px) {
-                    .figma-filter-bar.figma-filter-bar--overview.figma-filter-bar--bp-dash > label,
-                    .figma-filter-bar--bp-dash > label {
-                        flex: 1 1 50% !important;
-                        width: 50% !important;
-                        max-width: 50% !important;
-                        min-width: 50% !important;
                     }
                 }
                 html.light-mode .figma-filter-bar--bp-dash {

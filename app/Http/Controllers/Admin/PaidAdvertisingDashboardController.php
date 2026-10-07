@@ -10,12 +10,14 @@ use App\Services\GoogleAdsAccountTimezoneService;
 use App\Services\GoogleAdsConnectionService;
 use App\Services\GoogleAdsDomainMetricsSync;
 use App\Services\GoogleAdsMetricsService;
+use App\Services\GoogleAudienceExclusionService;
 use App\Services\IpIntel\IpFraudEvaluator;
 use App\Support\PaidAdvertising\IpRowRiskScorer;
 use App\Support\PaidMarketing\DashboardResponseCache;
 use App\Support\GlobalIpAllowlist;
 use App\Support\GoogleClickAttribution;
 use App\Support\GoogleInvalidClickReconciler;
+use App\Support\GoogleIpBlockFormatter;
 use App\Support\GoogleVerifiedPaidTraffic;
 use App\Support\AccountCurrency;
 use App\Support\CurrencyConverter;
@@ -317,6 +319,8 @@ class PaidAdvertisingDashboardController extends Controller
             'blocked_paid_visits' => $blocked,
             'block_attempts' => $blockAttempts,
             'block_enforced' => $blockEnforced,
+            // IPs actually present in Exclusion Manager (matches what customers see in the list).
+            'excluded_ips' => $this->countExcludedIpsForRange($domainIds, $metricFrom, $metricTo, $request),
             'flagged_paid_visits' => $flagged,
             'invalid_reconciliation' => $invalidReconciliation,
             'unique_ips' => $uniqueIps,
@@ -1156,6 +1160,9 @@ class PaidAdvertisingDashboardController extends Controller
         if ($domainIds->isEmpty()) {
             return [];
         }
+
+        // Keep Exclusion Manager in sync with site-blocked paid IPs for this range.
+        $this->backfillBlockedIpsIntoExclusionManager($domainIds, $metricFrom, $metricTo, $request);
 
         $rows = $this->resolveIpRows($request, $domainIds, $metricFrom, $metricTo);
 
@@ -2185,7 +2192,7 @@ class PaidAdvertisingDashboardController extends Controller
             }
         }
 
-        return $rows->map(function (array $row) use ($metaByIp, $clicks60ByIp, $clicks60ByPid, $visitRows) {
+        $mapped = $rows->map(function (array $row) use ($metaByIp, $clicks60ByIp, $clicks60ByPid, $visitRows) {
             $ip = (string) ($row['ip'] ?? '');
             $meta = $metaByIp[$ip] ?? [];
             $pid = $meta['paid_identity_id'] ?? null;
@@ -2229,6 +2236,231 @@ class PaidAdvertisingDashboardController extends Controller
                     : (in_array(strtolower($actionHint), ['block', 'blocked'], true) ? 'Device' : null),
             ]);
         });
+
+        return $this->overlayRealIpExclusionStatus($mapped, $domainIdList);
+    }
+
+    /**
+     * Prefer live Exclusion Manager rows over heuristic labels.
+     *
+     * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $rows
+     * @param  \Illuminate\Support\Collection<int, int>  $domainIds
+     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     */
+    private function overlayRealIpExclusionStatus($rows, $domainIds)
+    {
+        $ips = $rows->pluck('ip')->map(fn ($ip) => trim((string) $ip))->filter()->unique()->values()->all();
+        $statusByIp = $this->ipExclusionStatusByIp($domainIds, $ips);
+        if ($statusByIp === []) {
+            return $rows;
+        }
+
+        return $rows->map(function (array $row) use ($statusByIp) {
+            $ip = trim((string) ($row['ip'] ?? ''));
+            $status = $statusByIp[$ip] ?? null;
+            if ($status === null) {
+                return $row;
+            }
+            $row['ip_exclusion'] = $this->formatIpExclusionStatusLabel($status);
+
+            return $row;
+        });
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, int>|array<int, int>  $domainIds
+     * @param  list<string>  $ips
+     * @return array<string, array{sync_status: string, is_active: bool}>
+     */
+    private function ipExclusionStatusByIp($domainIds, array $ips): array
+    {
+        if ($ips === [] || ! Schema::hasTable('google_ads_ip_exclusions')) {
+            return [];
+        }
+
+        $domainIdList = collect($domainIds)->map(fn ($id) => (int) $id)->filter()->values()->all();
+        if ($domainIdList === []) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($ips as $ip) {
+            $bare = trim((string) $ip);
+            if ($bare === '') {
+                continue;
+            }
+            $normalized[$bare] = true;
+            $fmt = GoogleIpBlockFormatter::normalize($bare);
+            if ($fmt) {
+                $normalized[$fmt] = true;
+            }
+        }
+        $lookup = array_keys($normalized);
+        if ($lookup === []) {
+            return [];
+        }
+
+        $query = DB::table('google_ads_ip_exclusions')
+            ->whereIn('domain_id', $domainIdList)
+            ->where(function ($q) use ($lookup): void {
+                $q->whereIn('ip', $lookup);
+                foreach ($lookup as $ip) {
+                    if (! str_contains($ip, '/')) {
+                        $q->orWhere('ip', 'like', $ip.'/%');
+                    }
+                }
+            });
+
+        $select = ['ip', 'sync_status'];
+        if (Schema::hasColumn('google_ads_ip_exclusions', 'is_active')) {
+            $select[] = 'is_active';
+        }
+
+        $map = [];
+        foreach ($query->get($select) as $row) {
+            $stored = trim((string) ($row->ip ?? ''));
+            $bare = preg_replace('#/\d+$#', '', $stored) ?: $stored;
+            $payload = [
+                'sync_status' => (string) ($row->sync_status ?? 'pending'),
+                'is_active' => Schema::hasColumn('google_ads_ip_exclusions', 'is_active')
+                    ? (bool) ($row->is_active ?? true)
+                    : (($row->sync_status ?? '') !== 'disabled'),
+            ];
+            $map[$bare] = $payload;
+            $map[$stored] = $payload;
+        }
+
+        return $map;
+    }
+
+    /**
+     * @param  array{sync_status: string, is_active: bool}  $status
+     */
+    private function formatIpExclusionStatusLabel(array $status): string
+    {
+        if (($status['is_active'] ?? true) === false || ($status['sync_status'] ?? '') === 'disabled') {
+            return 'Disabled';
+        }
+
+        return match ((string) ($status['sync_status'] ?? '')) {
+            'synced' => 'Applied',
+            'pending' => 'Queued',
+            'failed', 'skipped' => 'Failed',
+            default => 'Queued',
+        };
+    }
+
+    /**
+     * Queue site-blocked paid IPs into Exclusion Manager so Overview "Blocked" matches the list.
+     *
+     * @param  \Illuminate\Support\Collection<int, int>|array<int, int>  $domainIds
+     */
+    private function backfillBlockedIpsIntoExclusionManager($domainIds, string $fromDate, string $toDate, Request $request): void
+    {
+        if (! Schema::hasTable('visits') || ! Schema::hasTable('google_ads_ip_exclusions')) {
+            return;
+        }
+        if (! Schema::hasColumn('visits', 'action_taken') && ! Schema::hasColumn('visits', 'block_enforced')) {
+            return;
+        }
+
+        $domainIdList = collect($domainIds)->map(fn ($id) => (int) $id)->filter()->unique()->values();
+        if ($domainIdList->isEmpty()) {
+            return;
+        }
+
+        $domains = Domain::query()
+            ->whereIn('id', $domainIdList->all())
+            ->get()
+            ->keyBy('id');
+
+        $service = app(GoogleAudienceExclusionService::class);
+        foreach ($domainIdList as $domainId) {
+            $domain = $domains->get($domainId);
+            if (! $domain instanceof Domain || ! $domain->hasGoogleAdsConnection()) {
+                continue;
+            }
+
+            // Prefer the existing 14-day sweep, then also cover the selected calendar range.
+            $service->queueRecentInvalidIpsForDomain($domain, 50);
+
+            $q = DB::table('visits')
+                ->where('domain_id', $domainId)
+                ->whereNotNull('ip')
+                ->where('ip', '!=', '');
+            if (Schema::hasColumn('visits', 'is_paid_traffic')) {
+                $q->where('is_paid_traffic', true);
+            }
+            UserTimezone::applyCalendarDateRangeFilter(
+                $q,
+                'visited_at',
+                $fromDate,
+                $toDate,
+                $request->user(),
+                $this->reportingTimezone($request, collect([$domainId])),
+            );
+            $q->where(function ($inner): void {
+                if (Schema::hasColumn('visits', 'action_taken')) {
+                    $inner->where('action_taken', 'block');
+                }
+                if (Schema::hasColumn('visits', 'block_enforced')) {
+                    $inner->orWhere('block_enforced', true);
+                }
+            });
+
+            $ips = $q->distinct()->orderByDesc('visited_at')->limit(40)->pluck('ip');
+            foreach ($ips as $ip) {
+                $ip = trim((string) $ip);
+                if ($ip === '' || GlobalIpAllowlist::matchesIp($ip)) {
+                    continue;
+                }
+                $service->queueBlockedIpIfEligible($domain, $ip, 'blocked', isPaidTraffic: true);
+            }
+        }
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, int>|array<int, int>  $domainIds
+     */
+    private function countExcludedIpsForRange($domainIds, string $fromDate, string $toDate, Request $request): int
+    {
+        if (! Schema::hasTable('google_ads_ip_exclusions')) {
+            return 0;
+        }
+        $domainIdList = collect($domainIds)->map(fn ($id) => (int) $id)->filter()->values()->all();
+        if ($domainIdList === []) {
+            return 0;
+        }
+
+        $this->backfillBlockedIpsIntoExclusionManager($domainIds, $fromDate, $toDate, $request);
+
+        $q = DB::table('google_ads_ip_exclusions')->whereIn('domain_id', $domainIdList);
+        if (Schema::hasColumn('google_ads_ip_exclusions', 'is_active')) {
+            $q->where(function ($inner): void {
+                $inner->where('is_active', true)->orWhereNull('is_active');
+            });
+        }
+        $q->where(function ($inner): void {
+            $inner->whereNull('sync_status')
+                ->orWhere('sync_status', '!=', 'disabled');
+        });
+
+        // Prefer IPs touched in the selected window; fall back to all active exclusions for the domain.
+        $inRange = (clone $q);
+        UserTimezone::applyCalendarDateRangeFilter(
+            $inRange,
+            Schema::hasColumn('google_ads_ip_exclusions', 'updated_at') ? 'updated_at' : 'created_at',
+            $fromDate,
+            $toDate,
+            $request->user(),
+            $this->reportingTimezone($request, collect($domainIdList)),
+        );
+        $count = (int) $inRange->distinct()->count('ip');
+        if ($count > 0) {
+            return $count;
+        }
+
+        return (int) $q->distinct()->count('ip');
     }
 
     /**

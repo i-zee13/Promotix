@@ -551,8 +551,19 @@
 
         .pa-dash .pa-table {
             width: 100%;
+            min-width: 520px;
             border-collapse: collapse;
             font-size: 11px;
+        }
+        @media (max-width: 1023px) {
+            .pa-dash .overflow-x-auto {
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch;
+                max-width: 100%;
+            }
+            .pa-dash .pa-table {
+                min-width: 560px;
+            }
         }
         .pa-dash .pa-table th {
             text-align: left;

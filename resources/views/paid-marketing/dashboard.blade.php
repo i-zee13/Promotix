@@ -1773,7 +1773,7 @@ function paidAdvertisingFigma(config = {}) {
         accountOptions: config.accountOptions || [],
         trafficSourceOptions: config.trafficSourceOptions || [{ value: 'google_ads', label: 'Google Ads' }],
         trackingTemplate: '{lpurl}?gclid={gclid}&gbraid={gbraid}&wbraid={wbraid}&utm_source=google&utm_medium=cpc&utm_campaign={campaignid}&utm_term={keyword}&keyword={keyword}',
-        summary: { paid_visits: 0, verified_paid_visits: 0, verified_valid_paid_visits: 0, unverified_paid_visits: 0, tag_paid_visits: 0, tracked_clicks: 0, google_clicks: 0, total_click_count: 0, tag_capture_pct: 0, tracking_accuracy_pct: 0, tag_gap_warning: false, google_sync_error: null, google_needs_reconnect: false, google_reconnect_url: '', invalid_paid_visits: 0, invalid_paid_events: 0, unique_invalid_paid_clicks: 0, blocked_paid_visits: 0, block_attempts: 0, block_enforced: 0, flagged_paid_visits: 0, valid_paid_visits: 0, unique_paid_clicks: 0, unique_valid_paid_clicks: 0, unique_ips: 0, invalid_reconciliation: { platform_only: 0, google_only: 0, overlap: 0 } },
+        summary: { paid_visits: 0, verified_paid_visits: 0, verified_valid_paid_visits: 0, unverified_paid_visits: 0, tag_paid_visits: 0, tracked_clicks: 0, google_clicks: 0, total_click_count: 0, tag_capture_pct: 0, tracking_accuracy_pct: 0, tag_gap_warning: false, google_sync_error: null, google_needs_reconnect: false, google_reconnect_url: '', invalid_paid_visits: 0, invalid_paid_events: 0, unique_invalid_paid_clicks: 0, blocked_paid_visits: 0, block_attempts: 0, block_enforced: 0, excluded_ips: 0, flagged_paid_visits: 0, valid_paid_visits: 0, unique_paid_clicks: 0, unique_valid_paid_clicks: 0, unique_ips: 0, invalid_reconciliation: { platform_only: 0, google_only: 0, overlap: 0 } },
         trends: { labels: [], datasets: [], invalid_daily: [] },
         blocking: { labels: [], datasets: [], rules: [], engine: null },
         campaigns: [],
@@ -1967,7 +1967,12 @@ function paidAdvertisingFigma(config = {}) {
             const fmt = (n) => this.fmt(n);
             const clicks = Number(this.summary.total_click_count || this.summary.google_clicks || 0);
             const invalid = Number(this.summary.unique_invalid_paid_clicks ?? this.summary.invalid_paid_visits ?? 0);
-            const blocked = Number(this.summary.block_enforced || 0);
+            const blocked = Number(
+                this.summary.excluded_ips
+                ?? this.summary.block_enforced
+                ?? this.summary.block_attempts
+                ?? 0
+            );
             const tracked = Number(this.summary.tracked_clicks || this.summary.unique_paid_clicks || 0);
             const rate = tracked ? Math.round((blocked / tracked) * 1000) / 10 : 0;
 
@@ -1988,7 +1993,7 @@ function paidAdvertisingFigma(config = {}) {
                 const items = [
                     { label: 'Paid traffic in range', value: fmt(tracked) },
                     { label: 'Invalid clicks detected', value: fmt(invalid) },
-                    { label: 'IPs blocked', value: fmt(blocked) },
+                    { label: 'IPs in exclusion list', value: fmt(blocked) },
                     { label: 'Monitored / flagged', value: fmt(this.summary.flagged_paid_visits) },
                     { label: 'Cost saved', value: this.summary.cost_saved_label || `${this.activeCurrencySymbol()}${Number(this.summary.cost_saved || 0).toFixed(2)}` },
                 ];
@@ -2498,6 +2503,7 @@ function paidAdvertisingFigma(config = {}) {
                     tag_paid_visits: summary?.tag_paid_visits,
                     block_attempts: summary?.block_attempts,
                     block_enforced: summary?.block_enforced,
+                    excluded_ips: summary?.excluded_ips,
                     flagged_paid_visits: summary?.flagged_paid_visits,
                     invalid_reconciliation: summary?.invalid_reconciliation,
                 });
@@ -2593,6 +2599,7 @@ function paidAdvertisingFigma(config = {}) {
                     tag_paid_visits: summary?.tag_paid_visits,
                     block_attempts: summary?.block_attempts,
                     block_enforced: summary?.block_enforced,
+                    excluded_ips: summary?.excluded_ips,
                     flagged_paid_visits: summary?.flagged_paid_visits,
                     invalid_reconciliation: summary?.invalid_reconciliation,
                 });

@@ -3267,8 +3267,10 @@ html.figma-gads-calendar-open body {
 }
 
 .figma-sa-subs-table-scroll {
-    overflow-x: hidden;
+    overflow-x: auto;
     overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
 }
 
 .figma-sa-cross-domain-panel {
@@ -3436,6 +3438,7 @@ html.figma-gads-calendar-open body {
 
 .figma-sa-subs-table {
     width: 100%;
+    min-width: 780px;
     border-collapse: collapse;
     table-layout: fixed;
 }
@@ -12845,7 +12848,10 @@ a.figma-sa-users-filter-option {
     border-radius: 6px;
     border: 1px solid var(--brand-primary, #FF6600);
     background: #ffffff;
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
 }
 
 .figma-sa-users-table-shell--teams {
@@ -12866,13 +12872,16 @@ a.figma-sa-users-filter-option {
 }
 
 .figma-sa-table-scroll {
-    overflow-x: hidden;
+    overflow-x: auto;
     overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
 }
 
 .figma-sa-users-table {
     width: 100%;
-    max-width: 100%;
+    min-width: 780px;
+    max-width: none;
     table-layout: fixed;
     border-collapse: collapse;
     font-size: 14px;
@@ -14119,11 +14128,15 @@ a.figma-sa-teams-card-name:hover {
     border-radius: 6px;
     border: 1px solid rgba(255, 255, 255, 0.5);
     background: var(--brand-primary, #FF6600);
-    overflow: visible;
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
 }
 
 .figma-sa-products-table {
     width: 100%;
+    min-width: 720px;
     table-layout: fixed;
     border-collapse: collapse;
     font-size: 14px;
@@ -17838,3 +17851,68 @@ html.light-mode .pa-dash .pa-geo__dot-label {
     text-shadow: none;
 }
 
+
+/* —— System-wide mobile-responsive data tables (horizontal scroll) —— */
+@media (max-width: 1023px) {
+    .figma-sa-subs-table-scroll,
+    .figma-sa-table-scroll,
+    .figma-sa-dash-table-scroll,
+    .figma-sa-roles-table-scroll,
+    .figma-sa-cross-domain-scroll,
+    .figma-sa-users-table-shell,
+    .figma-sa-products-table-shell,
+    .figma-sa-subs-panel,
+    .figma-main .overflow-x-auto,
+    .figma-sa-main .overflow-x-auto,
+    .figma-customer-canvas .overflow-x-auto,
+    .pm-adv-table-body-scroll,
+    .promotix-slim-scroll.max-h-\[320px\] {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+        max-width: 100%;
+    }
+
+    .figma-sa-subs-table,
+    .figma-sa-users-table,
+    .figma-sa-products-table,
+    .figma-sa-dash-table,
+    .paid-detailed-table,
+    .figma-sa-products-table.figma-sa-roles-table {
+        width: max-content !important;
+        min-width: 780px !important;
+        max-width: none !important;
+    }
+
+    .figma-sa-subs-table thead th,
+    .figma-sa-subs-table tbody td,
+    .figma-sa-users-table thead th,
+    .figma-sa-users-table tbody td,
+    .figma-sa-products-table thead th,
+    .figma-sa-products-table tbody td {
+        white-space: nowrap;
+    }
+
+    /* Customer portal / analytics tables */
+    .pa-dash .pa-table,
+    .figma-customer-canvas table.w-full.min-w-\[760px\],
+    .figma-customer-canvas table.w-full.min-w-\[800px\],
+    .figma-main table.min-w-\[760px\],
+    .figma-main table.min-w-\[800px\] {
+        min-width: 760px;
+    }
+
+    .pa-dash .overflow-x-auto,
+    .figma-bp-dashboard .overflow-x-auto {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Soften fixed % column widths so min-width can expand for scroll */
+    .figma-sa-subs-table th,
+    .figma-sa-subs-table td,
+    .figma-sa-users-table th,
+    .figma-sa-users-table td {
+        overflow: visible;
+        text-overflow: unset;
+    }
+}
