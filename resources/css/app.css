@@ -805,7 +805,40 @@ html.light-mode .figma-filter-bar .figma-filter-select-wrap.flex,
 }
 
 .paid-advanced-column-option input[type='checkbox'] {
-    accent-color: #FF6600 !important;
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    margin: 0;
+    border-radius: 3px;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    background-color: transparent;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 10px 10px;
+    cursor: pointer;
+    accent-color: #FF6600;
+}
+.paid-advanced-column-option input[type='checkbox']:checked {
+    border-color: #FF6600 !important;
+    background-color: #FF6600 !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M3.5 8.5l3 3 6-6' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+}
+.paid-advanced-column-option input[type='checkbox']:focus,
+.paid-advanced-column-option input[type='checkbox']:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(255, 102, 0, 0.35);
+}
+html.light-mode .paid-advanced-column-option input[type='checkbox'],
+html.light-mode .analytics-skin .paid-advanced-column-option input[type='checkbox'] {
+    border-color: rgba(255, 102, 0, 0.45);
+    background-color: #fff;
+}
+html.light-mode .paid-advanced-column-option input[type='checkbox']:checked,
+html.light-mode .analytics-skin .paid-advanced-column-option input[type='checkbox']:checked {
+    border-color: #FF6600 !important;
+    background-color: #FF6600 !important;
 }
 
 .pm-adv-grid {
@@ -17647,8 +17680,13 @@ html.light-mode .analytics-skin .paid-advanced-column-option,
 html.light-mode .analytics-skin .paid-advanced-columns-menu .text-white\/55 {
     color: #5c5470 !important;
 }
-html.light-mode .analytics-skin .paid-advanced-column-option input {
-    accent-color: #FF6600 !important;
+html.light-mode .analytics-skin .paid-advanced-column-option input[type='checkbox'] {
+    border-color: rgba(255, 102, 0, 0.45) !important;
+    background-color: #fff !important;
+}
+html.light-mode .analytics-skin .paid-advanced-column-option input[type='checkbox']:checked {
+    border-color: #FF6600 !important;
+    background-color: #FF6600 !important;
 }
 html.light-mode .analytics-skin section[class*='border-[#FF6600]'],
 html.light-mode .figma-main .analytics-skin section[class*='border-[#FF6600]'] {

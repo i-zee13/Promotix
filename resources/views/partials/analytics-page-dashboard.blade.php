@@ -219,12 +219,32 @@
             width: 220px;
         }
         .pa-dash .pa-perf__menu-panel .paid-advanced-column-option input[type='checkbox'] {
-            accent-color: #FF6600 !important;
-            color-scheme: dark;
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            flex-shrink: 0;
+            margin: 0;
+            border-radius: 3px;
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            background-color: transparent;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-size: 10px 10px;
+            cursor: pointer;
+        }
+        .pa-dash .pa-perf__menu-panel .paid-advanced-column-option input[type='checkbox']:checked {
+            border-color: #FF6600 !important;
+            background-color: #FF6600 !important;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M3.5 8.5l3 3 6-6' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
         }
         html.light-mode .pa-dash .pa-perf__menu-panel .paid-advanced-column-option input[type='checkbox'] {
-            accent-color: #FF6600 !important;
-            color-scheme: light;
+            border-color: rgba(255, 102, 0, 0.45);
+            background-color: #fff;
+        }
+        html.light-mode .pa-dash .pa-perf__menu-panel .paid-advanced-column-option input[type='checkbox']:checked {
+            border-color: #FF6600 !important;
+            background-color: #FF6600 !important;
         }
         .pa-dash .pa-card__head {
             overflow: visible;
