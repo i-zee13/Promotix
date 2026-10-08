@@ -526,6 +526,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     overlay?.addEventListener('click', () => shell?.classList.remove('figma-sidebar-open'));
+    document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        if (window.matchMedia('(min-width: 1024px)').matches) return;
+        shell?.classList.remove('figma-sidebar-open');
+    });
+    // Lock page scroll while mobile drawer is open.
+    const sidebarOpenObserver = new MutationObserver(() => {
+        const open = shell?.classList.contains('figma-sidebar-open');
+        document.documentElement.classList.toggle('figma-drawer-open', !!open);
+        document.body?.classList.toggle('figma-drawer-open', !!open);
+    });
+    if (shell) sidebarOpenObserver.observe(shell, { attributes: true, attributeFilter: ['class'] });
     window.matchMedia('(min-width: 1280px)').addEventListener('change', syncRightbar);
     syncRightbar();
 

@@ -1480,6 +1480,7 @@ function botProtectionFigma(config = {}) {
         pickDomainFilter(id) {
             this.filters.domain_id = String(id || '');
             window.PromotixDomainFilter?.write(this.filters.domain_id);
+            this.funnelSelectedKeys = null;
             this.filterMenus.domain = false;
             this.reload();
         },
@@ -1509,13 +1510,7 @@ function botProtectionFigma(config = {}) {
         keywordHeadlineSource: 'ads',
         perfMenuOpen: false,
         funnelMenuOpen: false,
-        funnelSelectedKeys: (() => {
-            try {
-                const saved = JSON.parse(localStorage.getItem('pa-funnel-event-keys-v1') || 'null');
-                if (Array.isArray(saved)) return saved.map(String);
-            } catch (e) {}
-            return null;
-        })(),
+        funnelSelectedKeys: null,
         perfMetricCatalog: [
             { key: 'clicks', label: 'Clicks' },
             { key: 'visitors', label: 'Visitors' },
@@ -1745,10 +1740,13 @@ function botProtectionFigma(config = {}) {
         },
         // —— Page Analytics panels (real data from /bot-protection/page-analytics) ——
         pageAnalyticsKpis() {
+            // Touch selection so Alpine re-runs KPIs when funnel checkboxes change.
+            void (this.funnelSelectedKeys || []).join(',');
             const k = this.pageAnalytics?.kpis || {};
             const d = k.deltas || {};
             const sparks = this.summary?.sparklines || {};
             const icon = (path) => `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24">${path}</svg>`;
+            const conversions = this.filteredTotalConversions();
             return [
                 {
                     key: 'live',
@@ -1780,7 +1778,7 @@ function botProtectionFigma(config = {}) {
                 {
                     key: 'conversions',
                     title: 'Total Conversions',
-                    value: this.fmt(this.filteredTotalConversions()),
+                    value: this.fmt(conversions),
                     delta: Number(d.total_conversions || 0),
                     deltaLabel: this.formatDelta(d.total_conversions),
                     spark: sparks.bot_impact || [],
@@ -1845,7 +1843,23 @@ function botProtectionFigma(config = {}) {
             this.perfChartNonce = (this.perfChartNonce || 0) + 1;
         },
         pageCost() {
-            return this.pageAnalytics?.cost || null;
+            const base = this.pageAnalytics?.cost || null;
+            if (!base) return null;
+            const conversions = this.filteredTotalConversions();
+            const totalCost = Number(base.total_cost || 0);
+            const cpc = conversions > 0 ? (totalCost / conversions) : 0;
+            const sym = base.currency_symbol || this.pageAnalytics?.currency_symbol || '$';
+            const fmt = (n) => {
+                const v = Number(n || 0);
+                if (v >= 1000) return sym + v.toLocaleString(undefined, { maximumFractionDigits: 2 });
+                return sym + v.toFixed(2);
+            };
+            return {
+                ...base,
+                cost_per_conversion: Math.round(cpc * 10000) / 10000,
+                cost_per_conversion_label: fmt(cpc),
+                conversions,
+            };
         },
         isPerfSeriesActive(key) {
             return (this.perfActiveSeries || []).includes(key);
@@ -2053,15 +2067,28 @@ function botProtectionFigma(config = {}) {
         funnelEventCatalog() {
             return this.pageAnalytics?.funnel || [];
         },
+        funnelStorageDomainKey() {
+            const id = String(this.filters?.domain_id || 'all');
+            return id || 'all';
+        },
         ensureFunnelSelection() {
             const available = (this.funnelEventCatalog() || []).map((r) => String(r.key || '')).filter(Boolean);
             if (!available.length) return;
+            const domainKey = this.funnelStorageDomainKey();
             let selected = Array.isArray(this.funnelSelectedKeys) ? this.funnelSelectedKeys.map(String) : null;
+            if (!selected) {
+                try {
+                    const saved = JSON.parse(localStorage.getItem('pa-funnel-event-keys-v2:' + domainKey) || 'null');
+                    if (Array.isArray(saved)) selected = saved.map(String);
+                } catch (e) {}
+            }
             if (!selected) {
                 selected = [...available];
             } else {
                 let prevAvailable = null;
-                try { prevAvailable = JSON.parse(localStorage.getItem('pa-funnel-event-available-v1') || 'null'); } catch (e) {}
+                try {
+                    prevAvailable = JSON.parse(localStorage.getItem('pa-funnel-event-available-v2:' + domainKey) || 'null');
+                } catch (e) {}
                 const prevSet = Array.isArray(prevAvailable) ? new Set(prevAvailable.map(String)) : new Set(available);
                 selected = selected.filter((k) => available.includes(k));
                 available.forEach((k) => {
@@ -2074,9 +2101,10 @@ function botProtectionFigma(config = {}) {
         },
         persistFunnelEventKeys(availableKeys) {
             try {
-                localStorage.setItem('pa-funnel-event-keys-v1', JSON.stringify(this.funnelSelectedKeys || []));
+                const domainKey = this.funnelStorageDomainKey();
+                localStorage.setItem('pa-funnel-event-keys-v2:' + domainKey, JSON.stringify(this.funnelSelectedKeys || []));
                 if (Array.isArray(availableKeys)) {
-                    localStorage.setItem('pa-funnel-event-available-v1', JSON.stringify(availableKeys));
+                    localStorage.setItem('pa-funnel-event-available-v2:' + domainKey, JSON.stringify(availableKeys));
                 }
             } catch (e) {}
         },
@@ -2097,7 +2125,7 @@ function botProtectionFigma(config = {}) {
             } else {
                 list.push(k);
             }
-            this.funnelSelectedKeys = list;
+            this.funnelSelectedKeys = [...list];
             this.persistFunnelEventKeys((this.funnelEventCatalog() || []).map((r) => String(r.key || '')).filter(Boolean));
         },
         pageFunnel() {
@@ -2117,14 +2145,17 @@ function botProtectionFigma(config = {}) {
         },
         filteredTotalConversions() {
             const rows = this.funnelEventCatalog();
-            if (!rows.length) return Number(this.pageAnalytics?.kpis?.total_conversions || 0);
+            const full = Number(this.pageAnalytics?.kpis?.total_conversions || 0);
+            if (!rows.length) return full;
             const selected = Array.isArray(this.funnelSelectedKeys)
                 ? new Set(this.funnelSelectedKeys.map(String))
                 : null;
             return rows.reduce((sum, r) => {
                 const key = String(r.key || '');
+                if (key === 'views') return sum;
                 if (selected && !selected.has(key)) return sum;
-                if (r.counts_toward_conversions === false || key === 'views') return sum;
+                if (r.counts_toward_conversions === false || r.counts_toward_conversions === 'false') return sum;
+                if (r.counts_toward_conversions !== true && r.counts_toward_conversions !== 'true') return sum;
                 return sum + Number(r.value || 0);
             }, 0);
         },
@@ -2148,6 +2179,24 @@ function botProtectionFigma(config = {}) {
             }
             if (k.includes('tel') || k.includes('call')) {
                 return wrap('<path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>');
+            }
+            if (k.includes('email')) {
+                return wrap('<path d="M4 6h16v12H4z"/><path d="M4 7l8 6 8-6"/>');
+            }
+            if (k.includes('chat')) {
+                return wrap('<path d="M21 12a8 8 0 01-8 8H7l-4 3V12a8 8 0 018-8h2a8 8 0 018 8z"/>');
+            }
+            if (k.includes('book') || k.includes('appointment')) {
+                return wrap('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 11h18"/>');
+            }
+            if (k.includes('zip')) {
+                return wrap('<path d="M12 21s-7-4.5-7-11a7 7 0 0114 0c0 6.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>');
+            }
+            if (k.includes('search')) {
+                return wrap('<circle cx="11" cy="11" r="6"/><path d="M20 20l-3.5-3.5"/>');
+            }
+            if (k.includes('nav')) {
+                return wrap('<path d="M4 7h16M4 12h16M4 17h16"/>');
             }
             return wrap('<path d="M5 12h14M13 6l6 6-6 6"/>');
         },

@@ -25,7 +25,7 @@ class VisitorJourneyIntelligence
             return $this->emptyPayload();
         }
 
-        $cacheKey = 'vj:intel:v8:'.md5(json_encode([
+        $cacheKey = 'vj:intel:v9:'.md5(json_encode([
             'domains' => array_values($domainIds),
             'from' => $from->toIso8601String(),
             'to' => $to->toIso8601String(),
@@ -1169,13 +1169,16 @@ class VisitorJourneyIntelligence
         if (str_contains($s, 'scroll')) {
             return 'scroll';
         }
-        if (str_contains($s, 'form') || str_contains($s, 'submit') || str_contains($s, 'availability')) {
+        if (str_contains($s, 'form') || str_contains($s, 'zip') || str_contains($s, 'submit') || str_contains($s, 'availability')) {
             return 'form';
         }
         if (str_contains($s, 'exit') || str_contains($s, 'session_end') || $s === 'end') {
             return 'exit';
         }
-        if (str_contains($s, 'cta') || str_contains($s, 'click') || str_contains($s, 'commerce') || str_contains($s, 'cart') || str_contains($s, 'purchase')) {
+        if (str_contains($s, 'cart') || str_contains($s, 'checkout') || str_contains($s, 'purchase') || str_contains($s, 'booking_confirmed') || str_contains($s, 'commerce')) {
+            return 'commerce';
+        }
+        if (str_contains($s, 'cta') || str_contains($s, 'click') || str_contains($s, 'chat') || str_contains($s, 'email') || str_contains($s, 'book') || str_contains($s, 'appointment')) {
             return 'cta';
         }
 
@@ -1189,6 +1192,7 @@ class VisitorJourneyIntelligence
             'cta' => 'CTA click',
             'phone' => 'Phone click',
             'form' => 'Form submit',
+            'commerce' => 'Commerce',
             'exit' => 'Exit',
             default => 'Page view',
         };

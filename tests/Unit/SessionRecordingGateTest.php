@@ -48,9 +48,10 @@ class SessionRecordingGateTest extends TestCase
         ));
     }
 
-    public function test_organic_allow_records_when_toggle_on(): void
+    public function test_organic_allow_does_not_record_even_when_toggle_on(): void
     {
-        $this->assertTrue(SessionRecordingGate::shouldRecord(
+        // Event Timeline is paid-only; organic must be excluded at capture time.
+        $this->assertFalse(SessionRecordingGate::shouldRecord(
             $this->settings(sessionRecordings: true),
             ['action_taken' => 'allow', 'threat_group' => null],
             isPaidTraffic: false,

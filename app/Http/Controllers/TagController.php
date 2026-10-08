@@ -494,11 +494,31 @@ class TagController extends Controller
     if (!isFinite(duration) || duration < 5000) duration = 60000;
     if (duration > 120000) duration = 120000;
 
+    var recentPushKeys = {};
+    function pushDedupeKey(type, payload){
+      var p = payload && typeof payload === 'object' ? payload : {};
+      var parts = [
+        String(type || ''),
+        String(p.href || ''),
+        String(p.element_text || p.text || '').slice(0, 60),
+        String(p.form_id || ''),
+        String(p.field_name || ''),
+        String(p.zip_code || ''),
+        String(p.order_id || ''),
+        String(p.path || p.page_url || '').slice(0, 80)
+      ];
+      return parts.join('|');
+    }
     function push(type, payload){
       if (events.length >= 800) return;
+      // Same interaction within 1.2s → one record (dynamic re-binds / double handlers).
+      var dKey = pushDedupeKey(type, payload);
+      var nowTs = Date.now();
+      if (recentPushKeys[dKey] && (nowTs - recentPushKeys[dKey]) < 1200) return;
+      recentPushKeys[dKey] = nowTs;
       var row = {
-        t: Date.now() - started,
-        ts: Date.now(),
+        t: nowTs - started,
+        ts: nowTs,
         type: type,
         session_id: sessionId(),
         visitor_id: visitorId()
@@ -685,25 +705,43 @@ class TagController extends Controller
       return isCallLabel(elementText(el));
     }
 
+    function isFormSubmitControl(el){
+      if (!el || !el.tagName) return false;
+      var tag = String(el.tagName).toUpperCase();
+      var type = String(el.type || '').toLowerCase();
+      if (tag === 'INPUT' && (type === 'submit' || type === 'image')) return true;
+      if (tag === 'BUTTON' && (type === '' || type === 'submit')) {
+        // Prefer real form submitters; bare <button> outside forms can still be CTAs.
+        if (el.form || (el.closest && el.closest('form'))) return true;
+      }
+      if (el.getAttribute && /^(submit|form_submit|form-submit)$/i.test(String(el.getAttribute('data-action') || el.getAttribute('data-cr-event') || ''))) return true;
+      var text = elementText(el);
+      if (text && /^(submit|send|send\\s*message|submit\\s*(form|request|application)|get\\s*started)$/i.test(text) && el.closest && el.closest('form')) return true;
+      return false;
+    }
     function isCtaEl(el){
       if (!el || !el.tagName) return false;
       if (isCallEl(el)) return false;
+      if (isFormSubmitControl(el)) return false;
+      if (commerceKind(el)) return false;
+      if (bookingIntentKind(el, elementText(el))) return false;
+      if (isEmailEl(el)) return false;
       var tag = String(el.tagName).toUpperCase();
       if (el.getAttribute && (el.getAttribute('data-cta') != null || el.getAttribute('data-action') === 'cta')) return true;
       if (el.getAttribute && String(el.getAttribute('role') || '').toLowerCase() === 'button') return true;
       var cls = String(el.className || '').toLowerCase();
       var id = String(el.id || '').toLowerCase();
       var hay = cls + ' ' + id;
-      if (/\\b(cta|call-to-action|btn-primary|button-primary|btn-cta|convert|signup|sign-up|buy-now|get-started|btn\\b|button\\b|wp-block-button|elementor-button|submit|hero-action|action-btn|primary-action)\\b/.test(hay)) {
+      if (/\\b(cta|call-to-action|btn-primary|button-primary|btn-cta|convert|signup|sign-up|buy-now|get-started|btn\\b|button\\b|wp-block-button|elementor-button|hero-action|action-btn|primary-action)\\b/.test(hay)) {
         return true;
       }
       if (tag === 'BUTTON') return true;
       if (tag === 'INPUT') {
         var t = String(el.type || '').toLowerCase();
-        if (t === 'submit' || t === 'button') return true;
+        if (t === 'button') return true;
       }
       var text = elementText(el);
-      if (text && /\\b(get\\s*started|shop\\s*now|buy\\s*now|order\\s*now|order\\s*online|sign\\s*up|signup|subscribe|check\\s*availability|check\\s*avail|see\\s*(plans|pricing|offers)|view\\s*(plans|pricing|offers)|compare\\s*plans|request\\s*(a\\s*)?quote|get\\s*(a\\s*)?quote|apply\\s*now|learn\\s*more|contact\\s*us|continue|next\\s*step|submit|send|book\\s*now|schedule|claim\\s*(offer|deal)|find\\s*(a\\s*)?plan|choose\\s*(a\\s*)?plan|zip\\s*check|enter\\s*(your\\s*)?zip)\\b/.test(text)) {
+      if (text && /\\b(get\\s*started|shop\\s*now|buy\\s*now|order\\s*now|order\\s*online|sign\\s*up|signup|subscribe|check\\s*availability|check\\s*avail|see\\s*(plans|pricing|offers)|view\\s*(plans|pricing|offers)|compare\\s*plans|request\\s*(a\\s*)?quote|get\\s*(a\\s*)?quote|apply\\s*now|learn\\s*more|contact\\s*us|continue|next\\s*step|claim\\s*(offer|deal)|find\\s*(a\\s*)?plan|choose\\s*(a\\s*)?plan|zip\\s*check|enter\\s*(your\\s*)?zip)\\b/.test(text)) {
         return true;
       }
       var href = '';
@@ -722,16 +760,48 @@ class TagController extends Controller
         attrs = [
           el.getAttribute && el.getAttribute('data-action'),
           el.getAttribute && el.getAttribute('data-event'),
+          el.getAttribute && el.getAttribute('data-cr-event'),
           el.getAttribute && el.getAttribute('name'),
           el.id,
           el.className,
           el.innerText || el.textContent || ''
         ].join(' ').toLowerCase();
       } catch (err) { attrs = ''; }
-      if (/add[_\\s-]?to[_\\s-]?cart|addtocart|data-add-to-cart/.test(attrs)) return 'add_to_cart';
-      if (/\\b(checkout|begin[_\\s-]?checkout|proceed[_\\s-]?to[_\\s-]?checkout)\\b/.test(attrs)) return 'checkout';
-      if (/\\b(purchase|place[_\\s-]?order|buy[_\\s-]?now|complete[_\\s-]?order)\\b/.test(attrs)) return 'purchase';
+      if (/add[_\\s-]?to[_\\s-]?cart|addtocart|data-add-to-cart|ajax_add_to_cart|product-form__submit|single_add_to_cart_button/.test(attrs)) return 'add_to_cart';
+      if (/\\b(checkout|begin[_\\s-]?checkout|proceed[_\\s-]?to[_\\s-]?checkout|wc-proceed-to-checkout|go[_\\s-]?to[_\\s-]?checkout)\\b/.test(attrs)) return 'checkout';
+      // Place-order / purchase button click = checkout attempt only.
+      // Confirmed purchase comes from dataLayer / Clickronix.track('purchase').
+      if (/\\b(purchase|place[_\\s-]?order|complete[_\\s-]?order|pay[_\\s-]?now|complete[_\\s-]?purchase)\\b/.test(attrs)) return 'checkout';
+      if (/\\bbuy[_\\s-]?now\\b/.test(attrs)) return 'add_to_cart';
       return '';
+    }
+    function bookingIntentKind(el, text){
+      var hay = String((el && (el.className || '')) + ' ' + (el && el.id || '') + ' ' + (text || '')).toLowerCase();
+      if (el && el.getAttribute) {
+        var ev = String(el.getAttribute('data-cr-event') || el.getAttribute('data-event') || '').toLowerCase();
+        if (ev === 'appointment' || ev === 'appointment_click') return 'appointment_click';
+        if (ev === 'book' || ev === 'book_click' || ev === 'booking') return 'book_click';
+      }
+      if (/\\b(appointment|schedule\\s*(a\\s*)?(call|visit|demo|appointment)|book\\s*appointment|request\\s*appointment)\\b/.test(hay)) return 'appointment_click';
+      if (/\\b(book\\s*now|book\\s*(a\\s*)?(demo|call|visit|meeting|online)|booking|reserve|reservation|schedule\\s*now)\\b/.test(hay)) return 'book_click';
+      return '';
+    }
+    function isEmailEl(el){
+      if (!el) return false;
+      var href = readHref(el);
+      if (/^mailto:/i.test(href)) return true;
+      if (el.getAttribute) {
+        var dataMail = String(el.getAttribute('data-email') || el.getAttribute('data-mailto') || '').trim();
+        if (dataMail) return true;
+        if (/^(email|mailto|mail)$/i.test(String(el.getAttribute('data-action') || el.getAttribute('data-cr-event') || ''))) return true;
+      }
+      var text = elementText(el);
+      if (text && /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(text) && (String(el.tagName || '').toUpperCase() === 'A' || String(el.tagName || '').toUpperCase() === 'BUTTON')) return true;
+      return false;
+    }
+    function explicitTrackEvent(el){
+      if (!el || !el.getAttribute) return '';
+      return String(el.getAttribute('data-cr-event') || el.getAttribute('data-clickronix-event') || '').trim().toLowerCase().replace(/\\s+/g, '_').slice(0, 40);
     }
 
     function elementMeta(target){
@@ -766,41 +836,78 @@ class TagController extends Controller
     function onClick(e){
       var target = closestActionEl(e.target);
       var meta = elementMeta(target);
-      var tel = isTelHref(meta.href) || isTelDataAttr(target) || isCallEl(target);
-      var commerce = !tel && commerceKind(target);
-      var cta = !tel && !commerce && isCtaEl(target);
+      // Submit control click ≠ successful form_submit (that fires only on submit + validity).
+      if (isFormSubmitControl(target)) return;
+      // Chat send handled in capture extras (avoid double-count as CTA).
+      if (isChatSendEl(target)) return;
 
-      if (tel) {
-        push('phone_click', Object.assign({}, meta, {
+      var explicit = explicitTrackEvent(target);
+      if (explicit && !/^(cta|click)$/i.test(explicit)) {
+        var successish = /(_confirmed|purchase|form_submit|chat_message)/.test(explicit);
+        push(explicit, Object.assign({}, meta, {
           x: e.clientX,
           y: e.clientY,
-          tel_number: telNumberFromHref(meta.href) || (looksLikePhoneNumber(meta.element_text) ? String(meta.element_text).replace(/[^\\d+]/g, '').slice(0, 64) : ''),
-          link_type: 'tel'
+          success: successish ? 1 : 0,
+          status: successish ? 'success' : 'attempt'
         }));
-        // Dialer may unload before pagehide — soft-flush now but keep listening
-        // so a second tel click in the same session is still captured.
+        if (/purchase|checkout|book|appointment|cart|form/.test(explicit)) finishRecording();
+        return;
+      }
+
+      var isTelLink = isTelHref(meta.href) || isTelDataAttr(target);
+      var isCallBtn = !isTelLink && isCallEl(target);
+      var commerce = !isTelLink && !isCallBtn && commerceKind(target);
+      var booking = !isTelLink && !isCallBtn && !commerce && bookingIntentKind(target, meta.element_text);
+      var email = !isTelLink && !isCallBtn && !commerce && !booking && isEmailEl(target);
+      var cta = !isTelLink && !isCallBtn && !commerce && !booking && !email && isCtaEl(target);
+
+      if (isTelLink || isCallBtn) {
+        var telNum = telNumberFromHref(meta.href) || (looksLikePhoneNumber(meta.element_text) ? String(meta.element_text).replace(/[^\\d+]/g, '').slice(0, 64) : '');
+        push(isTelLink ? 'phone_click' : 'call_click', Object.assign({}, meta, {
+          x: e.clientX,
+          y: e.clientY,
+          tel_number: telNum,
+          link_type: isTelLink ? 'tel' : 'call',
+          success: 0,
+          status: 'attempt'
+        }));
+        // Dialer may unload before pagehide — soft-flush; keep listening for another click.
         softFlushRecording();
       } else if (commerce) {
+        // Click = attempt. Confirmed purchase/checkout success via dataLayer / Clickronix.track.
         push(commerce, Object.assign({}, meta, {
           x: e.clientX,
           y: e.clientY,
-          product_name: meta.element_text || undefined
+          product_name: meta.element_text || undefined,
+          success: 0,
+          status: 'attempt'
         }));
         finishRecording();
+      } else if (booking) {
+        // Book / Appointment click = attempt, not confirmed booking.
+        push(booking, Object.assign({}, meta, {
+          x: e.clientX,
+          y: e.clientY,
+          success: 0,
+          status: 'attempt'
+        }));
+        finishRecording();
+      } else if (email) {
+        var mail = '';
+        if (/^mailto:/i.test(meta.href)) mail = String(meta.href).replace(/^mailto:/i, '').split('?')[0];
+        else if (target.getAttribute) mail = String(target.getAttribute('data-email') || target.getAttribute('data-mailto') || meta.element_text || '').trim();
+        push('email_click', Object.assign({}, meta, {
+          x: e.clientX,
+          y: e.clientY,
+          email: String(mail).slice(0, 120),
+          link_type: 'email'
+        }));
       } else if (cta) {
         push('cta_click', Object.assign({}, meta, {
           x: e.clientX,
           y: e.clientY
         }));
-        // CTA navigations often unload before pagehide — flush so the click is stored.
         finishRecording();
-      } else if (meta.href && /^mailto:/i.test(meta.href)) {
-        push('email_click', Object.assign({}, meta, {
-          x: e.clientX,
-          y: e.clientY,
-          email: String(meta.href).replace(/^mailto:/i, '').split('?')[0].slice(0, 120),
-          link_type: 'email'
-        }));
       } else if (meta.href && isDownloadHref(meta.href)) {
         push('file_download', Object.assign({}, meta, { x: e.clientX, y: e.clientY, link_type: 'download' }));
       } else if (meta.tag === 'A' && meta.href && isExternalHref(meta.href)) {
@@ -818,7 +925,7 @@ class TagController extends Controller
         });
       }
 
-      if (target && meta.tag === 'A' && meta.href && !tel) {
+      if (target && meta.tag === 'A' && meta.href && !isTelLink && !isCallBtn) {
         markPageSoon();
       }
     }
@@ -845,7 +952,22 @@ class TagController extends Controller
     function isChatEl(el){
       if (!el || !el.tagName) return false;
       var hay = String((el.className || '') + ' ' + (el.id || '') + ' ' + (el.getAttribute && el.getAttribute('aria-label') || '')).toLowerCase();
-      return /\\b(intercom|tidio|drift|hubspot|crisp|tawk|livechat|olark|zendesk|chat-widget|chat-button|open-chat|start-chat|chat-now)\\b/.test(hay);
+      return /\\b(intercom|tidio|drift|hubspot|crisp|tawk|livechat|olark|zendesk|chat-widget|chat-button|open-chat|start-chat|chat-now|messenger|facebook-chat|fb-customer-chat)\\b/.test(hay);
+    }
+    function isChatSendEl(el){
+      if (!el || !el.tagName) return false;
+      var hay = String((el.className || '') + ' ' + (el.id || '') + ' ' + (el.getAttribute && (el.getAttribute('aria-label') || el.getAttribute('title') || '') || '') + ' ' + elementText(el)).toLowerCase();
+      if (!/\\b(send|submit|chat[_-]?send|message[_-]?send|composer[_-]?send)\\b/.test(hay)) return false;
+      // Prefer controls inside known chat chrome; also data-cr-event=chat_message_sent.
+      if (el.getAttribute && /chat_message/.test(String(el.getAttribute('data-cr-event') || ''))) return true;
+      var node = el;
+      for (var i = 0; node && i < 8; i++) {
+        if (isChatEl(node)) return true;
+        var nh = String((node.className || '') + ' ' + (node.id || '')).toLowerCase();
+        if (/\\b(chat|messenger|intercom|tidio|drift|crisp|tawk|livechat)\\b/.test(nh)) return true;
+        node = node.parentElement;
+      }
+      return false;
     }
     function pageIntentFromPath(path, title){
       var p = String(path || '').toLowerCase();
@@ -953,26 +1075,46 @@ class TagController extends Controller
     }
 
     var formsSeen = {};
+    var formIo = null;
     function observeFormsInView(){
       if (!('IntersectionObserver' in window)) {
         try {
           var forms = document.querySelectorAll('form');
-          for (var i = 0; i < forms.length && i < 20; i++) markFormViewed(forms[i]);
+          for (var i = 0; i < forms.length && i < 40; i++) markFormViewed(forms[i]);
         } catch (e) {}
         return;
       }
       try {
-        var io = new IntersectionObserver(function(entries){
-          entries.forEach(function(entry){
-            if (!entry.isIntersecting) return;
-            markFormViewed(entry.target);
-            try { io.unobserve(entry.target); } catch (e2) {}
-          });
-        }, { threshold: 0.35 });
+        if (!formIo) {
+          formIo = new IntersectionObserver(function(entries){
+            entries.forEach(function(entry){
+              if (!entry.isIntersecting) return;
+              markFormViewed(entry.target);
+              try { formIo.unobserve(entry.target); } catch (e2) {}
+            });
+          }, { threshold: 0.35 });
+        }
         var list = document.querySelectorAll('form');
-        for (var j = 0; j < list.length && j < 30; j++) io.observe(list[j]);
+        for (var j = 0; j < list.length && j < 40; j++) {
+          try { formIo.observe(list[j]); } catch (e3) {}
+        }
       } catch (err) {}
     }
+    // Dynamic forms/buttons injected after load.
+    try {
+      if ('MutationObserver' in window) {
+        var moTimer = null;
+        var mo = new MutationObserver(function(){
+          if (moTimer) return;
+          moTimer = setTimeout(function(){
+            moTimer = null;
+            observeFormsInView();
+            bindVideoTracking();
+          }, 400);
+        });
+        mo.observe(document.documentElement || document.body, { childList: true, subtree: true });
+      }
+    } catch (moErr) {}
     function markFormViewed(form){
       if (!form) return;
       var key = formKey(form);
@@ -989,6 +1131,19 @@ class TagController extends Controller
     function onClickCaptureExtras(e){
       var target = e.target;
       if (!target) return;
+      var action = closestActionEl(target) || target;
+      if (isChatSendEl(action) || isChatSendEl(target)) {
+        push('chat_message_sent', {
+          element_text: elementText(action).slice(0, 80),
+          element_id: String(action.id || '').slice(0, 120),
+          element_class: String(action.className || '').slice(0, 200),
+          success: 1,
+          status: 'success',
+          page_url: String(location.href || '').slice(0, 500),
+          path: String(location.pathname || '').slice(0, 500)
+        });
+        return;
+      }
       // Chat widgets often use nested buttons without <a>.
       var node = target;
       for (var depth = 0; node && depth < 5; depth++) {
@@ -997,6 +1152,8 @@ class TagController extends Controller
             element_text: elementText(node).slice(0, 80),
             element_id: String(node.id || '').slice(0, 120),
             element_class: String(node.className || '').slice(0, 200),
+            success: 0,
+            status: 'attempt',
             page_url: String(location.href || '').slice(0, 500),
             path: String(location.pathname || '').slice(0, 500)
           });
@@ -1076,8 +1233,10 @@ class TagController extends Controller
         success: valid ? 1 : 0,
         status: valid ? 'success' : 'failed'
       };
-      push('form_submit', payload);
-      if (!valid) {
+      // Submit click/attempt ≠ successful submission when validation fails.
+      if (valid) {
+        push('form_submit', payload);
+      } else {
         push('form_submit_failed', payload);
       }
       // Form posts often navigate away — flush so submit is not lost.
@@ -1107,14 +1266,46 @@ class TagController extends Controller
         if (!window.dataLayer || !window.dataLayer.length) return;
         var last = window.dataLayer[window.dataLayer.length - 1];
         if (!last || typeof last !== 'object') return;
-        var ev = String(last.event || last.eventName || '').toLowerCase();
+        var ev = String(last.event || last.eventName || last.name || '').toLowerCase().replace(/\\s+/g, '_');
         if (ev === 'add_to_cart' || ev === 'add-to-cart') pushCommerce('add_to_cart', last);
         else if (ev === 'begin_checkout' || ev === 'checkout') pushCommerce('checkout', last);
-        else if (ev === 'purchase' || ev === 'sale') pushCommerce('purchase', {
-          order_id: last.transaction_id || last.order_id,
-          revenue: last.value || last.revenue,
-          currency: last.currency
-        });
+        else if (ev === 'purchase' || ev === 'sale' || ev === 'purchase_completed' || ev === 'order_completed') {
+          pushCommerce('purchase', {
+            order_id: last.transaction_id || last.order_id,
+            revenue: last.value || last.revenue,
+            currency: last.currency,
+            success: 1,
+            status: 'success'
+          });
+        } else if (ev === 'booking_confirmed' || ev === 'appointment_confirmed' || ev === 'booked') {
+          push(ev.indexOf('appointment') >= 0 ? 'appointment_confirmed' : 'booking_confirmed', {
+            order_id: last.transaction_id || last.booking_id || last.order_id || '',
+            success: 1,
+            status: 'success',
+            page_url: String(location.href || '').slice(0, 500),
+            path: String(location.pathname || '').slice(0, 500)
+          });
+        } else if (ev === 'chat_message' || ev === 'chat_message_sent' || ev === 'chat_sent') {
+          push('chat_message_sent', {
+            element_text: String(last.message || last.text || 'message').slice(0, 80),
+            success: 1,
+            page_url: String(location.href || '').slice(0, 500),
+            path: String(location.pathname || '').slice(0, 500)
+          });
+        } else if (ev === 'chat_opened' || ev === 'chat_open' || ev === 'open_chat') {
+          push('chat_opened', {
+            page_url: String(location.href || '').slice(0, 500),
+            path: String(location.pathname || '').slice(0, 500)
+          });
+        } else if (ev === 'form_submit' || ev === 'generate_lead' || ev === 'lead') {
+          push('form_submit', {
+            form_id: String(last.form_id || last.formId || 'datalayer').slice(0, 120),
+            success: 1,
+            status: 'success',
+            page_url: String(location.href || '').slice(0, 500),
+            path: String(location.pathname || '').slice(0, 500)
+          });
+        }
       } catch (err) {}
     }
     if (window.dataLayer && Array.isArray(window.dataLayer)) {
@@ -1125,7 +1316,6 @@ class TagController extends Controller
         return r;
       };
     }
-
     function readMetaKeywords(){
       try {
         var el = document.querySelector('meta[name="keywords"], meta[name="keyword"]');
@@ -1227,10 +1417,54 @@ class TagController extends Controller
     observeFormsInView();
     bindVideoTracking();
 
-    // Public API for site custom events (no plugin update required).
+    // Public API for site custom events (Clickronix.track → here after recording starts).
+    // Use for widget success confirmations the tag cannot infer (booking confirmed, purchase, AJAX form OK).
     window.__pmRecordingPush = function(name, data){
       var type = String(name || 'custom_event').toLowerCase().replace(/\\s+/g, '_').slice(0, 40);
-      var row = data && typeof data === 'object' ? data : {};
+      var row = data && typeof data === 'object' ? Object.assign({}, data) : {};
+      if (!row.page_url) row.page_url = String(location.href || '').slice(0, 500);
+      if (!row.path) row.path = String(location.pathname || '').slice(0, 500);
+      // Success signals (attempt clicks use book_click / appointment_click / checkout separately).
+      if (type === 'purchase' || type === 'purchase_completed' || type === 'order_completed' || type === 'sale') {
+        pushCommerce('purchase', Object.assign({ success: 1, status: 'success' }, row));
+        return;
+      }
+      if (type === 'booking_confirmed' || type === 'booked' || type === 'booking_success') {
+        push('booking_confirmed', Object.assign({ success: 1, status: 'success' }, row));
+        return;
+      }
+      if (type === 'appointment_confirmed' || type === 'appointment_success') {
+        push('appointment_confirmed', Object.assign({ success: 1, status: 'success' }, row));
+        return;
+      }
+      if (type === 'chat_message' || type === 'chat_message_sent' || type === 'chat_sent') {
+        push('chat_message_sent', Object.assign({ success: 1, status: 'success' }, row));
+        return;
+      }
+      if (type === 'form_submit' || type === 'form_submitted' || type === 'generate_lead' || type === 'lead') {
+        push('form_submit', Object.assign({ success: 1, status: 'success' }, row));
+        return;
+      }
+      if (type === 'form_submit_failed' || type === 'form_failed') {
+        push('form_submit_failed', Object.assign({ success: 0, status: 'failed' }, row));
+        return;
+      }
+      if (type === 'add_to_cart' || type === 'add-to-cart') {
+        pushCommerce('add_to_cart', row);
+        return;
+      }
+      if (type === 'begin_checkout' || type === 'checkout' || type === 'checkout_started') {
+        pushCommerce('checkout', row);
+        return;
+      }
+      if (type === 'book_click' || type === 'book' || type === 'appointment_click' || type === 'appointment') {
+        push(type.indexOf('appointment') >= 0 ? 'appointment_click' : 'book_click', Object.assign({ success: 0, status: 'attempt' }, row));
+        return;
+      }
+      if (type === 'call_click' || type === 'phone_click' || type === 'email_click' || type === 'cta_click') {
+        push(type, row);
+        return;
+      }
       push(type, row);
     };
     try {

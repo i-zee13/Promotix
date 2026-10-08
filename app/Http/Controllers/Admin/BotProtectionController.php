@@ -235,11 +235,21 @@ class BotProtectionController extends Controller
     {
         try {
             $domainIds = $this->scopedDomainIds($request);
-            $reportingTz = UserTimezone::reportingTimezoneForRequest(
+            $domainId = (int) $request->query('domain_id', 0) ?: null;
+            // Performance chart + Ads clicks: use the linked Google Ads account timezone
+            // for the selected domain (falls back to profile reporting mode when unlinked).
+            $googleTz = UserTimezone::resolveGoogleAccountTimezone(
                 $request->user(),
-                (int) $request->query('domain_id', 0) ?: null,
+                $domainId,
                 $domainIds,
             );
+            $reportingTz = UserTimezone::isValid($googleTz)
+                ? $googleTz
+                : UserTimezone::reportingTimezoneForRequest(
+                    $request->user(),
+                    $domainId,
+                    $domainIds,
+                );
             [$from, $to] = UserTimezone::dateRangeFromRequest(
                 $request,
                 $request->user(),
@@ -374,6 +384,12 @@ class BotProtectionController extends Controller
                     report($e);
                 }
             }
+
+            $payload['timezone_context'] = [
+                'reporting_timezone' => $reportingTz,
+                'google_timezone' => $googleTz,
+                'source' => UserTimezone::isValid($googleTz) ? 'google_ads_account' : 'profile',
+            ];
 
             return response()->json($payload);
         } catch (\Throwable $e) {

@@ -5,7 +5,7 @@
     x-init="init()"
     @click.outside="if (calendarOpen && !isMobile()) cancelCalendar()"
 >
-    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55 sr-only">Date range</span>
+    <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55 figma-filter-date-label sr-only">Date</span>
     <button
         type="button"
         @click="toggleCalendar()"

@@ -319,7 +319,9 @@ class PaidAdvertisingDashboardController extends Controller
             'blocked_paid_visits' => $blocked,
             'block_attempts' => $blockAttempts,
             'block_enforced' => $blockEnforced,
-            // IPs actually present in Exclusion Manager (matches what customers see in the list).
+            // Unique IPs with an actual site block (same definition as Recent Paid Traffic "Blocked").
+            'blocked_ips' => $this->countActuallyBlockedIpsForRange($domainIds, $metricFrom, $metricTo, $request),
+            // IPs actually present in Exclusion Manager (matches Exclusion List UI).
             'excluded_ips' => $this->countExcludedIpsForRange($domainIds, $metricFrom, $metricTo, $request),
             'flagged_paid_visits' => $flagged,
             'invalid_reconciliation' => $invalidReconciliation,
@@ -1906,6 +1908,9 @@ class PaidAdvertisingDashboardController extends Controller
                 DB::raw(Schema::hasColumn('visits', 'device') ? 'MAX(device) as device' : 'NULL as device'),
                 DB::raw(Schema::hasColumn('visits', 'browser') ? 'MAX(browser) as browser' : 'NULL as browser'),
                 DB::raw(Schema::hasColumn('visits', 'action_taken') ? 'MAX(action_taken) as action' : 'NULL as action'),
+                DB::raw(Schema::hasColumn('visits', 'block_enforced')
+                    ? 'MAX(CASE WHEN block_enforced = 1 THEN 1 ELSE 0 END) as block_enforced'
+                    : '0 as block_enforced'),
                 DB::raw("SUM(CASE WHEN threat_group = 'vpn' THEN 1 ELSE 0 END) as vpn_hits"),
                 DB::raw("SUM(CASE WHEN threat_group = 'data_center' THEN 1 ELSE 0 END) as data_center_hits"),
                 DB::raw("SUM(CASE WHEN threat_group = 'malicious' THEN 1 ELSE 0 END) as malicious_hits"),
@@ -2408,7 +2413,12 @@ class PaidAdvertisingDashboardController extends Controller
                 }
             });
 
-            $ips = $q->distinct()->orderByDesc('visited_at')->limit(40)->pluck('ip');
+            $ips = $q->select('ip')
+                ->selectRaw('MAX(visited_at) as last_seen')
+                ->groupBy('ip')
+                ->orderByDesc('last_seen')
+                ->limit(40)
+                ->pluck('ip');
             foreach ($ips as $ip) {
                 $ip = trim((string) $ip);
                 if ($ip === '' || GlobalIpAllowlist::matchesIp($ip)) {
@@ -2417,6 +2427,41 @@ class PaidAdvertisingDashboardController extends Controller
                 $service->queueBlockedIpIfEligible($domain, $ip, 'blocked', isPaidTraffic: true);
             }
         }
+    }
+
+    /**
+     * Distinct paid IPs that were actually blocked on-site in the selected range.
+     * Matches the Recent Paid Traffic "Blocked" badge (not High-risk heuristics).
+     *
+     * @param  \Illuminate\Support\Collection<int, int>|array<int, int>  $domainIds
+     */
+    private function countActuallyBlockedIpsForRange($domainIds, string $fromDate, string $toDate, Request $request): int
+    {
+        if (! Schema::hasTable('visits')) {
+            return 0;
+        }
+        $hasAction = Schema::hasColumn('visits', 'action_taken');
+        $hasEnforced = Schema::hasColumn('visits', 'block_enforced');
+        if (! $hasAction && ! $hasEnforced) {
+            return 0;
+        }
+
+        $q = $this->scopedVisitsQuery($request, $domainIds, $fromDate, $toDate)
+            ->whereNotNull('ip')
+            ->where('ip', '!=', '');
+        if (Schema::hasColumn('visits', 'is_paid_traffic')) {
+            $q->where('is_paid_traffic', true);
+        }
+        $q->where(function ($inner) use ($hasAction, $hasEnforced): void {
+            if ($hasAction) {
+                $inner->whereIn('action_taken', ['block', 'blocked', 'deny']);
+            }
+            if ($hasEnforced) {
+                $inner->orWhere('block_enforced', true);
+            }
+        });
+
+        return (int) $q->distinct()->count('ip');
     }
 
     /**
@@ -2827,25 +2872,28 @@ class PaidAdvertisingDashboardController extends Controller
             $scorePct = $risk['risk_score'];
 
             $actionRaw = strtolower(trim((string) data_get($row, 'action', '')));
+            $blockEnforced = (bool) data_get($row, 'block_enforced', false);
             $isAllowlisted = GlobalIpAllowlist::matches($ip, [
                 'isp' => $intel?->intel_isp,
                 'org' => $raw['company'] ?? $raw['org'] ?? $intel?->intel_isp,
                 'asn' => $raw['ASN'] ?? $raw['asn'] ?? $raw['as_number'] ?? data_get($raw, 'connection.asn'),
                 'raw' => $raw,
             ]) || IpFraudEvaluator::isIpAllowListed($ip, implode("\n", $allowListIps));
+            // "Blocked" = actual site block only (never High-risk heuristic).
+            $actuallyBlocked = $blockEnforced || in_array($actionRaw, ['block', 'blocked', 'deny'], true);
             if ($isAllowlisted) {
                 $actionLabel = 'Whitelisted';
                 $actionTone = 'allow';
-            } elseif (in_array($actionRaw, ['block', 'blocked', 'deny'], true) || ($invalid > 0 && $riskLevel === 'High')) {
+            } elseif ($actuallyBlocked) {
                 $actionLabel = 'Blocked';
                 $actionTone = 'block';
-            } elseif (in_array($actionRaw, ['flag', 'flagged', 'monitor', 'monitored', 'challenge'], true) || $invalid > 0) {
+            } elseif (in_array($actionRaw, ['flag', 'flagged', 'monitor', 'monitored', 'challenge'], true) || $invalid > 0 || $riskLevel === 'High') {
                 $actionLabel = 'Monitored';
                 $actionTone = 'monitor';
             } elseif ($actionRaw !== '') {
                 $actionLabel = ucfirst($actionRaw);
                 $actionTone = 'monitor';
-                } else {
+            } else {
                 $actionLabel = 'Allow';
                 $actionTone = 'allow';
             }

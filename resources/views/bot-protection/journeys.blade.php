@@ -448,45 +448,13 @@
             }
             .vj-ev-legend__item {
                 display:inline-flex; align-items:center; gap:6px; line-height:1;
-                position: relative;
+                position: relative; border:0; background:transparent; color:inherit;
+                font:inherit; padding:0; cursor:pointer;
             }
             .vj-ev-legend__item .vj-ev-icon {
                 flex:0 0 14px; width:14px; height:14px;
             }
             .vj-ev-legend__item.is-off { opacity: 0.38; }
-            .vj-ev-legend__menu-btn {
-                display:inline-flex; align-items:center; justify-content:center;
-                width:18px; height:18px; border-radius:4px; border:0;
-                background:transparent; color:rgba(255,255,255,.45); cursor:pointer; padding:0;
-            }
-            .vj-ev-legend__menu-btn:hover { color:#fff; background:rgba(255,102,0,.15); }
-            .vj-ev-legend__panel {
-                position:absolute; top:calc(100% + 6px); left:0; z-index:50;
-                min-width:148px; padding:8px; border-radius:8px;
-                border:1px solid rgba(255,102,0,.35); background:#121212;
-                box-shadow:0 10px 24px rgba(0,0,0,.45);
-            }
-            .vj-ev-legend__panel button {
-                display:block; width:100%; text-align:left;
-                border:0; background:transparent; color:rgba(255,255,255,.85);
-                font-size:11px; padding:6px 8px; border-radius:5px; cursor:pointer;
-            }
-            .vj-ev-legend__panel button:hover { background:rgba(255,102,0,.14); color:#fff; }
-            html.light-mode .vj-ev-legend__menu-btn { color:#8a8299 !important; }
-            html.light-mode .vj-ev-legend__menu-btn:hover {
-                color:#FF6600 !important; background:#fff7f0 !important;
-            }
-            html.light-mode .vj-ev-legend__panel {
-                background:#ffffff !important;
-                border-color:rgba(255,102,0,.32) !important;
-                color:#2d2d3a !important;
-            }
-            html.light-mode .vj-ev-legend__panel button {
-                color:#2d2d3a !important;
-            }
-            html.light-mode .vj-ev-legend__panel button:hover {
-                background:#fff7f0 !important; color:#FF6600 !important;
-            }
             /* Align caption with the time track (same 168px sid column as rows). */
             .vj-axis-label {
                 display:grid; grid-template-columns:168px 1fr; gap:0; min-width:720px;
@@ -533,10 +501,11 @@
                 border-bottom:1px dotted rgba(255,255,255,.18);
             }
             .vj-et__marker {
-                position:absolute; top:50%; left:0;
-                transform:translate(-50%, calc(-50% + var(--stack, 0px)));
+                position:absolute; top:18px; left:0;
+                transform:translateX(-50%) translateY(var(--stack, 0px));
                 text-align:center; z-index:2;
-                width: 28px; pointer-events: auto;
+                width: 36px; pointer-events: auto;
+                display:flex; flex-direction:column; align-items:center; gap:4px;
             }
             .vj-et__marker.is-hover { z-index: 40; }
             .vj-et__marker.is-selected .vj-ev-icon { outline:2px solid var(--brand-primary, #FF6600); outline-offset:2px; }
@@ -554,25 +523,56 @@
                 opacity:1; visibility:visible;
             }
             .vj-et__m-time {
-                font-size:9px; color:rgba(255,255,255,.45); margin-top:5px;
+                font-size:9px; color:rgba(255,255,255,.45);
                 white-space:nowrap; line-height:1.15; height:12px;
+                min-width:28px; text-align:center;
             }
             .vj-et__m-time.is-hidden {
                 visibility: hidden;
             }
             .vj-ev-icon {
-                width:14px; height:14px; display:inline-flex; align-items:center; justify-content:center;
+                width:24px; height:24px; min-width:24px; min-height:24px;
+                display:inline-flex; align-items:center; justify-content:center;
                 vertical-align:middle; box-sizing:border-box; flex-shrink:0;
+                border-radius:6px; background: rgba(255,102,0,.18); color:#FFB380;
+                border:1px solid rgba(255,102,0,.35);
             }
             .vj-ev-icon svg {
-                width:14px; height:14px; display:block;
+                width:14px; height:14px; display:block; flex-shrink:0;
             }
-            .vj-ev-icon.is-page { color:#38BDF8; }
-            .vj-ev-icon.is-scroll { color:#A78BFA; }
-            .vj-ev-icon.is-cta { color:#F59E0B; }
-            .vj-ev-icon.is-phone { color:#34D399; }
-            .vj-ev-icon.is-form { color:#22C55E; }
-            .vj-ev-icon.is-exit { color:#F43F5E; }
+            .vj-ev-icon.is-page { background:rgba(56,189,248,.18); border-color:rgba(56,189,248,.4); color:#38BDF8; }
+            .vj-ev-icon.is-scroll { background:rgba(167,139,250,.18); border-color:rgba(167,139,250,.4); color:#A78BFA; }
+            .vj-ev-icon.is-cta { background:rgba(245,158,11,.18); border-color:rgba(245,158,11,.4); color:#F59E0B; }
+            .vj-ev-icon.is-phone,
+            .vj-ev-icon.is-tel_click,
+            .vj-ev-icon.is-call_click,
+            .vj-ev-icon.is-phone_click { background:rgba(52,211,153,.18); border-color:rgba(52,211,153,.4); color:#34D399; }
+            .vj-ev-icon.is-form,
+            .vj-ev-icon.is-form_submit,
+            .vj-ev-icon.is-form_submit_failed { background:rgba(34,197,94,.18); border-color:rgba(34,197,94,.4); color:#22C55E; }
+            .vj-ev-icon.is-email,
+            .vj-ev-icon.is-email_click { background:rgba(96,165,250,.18); border-color:rgba(96,165,250,.4); color:#60A5FA; }
+            .vj-ev-icon.is-zip,
+            .vj-ev-icon.is-zip_entered,
+            .vj-ev-icon.is-zip_checked { background:rgba(251,146,60,.18); border-color:rgba(251,146,60,.4); color:#FB923C; }
+            .vj-ev-icon.is-chat,
+            .vj-ev-icon.is-chat_opened,
+            .vj-ev-icon.is-chat_message_sent { background:rgba(45,212,191,.18); border-color:rgba(45,212,191,.4); color:#2DD4BF; }
+            .vj-ev-icon.is-book,
+            .vj-ev-icon.is-appointment,
+            .vj-ev-icon.is-book_click,
+            .vj-ev-icon.is-appointment_click { background:rgba(244,114,182,.18); border-color:rgba(244,114,182,.4); color:#F472B6; }
+            .vj-ev-icon.is-nav,
+            .vj-ev-icon.is-navigation_menu_opened,
+            .vj-ev-icon.is-pricing_viewed,
+            .vj-ev-icon.is-provider_selected { background:rgba(148,163,184,.18); border-color:rgba(148,163,184,.4); color:#94A3B8; }
+            .vj-ev-icon.is-exit,
+            .vj-ev-icon.is-session_exit { background:rgba(244,63,94,.18); border-color:rgba(244,63,94,.4); color:#F43F5E; }
+            .vj-ev-icon.is-commerce,
+            .vj-ev-icon.is-cart,
+            .vj-ev-icon.is-add_to_cart,
+            .vj-ev-icon.is-checkout,
+            .vj-ev-icon.is-purchase { background:rgba(250,204,21,.18); border-color:rgba(250,204,21,.4); color:#FACC15; }
             .vj-tooltip {
                 position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%);
                 white-space:nowrap; max-width:min(280px, 60vw);
@@ -1375,7 +1375,23 @@
                                     <option value="page">Page view</option>
                                     <option value="scroll">Scroll</option>
                                     <option value="cta">CTA click</option>
-                                    <option value="form">Form submit</option>
+                                    <option value="tel_click">Tel Link Clicked</option>
+                                    <option value="call_click">Call Button Clicked</option>
+                                    <option value="form_submit">Form Submitted</option>
+                                    <option value="form_submit_failed">Form Submission Failed</option>
+                                    <option value="email_click">Email Link Clicked</option>
+                                    <option value="zip_entered">ZIP Code Entered</option>
+                                    <option value="zip_checked">ZIP Check Completed</option>
+                                    <option value="chat_opened">Chat Opened</option>
+                                    <option value="chat_message_sent">Chat Message Sent</option>
+                                    <option value="add_to_cart">Add to Cart</option>
+                                    <option value="appointment_click">Appointment</option>
+                                    <option value="book_click">Book</option>
+                                    <option value="checkout">Checkout Started</option>
+                                    <option value="purchase">Purchase Completed</option>
+                                    <option value="provider_selected">Provider Selected</option>
+                                    <option value="pricing_viewed">Pricing Viewed</option>
+                                    <option value="navigation_menu_opened">Menu navigation</option>
                                     <option value="exit">Exit</option>
                                 </select>
                                 <select x-model="timeScale">
@@ -1447,20 +1463,15 @@
                             <div class="vj-tab-body vj-tab-body--timeline">
                             <div class="vj-ev-legend">
                                 <template x-for="item in eventLegendItems" :key="'leg-'+item.key">
-                                    <div class="vj-ev-legend__item" :class="{ 'is-off': !isEventTypeEnabled(item.key) }" @click.outside="legendMenu = null">
-                                        <span class="vj-ev-icon" :class="'is-' + item.key" x-html="eventTypeIconSvg(item.key)"></span>
+                                    <button type="button"
+                                            class="vj-ev-legend__item"
+                                            :class="{ 'is-off': !isEventTypeEnabled(item.key) }"
+                                            @click="toggleEventType(item.key)"
+                                            :title="isEventTypeEnabled(item.key) ? ('Hide ' + item.label) : ('Show ' + item.label)"
+                                            :aria-pressed="isEventTypeEnabled(item.key)">
+                                        <span class="vj-ev-icon" :class="'is-' + item.icon" x-html="eventTypeIconSvg(item.icon || item.key)"></span>
                                         <span x-text="item.label"></span>
-                                        <button type="button" class="vj-ev-legend__menu-btn" @click.stop="legendMenu = legendMenu === item.key ? null : item.key" :aria-label="'Options for ' + item.label">
-                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                                <circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/>
-                                            </svg>
-                                        </button>
-                                        <div class="vj-ev-legend__panel" x-show="legendMenu === item.key" x-cloak>
-                                            <button type="button" @click.stop="toggleEventType(item.key); legendMenu = null" x-text="isEventTypeEnabled(item.key) ? 'Hide on timeline' : 'Show on timeline'"></button>
-                                            <button type="button" @click.stop="eventFilter = item.key; legendMenu = null">Filter to this only</button>
-                                            <button type="button" @click.stop="resetEventTypes(); legendMenu = null">Show all types</button>
-                                        </div>
-                                    </div>
+                                    </button>
                                 </template>
                             </div>
                             <div class="vj-axis-label"><span>Elapsed time from session start</span></div>
@@ -1495,7 +1506,7 @@
                                                     @mouseleave="hoverEvent = null"
                                                 >
                                                     <div class="vj-et__m-label" x-text="ev.label"></div>
-                                                    <span class="vj-ev-icon" :class="'is-' + (ev.type || 'page')" x-html="eventTypeIconSvg(ev.type || 'page')"></span>
+                                                    <span class="vj-ev-icon" :class="'is-' + eventIconClass(ev)" x-html="eventTypeIconSvg(eventIconClass(ev))"></span>
                                                     <div class="vj-et__m-time" :class="{ 'is-hidden': !ev.showTime }" x-text="ev.timeText"></div>
                                                 </div>
                                             </template>
@@ -1641,16 +1652,16 @@
                                                                 <small x-text="'+' + (ev.elapsed || '00:00')"></small>
                                                             </div>
                                                             <div class="vj-sj-rail">
-                                                                <div class="vj-sj-node" :class="'is-' + (ev.type || 'page')"></div>
+                                                                <div class="vj-sj-node" :class="'is-' + eventIconClass(ev)"></div>
                                                             </div>
                                                             <div>
                                                                 <div class="vj-sj-body__title">
-                                                                    <span class="vj-ev-icon" :class="'is-' + (ev.type || 'page')" x-html="eventTypeIconSvg(ev.type || 'page')"></span>
+                                                                    <span class="vj-ev-icon" :class="'is-' + eventIconClass(ev)" x-html="eventTypeIconSvg(eventIconClass(ev))"></span>
                                                                     <span x-text="sessionJourneyTitle(ev)"></span>
                                                                 </div>
                                                                 <div class="vj-sj-body__page" x-text="sessionJourneyDetail(ev, selected)"></div>
                                                                 <div class="vj-sj-body__note" x-show="ev.note" x-text="ev.note"></div>
-                                                                <span class="vj-sj-tag" :class="'is-' + (ev.type || 'page')" x-text="sessionJourneyTag(ev)"></span>
+                                                                <span class="vj-sj-tag" :class="'is-' + eventIconClass(ev)" x-text="sessionJourneyTag(ev)"></span>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -1855,7 +1866,7 @@
                                 <template x-for="item in eventSequence" :key="'seq-'+item.id">
                                     <div class="vj-seq-item">
                                         <div class="text-[11px] text-white/40" x-text="item.elapsed || item.elapsed_short"></div>
-                                        <span class="vj-ev-icon" :class="'is-' + (item.type || 'page')" style="margin-top:3px" x-html="eventTypeIconSvg(item.type || 'page')"></span>
+                                        <span class="vj-ev-icon" :class="'is-' + eventIconClass(item)" style="margin-top:3px" x-html="eventTypeIconSvg(eventIconClass(item))"></span>
                                         <div>
                                             <div class="text-white font-semibold" x-text="item.label"></div>
                                             <div class="text-[11px] text-white/40" x-text="item.kind || item.status"></div>
@@ -2102,16 +2113,48 @@ function visitorJourneyPage() {
             'Exited',
         ],
         eventFilter: 'all',
-        legendMenu: null,
-        eventLegendItems: [
-            { key: 'page', label: 'Page view' },
-            { key: 'scroll', label: 'Scroll' },
-            { key: 'cta', label: 'CTA click' },
-            { key: 'phone', label: 'Phone click' },
-            { key: 'form', label: 'Form submit' },
-            { key: 'exit', label: 'Exit' },
+        eventFilterOptions: [
+            { value: 'all', label: 'All events' },
+            { value: 'page', label: 'Page view' },
+            { value: 'scroll', label: 'Scroll' },
+            { value: 'cta', label: 'CTA click' },
+            { value: 'tel_click', label: 'Tel Link Clicked' },
+            { value: 'call_click', label: 'Call Button Clicked' },
+            { value: 'form_submit', label: 'Form Submitted' },
+            { value: 'form_submit_failed', label: 'Form Submission Failed' },
+            { value: 'email_click', label: 'Email Link Clicked' },
+            { value: 'zip_entered', label: 'ZIP Code Entered' },
+            { value: 'zip_checked', label: 'ZIP Check Completed' },
+            { value: 'chat_opened', label: 'Chat Opened' },
+            { value: 'chat_message_sent', label: 'Chat Message Sent' },
+            { value: 'add_to_cart', label: 'Add to Cart' },
+            { value: 'appointment_click', label: 'Appointment' },
+            { value: 'book_click', label: 'Book' },
+            { value: 'checkout', label: 'Checkout Started' },
+            { value: 'purchase', label: 'Purchase Completed' },
+            { value: 'provider_selected', label: 'Provider Selected' },
+            { value: 'pricing_viewed', label: 'Pricing Viewed' },
+            { value: 'navigation_menu_opened', label: 'Menu navigation' },
+            { value: 'exit', label: 'Exit' },
         ],
-        enabledEventTypes: ['page', 'scroll', 'cta', 'phone', 'form', 'exit'],
+        eventLegendItems: [
+            { key: 'page', label: 'Page view', icon: 'page' },
+            { key: 'scroll', label: 'Scroll', icon: 'scroll' },
+            { key: 'cta', label: 'CTA click', icon: 'cta' },
+            { key: 'tel_click', label: 'Tel link', icon: 'phone' },
+            { key: 'call_click', label: 'Call', icon: 'phone' },
+            { key: 'form_submit', label: 'Form', icon: 'form' },
+            { key: 'email_click', label: 'Email', icon: 'email' },
+            { key: 'chat_opened', label: 'Chat', icon: 'chat' },
+            { key: 'add_to_cart', label: 'Cart', icon: 'commerce' },
+            { key: 'exit', label: 'Exit', icon: 'exit' },
+        ],
+        enabledEventTypes: [
+            'page', 'scroll', 'cta', 'tel_click', 'call_click', 'form_submit', 'form_submit_failed',
+            'email_click', 'zip_entered', 'zip_checked', 'chat_opened', 'chat_message_sent',
+            'add_to_cart', 'appointment_click', 'book_click', 'checkout', 'purchase',
+            'provider_selected', 'pricing_viewed', 'navigation_menu_opened', 'exit',
+        ],
         timeScale: '30',
         selectedEvent: null,
         hoverEvent: null,
@@ -2633,16 +2676,56 @@ function visitorJourneyPage() {
         isEventSelected(row, ev) {
             return this.selected?.session_key === row.session_key && this.selectedEvent?.id === ev.id;
         },
+        eventFamilyKey(ev) {
+            let t = String(ev?.type || ev?.kind || '').toLowerCase();
+            if (t === 'session_exit' || t === 'session_end') return 'exit';
+            if (t === 'phone_click') {
+                const href = String(ev?.href || '').toLowerCase();
+                return /^(tel|callto|sms):/.test(href) || ev?.link_type === 'tel' ? 'tel_click' : 'call_click';
+            }
+            if (t === 'tel_click') return 'tel_click';
+            if (t === 'call_click') return 'call_click';
+            if (t === 'cta_click') return 'cta';
+            if (['form_submit', 'form_fill'].includes(t)) return 'form_submit';
+            if (t === 'form_submit_failed' || t === 'form_submission_failed') return 'form_submit_failed';
+            if (['form_start', 'form_view', 'form_field_focused', 'form_validation_failed'].includes(t)) return 'form_submit';
+            if (['email_click', 'mailto_click'].includes(t)) return 'email_click';
+            if (t === 'zip_entered') return 'zip_entered';
+            if (['zip_checked', 'zip_check', 'postal_check'].includes(t)) return 'zip_checked';
+            if (['chat_opened', 'chat_open', 'chat_started'].includes(t)) return 'chat_opened';
+            if (['chat_message_sent', 'chat_message', 'chat_sent'].includes(t)) return 'chat_message_sent';
+            if (t === 'add_to_cart') return 'add_to_cart';
+            if (['appointment_click', 'appointment'].includes(t)) return 'appointment_click';
+            if (['book_click', 'book'].includes(t)) return 'book_click';
+            if (['checkout', 'begin_checkout', 'initiate_checkout'].includes(t)) return 'checkout';
+            if (['purchase', 'sale', 'order', 'transaction', 'purchase_completed'].includes(t)) return 'purchase';
+            if (t === 'provider_selected') return 'provider_selected';
+            if (t === 'pricing_viewed') return 'pricing_viewed';
+            if (t === 'navigation_menu_opened') return 'navigation_menu_opened';
+            if (['page_view', 'page_change', 'meta', 'page'].includes(t)) return 'page';
+            if (t === 'scroll') return 'scroll';
+            return t || 'page';
+        },
+        eventIconClass(ev) {
+            const k = this.eventFamilyKey(ev);
+            if (k === 'cta') return 'cta';
+            if (k === 'tel_click' || k === 'call_click') return 'phone';
+            if (k === 'form_submit' || k === 'form_submit_failed') return 'form';
+            if (k === 'email_click') return 'email';
+            if (k === 'zip_entered' || k === 'zip_checked') return 'zip';
+            if (k === 'chat_opened' || k === 'chat_message_sent') return 'chat';
+            if (k === 'book_click' || k === 'appointment_click') return 'book';
+            if (k === 'add_to_cart' || k === 'checkout' || k === 'purchase') return 'commerce';
+            if (k === 'navigation_menu_opened' || k === 'pricing_viewed' || k === 'provider_selected') return 'nav';
+            if (k === 'exit') return 'exit';
+            if (k === 'scroll') return 'scroll';
+            return 'page';
+        },
         filteredEvents(row) {
             const list = row.timeline || [];
             const enabled = Array.isArray(this.enabledEventTypes) ? this.enabledEventTypes : [];
             return list.filter((e) => {
-                let t = String(e.type || e.kind || '').toLowerCase();
-                if (t === 'session_exit' || t === 'session_end') t = 'exit';
-                else if (['phone_click', 'tel_click', 'call_click', 'phone'].includes(t)) t = 'phone';
-                else if (t === 'cta_click') t = 'cta';
-                else if (['form_submit', 'form_start', 'form_fill'].includes(t)) t = 'form';
-                else if (['page_view', 'page_change', 'meta'].includes(t)) t = 'page';
+                const t = this.eventFamilyKey(e);
                 if (enabled.length && !enabled.includes(t)) return false;
                 if (this.eventFilter === 'all') return true;
                 return t === this.eventFilter;
@@ -2660,16 +2743,33 @@ function visitorJourneyPage() {
             if (k === 'cta') {
                 return `<svg ${common}><path d="M9 11l3 8 1.5-4.5L18 13z"/><path d="M4 4l5.5 5.5"/></svg>`;
             }
-            if (k === 'phone') {
+            if (k === 'phone' || k === 'tel_click' || k === 'call_click' || k === 'phone_click') {
                 return `<svg ${common}><path d="M6.5 3.5l2.2 1.1a1.5 1.5 0 01.8 1.7l-.6 2.3a1.5 1.5 0 00.4 1.4l2.4 2.4a1.5 1.5 0 001.4.4l2.3-.6a1.5 1.5 0 011.7.8l1.1 2.2a1.5 1.5 0 01-.8 1.9c-2.1 1-5.8.4-9-2.8s-3.8-6.9-2.8-9a1.5 1.5 0 011.9-.8z"/></svg>`;
             }
-            if (k === 'form') {
+            if (k === 'form' || k === 'form_submit' || k === 'form_submit_failed') {
                 return `<svg ${common}><path d="M8 4h8a2 2 0 012 2v14l-4-2-4 2V6a2 2 0 012-2z"/><path d="M10 9h4M10 13h4"/></svg>`;
+            }
+            if (k === 'email' || k === 'email_click') {
+                return `<svg ${common}><path d="M4 6h16v12H4z"/><path d="M4 7l8 6 8-6"/></svg>`;
+            }
+            if (k === 'zip' || k === 'zip_entered' || k === 'zip_checked') {
+                return `<svg ${common}><path d="M12 21s-7-4.5-7-11a7 7 0 0114 0c0 6.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>`;
+            }
+            if (k === 'chat' || k === 'chat_opened' || k === 'chat_message_sent') {
+                return `<svg ${common}><path d="M21 12a8 8 0 01-8 8H7l-4 3V12a8 8 0 018-8h2a8 8 0 018 8z"/></svg>`;
+            }
+            if (k === 'book' || k === 'appointment' || k === 'book_click' || k === 'appointment_click') {
+                return `<svg ${common}><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 11h18"/></svg>`;
+            }
+            if (k === 'nav' || k === 'navigation_menu_opened' || k === 'pricing_viewed' || k === 'provider_selected') {
+                return `<svg ${common}><path d="M4 7h16M4 12h16M4 17h16"/></svg>`;
+            }
+            if (k === 'commerce' || k === 'cart' || k === 'add_to_cart' || k === 'checkout' || k === 'purchase') {
+                return `<svg ${common}><circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/><path d="M3 4h2l2.4 11.2a2 2 0 002 1.6h7.4a2 2 0 001.9-1.5L21 8H7"/></svg>`;
             }
             if (k === 'exit' || k === 'session_exit' || k === 'session_end') {
                 return `<svg ${common}><path d="M10 17l5-5-5-5"/><path d="M15 12H4"/><path d="M20 4v16"/></svg>`;
             }
-            // page view (default)
             return `<svg ${common}><path d="M7 3h7l5 5v13a1 1 0 01-1 1H7a1 1 0 01-1-1V4a1 1 0 011-1z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg>`;
         },
         toggleEventType(key) {
@@ -2687,7 +2787,9 @@ function visitorJourneyPage() {
             }
         },
         resetEventTypes() {
-            this.enabledEventTypes = ['page', 'scroll', 'cta', 'phone', 'form', 'exit'];
+            this.enabledEventTypes = (this.eventFilterOptions || [])
+                .map((o) => o.value)
+                .filter((v) => v && v !== 'all');
             this.eventFilter = 'all';
         },
         eventLeftPct(ev, row = null) {

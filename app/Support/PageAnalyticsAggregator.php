@@ -466,8 +466,15 @@ class PageAnalyticsAggregator
             $ctaClicks = $pathHits['cta_or_form'] - $formFills;
         }
 
-        // Total Conversions = every conversion-funnel action (call, CTA, form, cart, checkout, purchase).
-        $totalConversions = $telClicks + $ctaClicks + $formFills + $carts + $checkouts + $purchases;
+        // Total Conversions = selected conversion-funnel actions (call, CTA, form, email, zip, chat,
+        // commerce, booking confirmed, provider). Attempt-only book/appointment clicks stay out.
+        $emailClicks = (int) ($recordingStats['email'] ?? 0);
+        $zipChecked = (int) ($recordingStats['zip_checked'] ?? 0);
+        $chatMessages = (int) ($recordingStats['chat_message'] ?? 0);
+        $bookingConfirmed = (int) ($recordingStats['booking_confirmed'] ?? 0);
+        $providerSelected = (int) ($recordingStats['provider_selected'] ?? 0);
+        $totalConversions = $telClicks + $ctaClicks + $formFills + $carts + $checkouts + $purchases
+            + $emailClicks + $zipChecked + $chatMessages + $bookingConfirmed + $providerSelected;
 
         // Valid Users = ad visitors who are not invalid/crawler.
         if ($validUsers === 0 && $human > 0 && ($buckets['paid'] ?? 0) === 0) {
@@ -597,7 +604,14 @@ class PageAnalyticsAggregator
                 ['key' => 'referral', 'label' => 'Referral/Backlinks', 'value' => (int) ($buckets['referral'] ?? 0), 'color' => '#FF6600'],
                 ['key' => 'paid', 'label' => 'Paid Search', 'value' => (int) ($buckets['paid'] ?? 0), 'color' => '#F43F5E'],
             ], $total),
-            'journey' => $this->buildJourney($sessions, $total),
+            'journey' => $this->buildJourney(
+                $sessions,
+                $total,
+                $domainIds,
+                $from,
+                $to,
+                $paidSessionIds,
+            ),
             'journey_summary' => [
                 'avg_session_duration' => $this->formatDuration($this->averageSessionSeconds($sessions)),
                 'sessions' => count($sessions),
@@ -611,6 +625,7 @@ class PageAnalyticsAggregator
                 'cta' => $ctaClicks,
                 'carts' => $carts,
                 'checkouts' => $checkouts,
+                'available_keys' => $this->domainFunnelAvailableKeys($domainIds),
             ])),
             'conversion_summary' => [
                 'rate' => number_format($conversionRate, 2).'%',
@@ -653,7 +668,7 @@ class PageAnalyticsAggregator
                     $from,
                     $to,
                     $hourly,
-                    $this->googleClicksByDay($domainIds, $metricFrom, $metricTo),
+                    $this->googleClicksByReportingDay($domainIds, $metricFrom, $metricTo, $reportingTz),
                     $reportingTz,
                     $sameDay,
                     $metricFrom,
@@ -1124,34 +1139,67 @@ class PageAnalyticsAggregator
      * @param  list<int>  $domainIds
      * @return array<string, int>
      */
-    private function googleClicksByDay(array $domainIds, string $fromDate, string $toDate): array
-    {
+    /**
+     * Google Ads clicks keyed by reporting-calendar day (aligned to chart labels).
+     * metric_date is stored in each domain's Ads account timezone — convert bounds
+     * so totals match Google Ads UI for the selected range.
+     *
+     * @param  list<int>  $domainIds
+     * @return array<string, int>
+     */
+    private function googleClicksByReportingDay(
+        array $domainIds,
+        string $reportFrom,
+        string $reportTo,
+        string $reportingTz,
+    ): array {
         if ($domainIds === [] || ! Schema::hasTable('google_ads_campaign_daily_metrics')) {
             return [];
         }
-        if ($fromDate === '' || $toDate === '') {
+        if ($reportFrom === '' || $reportTo === '') {
             return [];
         }
+        if (! UserTimezone::isValid($reportingTz)) {
+            $reportingTz = (string) config('app.timezone', 'UTC');
+        }
 
-        $rows = DB::table('google_ads_campaign_daily_metrics')
-            ->whereIn('domain_id', $domainIds)
-            ->whereBetween('metric_date', [$fromDate, $toDate])
-            ->when(
-                Schema::hasColumn('google_ads_campaign_daily_metrics', 'clicks'),
-                fn ($q) => $q->selectRaw('metric_date, SUM(clicks) as clicks'),
-                fn ($q) => $q->selectRaw('metric_date, 0 as clicks')
-            )
-            ->groupBy('metric_date')
-            ->orderBy('metric_date')
-            ->get();
+        $domains = Domain::query()
+            ->whereIn('id', $domainIds)
+            ->with('googleAdsAccount')
+            ->get()
+            ->keyBy('id');
 
         $map = [];
-        foreach ($rows as $row) {
-            $date = Carbon::parse((string) $row->metric_date)->toDateString();
-            $map[$date] = (int) ($row->clicks ?? 0);
+        $cursor = Carbon::parse($reportFrom, $reportingTz)->startOfDay();
+        $end = Carbon::parse($reportTo, $reportingTz)->startOfDay();
+        while ($cursor->lte($end)) {
+            $day = $cursor->toDateString();
+            $dayClicks = 0;
+            foreach ($domainIds as $domainId) {
+                $domain = $domains->get((int) $domainId);
+                $googleTz = UserTimezone::isValid($domain?->googleAdsAccount?->time_zone)
+                    ? $domain->googleAdsAccount->time_zone
+                    : $reportingTz;
+                [$gf, $gt] = UserTimezone::googleMetricDateBounds($day, $day, $reportingTz, $googleTz);
+                if (! Schema::hasColumn('google_ads_campaign_daily_metrics', 'clicks')) {
+                    continue;
+                }
+                $dayClicks += (int) DB::table('google_ads_campaign_daily_metrics')
+                    ->where('domain_id', (int) $domainId)
+                    ->whereBetween('metric_date', [$gf, $gt])
+                    ->sum('clicks');
+            }
+            $map[$day] = $dayClicks;
+            $cursor->addDay();
         }
 
         return $map;
+    }
+
+    /** @deprecated Use googleClicksByReportingDay */
+    private function googleClicksByDay(array $domainIds, string $fromDate, string $toDate): array
+    {
+        return $this->googleClicksByReportingDay($domainIds, $fromDate, $toDate, (string) config('app.timezone', 'UTC'));
     }
 
     /**
@@ -1227,10 +1275,16 @@ class PageAnalyticsAggregator
             ->whereIn('domain_id', $domainIds)
             ->whereBetween('occurred_at', [$from, $to])
             ->whereIn('event_type', [
-                'form_submit', 'cta_click', 'phone_click',
-                'add_to_cart', 'checkout', 'purchase',
-                'form_fill', 'form_start', 'tel_click', 'begin_checkout', 'sale', 'order', 'transaction',
-            ]);
+                'form_submit', 'form_fill', 'cta_click',
+                'phone_click', 'tel_click', 'call_click',
+                'email_click', 'mailto_click',
+                'zip_checked',
+                'chat_message_sent',
+                'add_to_cart', 'checkout', 'begin_checkout',
+                'purchase', 'sale', 'order', 'transaction',
+                'booking_confirmed', 'appointment_confirmed',
+                'provider_selected',
+            ]); // call_click + purchase success events included
 
         $paidSessionIds = collect($filters['paid_session_ids'] ?? [])
             ->map(fn ($id) => trim((string) $id))
@@ -1293,6 +1347,23 @@ class PageAnalyticsAggregator
             'checkouts' => 0,
             'product_views' => 0,
             'high_value_sessions' => [],
+            'email' => 0,
+            'zip_entered' => 0,
+            'zip_checked' => 0,
+            'chat_opened' => 0,
+            'chat_message' => 0,
+            'book' => 0,
+            'appointment' => 0,
+            'booking_confirmed' => 0,
+            'form_view' => 0,
+            'form_focus' => 0,
+            'form_start' => 0,
+            'form_validation_failed' => 0,
+            'form_submit_failed' => 0,
+            'provider_selected' => 0,
+            'pricing_viewed' => 0,
+            'nav_menu' => 0,
+            'search' => 0,
         ];
 
         if (! Schema::hasTable('visit_session_recordings')) {
@@ -1332,10 +1403,17 @@ class PageAnalyticsAggregator
                 ->whereIn('domain_id', $domainIds)
                 ->whereBetween('occurred_at', [$from, $to])
                 ->whereIn('event_type', [
-                    'form_submit', 'form_fill', 'form_start',
+                    'form_submit', 'form_fill', 'form_start', 'form_view', 'form_field_focused',
+                    'form_validation_failed', 'form_submit_failed',
                     'cta_click', 'phone_click', 'tel_click', 'call_click',
+                    'email_click', 'mailto_click',
+                    'zip_entered', 'zip_checked',
+                    'chat_opened', 'chat_message_sent',
+                    'book_click', 'appointment_click', 'booking_confirmed', 'appointment_confirmed',
                     'add_to_cart', 'checkout', 'begin_checkout',
                     'purchase', 'sale', 'order', 'transaction',
+                    'provider_selected', 'pricing_viewed',
+                    'navigation_menu_opened', 'search_used',
                 ]);
             if ($paidSessionIds !== [] && Schema::hasColumn('visit_behavior_events', 'session_id')) {
                 $eventQuery->whereIn('session_id', $paidSessionIds);
@@ -1352,7 +1430,7 @@ class PageAnalyticsAggregator
             $ctaFromEvents = (int) ($eventCounts['cta_click'] ?? 0);
             $telFromEvents = (int) ($eventCounts['phone_click'] ?? 0)
                 + (int) ($eventCounts['tel_click'] ?? 0)
-                + (int) ($eventCounts['call_click'] ?? 0);
+                + (int) ($eventCounts['call_click'] ?? 0); // Call Button Clicked
 
             // Also count tel: / call hrefs stored under generic click / cta when present.
             if ($eventQuery !== null && Schema::hasColumn('visit_behavior_events', 'href')) {
@@ -1415,6 +1493,24 @@ class PageAnalyticsAggregator
                 + (int) ($eventCounts['transaction'] ?? 0);
             $defaults['purchases'] = max($defaults['purchases'], $purchaseEvents);
             $defaults['transactions'] = max($defaults['transactions'], $defaults['purchases']);
+            $defaults['email'] = (int) ($eventCounts['email_click'] ?? 0) + (int) ($eventCounts['mailto_click'] ?? 0);
+            $defaults['zip_entered'] = (int) ($eventCounts['zip_entered'] ?? 0);
+            $defaults['zip_checked'] = (int) ($eventCounts['zip_checked'] ?? 0);
+            $defaults['chat_opened'] = (int) ($eventCounts['chat_opened'] ?? 0);
+            $defaults['chat_message'] = (int) ($eventCounts['chat_message_sent'] ?? 0);
+            $defaults['book'] = (int) ($eventCounts['book_click'] ?? 0);
+            $defaults['appointment'] = (int) ($eventCounts['appointment_click'] ?? 0);
+            $defaults['booking_confirmed'] = (int) ($eventCounts['booking_confirmed'] ?? 0)
+                + (int) ($eventCounts['appointment_confirmed'] ?? 0);
+            $defaults['form_view'] = (int) ($eventCounts['form_view'] ?? 0);
+            $defaults['form_focus'] = (int) ($eventCounts['form_field_focused'] ?? 0);
+            $defaults['form_start'] = (int) ($eventCounts['form_start'] ?? 0);
+            $defaults['form_validation_failed'] = (int) ($eventCounts['form_validation_failed'] ?? 0);
+            $defaults['form_submit_failed'] = (int) ($eventCounts['form_submit_failed'] ?? 0);
+            $defaults['provider_selected'] = (int) ($eventCounts['provider_selected'] ?? 0);
+            $defaults['pricing_viewed'] = (int) ($eventCounts['pricing_viewed'] ?? 0);
+            $defaults['nav_menu'] = (int) ($eventCounts['navigation_menu_opened'] ?? 0);
+            $defaults['search'] = (int) ($eventCounts['search_used'] ?? 0);
         }
 
         // Journey / lite callers: SUM columns + behavior events are enough — skip decoding up to 2k JSON blobs.
@@ -1678,18 +1774,31 @@ class PageAnalyticsAggregator
             ->all();
     }
 
-    /** @param  array<string, array{events:list<array{path:string,at:mixed}>,pages:list<string>,first_at:mixed,last_at:mixed}>  $sessions */
-    private function buildJourney(array $sessions, int $total): array
-    {
+    /**
+     * @param  array<string, array{events:list<array{path:string,at:mixed}>,pages:list<string>,first_at:mixed,last_at:mixed}>  $sessions
+     * @param  list<int>  $domainIds
+     * @param  list<string>  $paidSessionIds
+     */
+    private function buildJourney(
+        array $sessions,
+        int $total,
+        array $domainIds = [],
+        ?Carbon $from = null,
+        ?Carbon $to = null,
+        array $paidSessionIds = [],
+    ): array {
+        $actionBySession = $this->journeyActionSessions($domainIds, $from, $to, $paidSessionIds);
+
         $steps = [
             'Landing Page' => ['count' => 0, 'secs' => []],
             'Next Page' => ['count' => 0, 'secs' => []],
             'Product / Content' => ['count' => 0, 'secs' => []],
-            'CTA / Form' => ['count' => 0, 'secs' => []],
+            'CTA Click' => ['count' => 0, 'secs' => []],
+            'Call / Form' => ['count' => 0, 'secs' => []],
             'Exit Page' => ['count' => 0, 'secs' => []],
         ];
 
-        foreach ($sessions as $session) {
+        foreach ($sessions as $sessionKey => $session) {
             $events = $session['events'] ?? [];
             usort($events, function ($a, $b) {
                 return strcmp((string) ($a['at'] ?? ''), (string) ($b['at'] ?? ''));
@@ -1723,31 +1832,51 @@ class PageAnalyticsAggregator
                 $steps['Product / Content']['secs'][] = $dwellAt(2);
             }
 
-            // CTA / Form = sessions that actually hit a form/CTA-like page (not "4th page" heuristic).
-            $ctaIdx = null;
+            $sid = trim((string) $sessionKey);
+            $actions = $actionBySession[$sid] ?? ['cta' => false, 'call' => false, 'form' => false, 'exit' => false];
+
+            // Path fallback when typed events are missing for this session.
+            $ctaPathIdx = null;
+            $callFormPathIdx = null;
             foreach ($events as $idx => $ev) {
                 $path = (string) ($ev['path'] ?? '');
-                if ($this->looksLikeCtaOrFormPath($path) || $this->looksLikeConversionPath($path)) {
-                    $ctaIdx = (int) $idx;
-                    break;
+                if ($ctaPathIdx === null && $this->looksLikeCtaPath($path)) {
+                    $ctaPathIdx = (int) $idx;
+                }
+                if ($callFormPathIdx === null && ($this->looksLikeFormPath($path) || $this->looksLikeTelPath($path))) {
+                    $callFormPathIdx = (int) $idx;
                 }
             }
-            if ($ctaIdx !== null) {
-                $steps['CTA / Form']['count']++;
-                $steps['CTA / Form']['secs'][] = $dwellAt($ctaIdx);
+
+            if ($actions['cta'] || $ctaPathIdx !== null) {
+                $steps['CTA Click']['count']++;
+                $steps['CTA Click']['secs'][] = $dwellAt($ctaPathIdx ?? max(0, $count - 1));
+            }
+            if ($actions['call'] || $actions['form'] || $callFormPathIdx !== null) {
+                $steps['Call / Form']['count']++;
+                $steps['Call / Form']['secs'][] = $dwellAt($callFormPathIdx ?? max(0, $count - 1));
             }
 
+            // Exit Page = session end (always present once a session started).
             $exitIdx = $count - 1;
             $steps['Exit Page']['count']++;
             $steps['Exit Page']['secs'][] = $dwellAt($exitIdx);
         }
 
         $labels = array_keys($steps);
-        $prev = max(1, count($sessions) ?: $total);
+        $sessionTotal = max(1, count($sessions) ?: $total);
+        $prev = $sessionTotal;
         $rows = [];
         foreach ($labels as $label) {
             $visitors = (int) ($steps[$label]['count'] ?? 0);
-            $drop = $prev > 0 ? max(0, (int) round((1 - ($visitors / $prev)) * 100)) : 0;
+            // Non-monotonic steps (e.g. Exit ≈ Landing after sparse CTA) → 0% drop-off, don't inflate prev.
+            if ($label === 'Exit Page') {
+                $drop = 0;
+            } elseif ($visitors <= $prev) {
+                $drop = $prev > 0 ? max(0, (int) round((1 - ($visitors / $prev)) * 100)) : 0;
+            } else {
+                $drop = 0;
+            }
             $secs = array_filter($steps[$label]['secs'] ?? [], fn ($s) => $s > 0);
             $avgSec = $secs !== [] ? (int) round(array_sum($secs) / count($secs)) : 0;
             $rows[] = [
@@ -1757,12 +1886,81 @@ class PageAnalyticsAggregator
                 'visitors' => $visitors,
                 'dropoff' => $drop,
                 'avg_time' => sprintf('%d:%02d', intdiv(max(0, $avgSec), 60), max(0, $avgSec) % 60),
-                'pct' => $this->pct($visitors, max(1, count($sessions) ?: $total)),
+                'pct' => $this->pct($visitors, $sessionTotal),
             ];
-            $prev = max(1, $visitors);
+            if ($label !== 'Exit Page' && $visitors > 0 && $visitors <= $prev) {
+                $prev = max(1, $visitors);
+            }
         }
 
         return $rows;
+    }
+
+    /**
+     * Per-session CTA / call / form / exit flags from typed behavior events.
+     *
+     * @param  list<int>  $domainIds
+     * @param  list<string>  $paidSessionIds
+     * @return array<string, array{cta:bool,call:bool,form:bool,exit:bool}>
+     */
+    private function journeyActionSessions(
+        array $domainIds,
+        ?Carbon $from,
+        ?Carbon $to,
+        array $paidSessionIds = [],
+    ): array {
+        if ($domainIds === [] || $from === null || $to === null || ! Schema::hasTable('visit_behavior_events')) {
+            return [];
+        }
+        if (! Schema::hasColumn('visit_behavior_events', 'session_id')) {
+            return [];
+        }
+
+        try {
+            $q = DB::table('visit_behavior_events')
+                ->whereIn('domain_id', $domainIds)
+                ->whereBetween('occurred_at', [$from, $to])
+                ->whereIn('event_type', [
+                    'cta_click',
+                    'phone_click', 'tel_click', 'call_click',
+                    'form_submit', 'form_fill', 'form_start',
+                    'session_exit', 'exit',
+                ])
+                ->whereNotNull('session_id')
+                ->where('session_id', '!=', '');
+            if ($paidSessionIds !== []) {
+                $q->whereIn('session_id', $paidSessionIds);
+            }
+
+            $rows = $q->select(['session_id', 'event_type'])->get();
+        } catch (\Throwable $e) {
+            report($e);
+
+            return [];
+        }
+
+        $out = [];
+        foreach ($rows as $row) {
+            $sid = trim((string) ($row->session_id ?? ''));
+            if ($sid === '') {
+                continue;
+            }
+            if (! isset($out[$sid])) {
+                $out[$sid] = ['cta' => false, 'call' => false, 'form' => false, 'exit' => false];
+            }
+            $type = strtolower((string) ($row->event_type ?? ''));
+            if ($type === 'cta_click') {
+                $out[$sid]['cta'] = true;
+            } elseif (in_array($type, ['phone_click', 'tel_click', 'call_click'], true)) {
+                $out[$sid]['call'] = true;
+            } elseif (in_array($type, ['form_submit', 'form_fill', 'form_start'], true)) {
+                $out[$sid]['form'] = true;
+            } elseif (in_array($type, ['session_exit', 'exit'], true)) {
+                $out[$sid]['exit'] = true;
+            }
+        }
+
+        return $out;
     }
 
     /**
@@ -1817,7 +2015,80 @@ class PageAnalyticsAggregator
             ->all();
     }
 
-    /** @param  array{purchases?:int,revenue?:float,transactions?:int,trend?:list<int>,cta?:int,tel?:int,forms?:int,carts?:int,checkouts?:int,product_views?:int}  $stats */
+    /**
+     * Funnel keys this domain supports (seen in 90d behavior history on the site).
+     *
+     * @param  list<int>  $domainIds
+     * @return list<string>
+     */
+    private function domainFunnelAvailableKeys(array $domainIds): array
+    {
+        $core = ['views', 'cta', 'tel', 'form'];
+        if ($domainIds === [] || ! Schema::hasTable('visit_behavior_events')) {
+            return $core;
+        }
+
+        $typeMap = [
+            'cta_click' => 'cta',
+            'phone_click' => 'tel',
+            'tel_click' => 'tel',
+            'call_click' => 'tel', // Call button + tel link both feed Call Clicks funnel key
+            'form_submit' => 'form',
+            'form_fill' => 'form',
+            'form_start' => 'form_start',
+            'form_view' => 'form_view',
+            'form_field_focused' => 'form_focus',
+            'form_validation_failed' => 'form_validation_failed',
+            'form_submit_failed' => 'form_submit_failed',
+            'email_click' => 'email',
+            'mailto_click' => 'email',
+            'zip_entered' => 'zip_entered',
+            'zip_checked' => 'zip_checked',
+            'chat_opened' => 'chat_opened',
+            'chat_message_sent' => 'chat_message',
+            'book_click' => 'book',
+            'appointment_click' => 'appointment',
+            'booking_confirmed' => 'booking_confirmed',
+            'appointment_confirmed' => 'booking_confirmed',
+            'add_to_cart' => 'cart',
+            'checkout' => 'checkout',
+            'begin_checkout' => 'checkout',
+            'purchase' => 'purchase',
+            'sale' => 'purchase',
+            'order' => 'purchase',
+            'transaction' => 'purchase',
+            'provider_selected' => 'provider_selected',
+            'pricing_viewed' => 'pricing_viewed',
+            'navigation_menu_opened' => 'nav_menu',
+            'search_used' => 'search',
+        ];
+
+        try {
+            $types = DB::table('visit_behavior_events')
+                ->whereIn('domain_id', $domainIds)
+                ->where('occurred_at', '>=', now('UTC')->subDays(90))
+                ->whereIn('event_type', array_keys($typeMap))
+                ->distinct()
+                ->pluck('event_type')
+                ->all();
+        } catch (\Throwable $e) {
+            report($e);
+
+            return $core;
+        }
+
+        $keys = $core;
+        foreach ($types as $type) {
+            $key = $typeMap[(string) $type] ?? null;
+            if ($key !== null && ! in_array($key, $keys, true)) {
+                $keys[] = $key;
+            }
+        }
+
+        return $keys;
+    }
+
+    /** @param  array<string, mixed>  $stats */
     private function buildFunnel(int $total, array $stats): array
     {
         $productViews = (int) ($stats['product_views'] ?? 0);
@@ -1827,9 +2098,12 @@ class PageAnalyticsAggregator
         $forms = (int) ($stats['forms'] ?? 0);
         $cta = (int) ($stats['cta'] ?? 0);
         $tel = (int) ($stats['tel'] ?? 0);
+        $available = collect($stats['available_keys'] ?? [])->map(fn ($k) => (string) $k)->filter()->unique()->values()->all();
 
-        // Only shape an ecommerce spine when this domain actually has commerce activity.
-        $hasCommerce = $cart > 0 || $checkout > 0 || $purchase > 0;
+        $hasCommerce = $cart > 0 || $checkout > 0 || $purchase > 0
+            || in_array('cart', $available, true)
+            || in_array('checkout', $available, true)
+            || in_array('purchase', $available, true);
         if ($hasCommerce) {
             if ($checkout > $cart && $cart === 0) {
                 $cart = $checkout;
@@ -1839,45 +2113,57 @@ class PageAnalyticsAggregator
             }
         }
 
-        // Product sites → Product Views; everyone else → Page Views (not inflated "Visitors").
         $views = ($hasCommerce && $productViews > 0) ? $productViews : max(0, $total);
         $viewsLabel = $hasCommerce ? 'Product Views' : 'Page Views';
 
-        $candidates = [
-            [
-                'key' => 'views',
-                'label' => $viewsLabel,
-                'value' => $views,
-                'counts_toward_conversions' => false,
-            ],
+        $catalog = [
+            ['key' => 'views', 'label' => $viewsLabel, 'value' => $views, 'counts_toward_conversions' => false],
+            ['key' => 'cta', 'label' => 'CTA Clicks', 'value' => $cta, 'counts_toward_conversions' => true],
+            ['key' => 'tel', 'label' => 'Call Clicks / Tel Link', 'value' => $tel, 'counts_toward_conversions' => true],
+            ['key' => 'email', 'label' => 'Email Link Clicked', 'value' => (int) ($stats['email'] ?? 0), 'counts_toward_conversions' => true],
+            ['key' => 'form_view', 'label' => 'Form Opened', 'value' => (int) ($stats['form_view'] ?? 0), 'counts_toward_conversions' => false],
+            ['key' => 'form_focus', 'label' => 'Form Field Focused', 'value' => (int) ($stats['form_focus'] ?? 0), 'counts_toward_conversions' => false],
+            ['key' => 'form_start', 'label' => 'Form Started', 'value' => (int) ($stats['form_start'] ?? 0), 'counts_toward_conversions' => false],
+            ['key' => 'form_validation_failed', 'label' => 'Form Validation Failed', 'value' => (int) ($stats['form_validation_failed'] ?? 0), 'counts_toward_conversions' => false],
+            ['key' => 'form', 'label' => 'Form Submitted', 'value' => $forms, 'counts_toward_conversions' => true],
+            ['key' => 'form_submit_failed', 'label' => 'Form Submission Failed', 'value' => (int) ($stats['form_submit_failed'] ?? 0), 'counts_toward_conversions' => false],
+            ['key' => 'zip_entered', 'label' => 'ZIP Code Entered', 'value' => (int) ($stats['zip_entered'] ?? 0), 'counts_toward_conversions' => false],
+            ['key' => 'zip_checked', 'label' => 'ZIP Check Completed', 'value' => (int) ($stats['zip_checked'] ?? 0), 'counts_toward_conversions' => true],
+            ['key' => 'chat_opened', 'label' => 'Chat Opened', 'value' => (int) ($stats['chat_opened'] ?? 0), 'counts_toward_conversions' => false],
+            ['key' => 'chat_message', 'label' => 'Chat Message Sent', 'value' => (int) ($stats['chat_message'] ?? 0), 'counts_toward_conversions' => true],
+            ['key' => 'cart', 'label' => 'Add to Cart', 'value' => $cart, 'counts_toward_conversions' => true],
+            ['key' => 'appointment', 'label' => 'Appointment Clicked', 'value' => (int) ($stats['appointment'] ?? 0), 'counts_toward_conversions' => false],
+            ['key' => 'book', 'label' => 'Book Clicked', 'value' => (int) ($stats['book'] ?? 0), 'counts_toward_conversions' => false],
+            ['key' => 'checkout', 'label' => 'Checkout Started', 'value' => $checkout, 'counts_toward_conversions' => true],
+            ['key' => 'purchase', 'label' => 'Purchase Completed', 'value' => $purchase, 'counts_toward_conversions' => true],
+            ['key' => 'booking_confirmed', 'label' => 'Booking Confirmed', 'value' => (int) ($stats['booking_confirmed'] ?? 0), 'counts_toward_conversions' => true],
+            ['key' => 'provider_selected', 'label' => 'Provider Selected', 'value' => (int) ($stats['provider_selected'] ?? 0), 'counts_toward_conversions' => true],
+            ['key' => 'pricing_viewed', 'label' => 'Pricing Viewed', 'value' => (int) ($stats['pricing_viewed'] ?? 0), 'counts_toward_conversions' => false],
+            ['key' => 'nav_menu', 'label' => 'Navigation Menu Opened', 'value' => (int) ($stats['nav_menu'] ?? 0), 'counts_toward_conversions' => false],
+            ['key' => 'search', 'label' => 'Search Used', 'value' => (int) ($stats['search'] ?? 0), 'counts_toward_conversions' => false],
         ];
-        // Commerce steps: always list when domain has commerce activity (incl. zeros for menu).
-        if ($hasCommerce) {
-            $candidates[] = ['key' => 'cart', 'label' => 'Add to Cart', 'value' => $cart, 'counts_toward_conversions' => true];
-            $candidates[] = ['key' => 'checkout', 'label' => 'Initiated Checkout', 'value' => $checkout, 'counts_toward_conversions' => true];
-            $candidates[] = ['key' => 'purchase', 'label' => 'Purchases', 'value' => $purchase, 'counts_toward_conversions' => true];
-        }
-        // Always surface CTA / call / form in catalog so customers can toggle them.
-        $candidates[] = ['key' => 'cta', 'label' => 'CTA Clicks', 'value' => $cta, 'counts_toward_conversions' => true];
-        $candidates[] = ['key' => 'tel', 'label' => 'Call Clicks', 'value' => $tel, 'counts_toward_conversions' => true];
-        $candidates[] = ['key' => 'form', 'label' => 'Form Fills', 'value' => $forms, 'counts_toward_conversions' => true];
 
-        // Keep core steps always; keep commerce/form when they exist or have history on this site.
+        // Domain-specific: only show actions available on this site (history) or with activity in range.
+        // Core views/cta/tel always stay so the selector is never empty.
+        $always = ['views', 'cta', 'tel'];
         $steps = array_values(array_filter(
-            $candidates,
-            static function (array $s) use ($hasCommerce, $forms): bool {
+            $catalog,
+            static function (array $s) use ($available, $always, $forms, $hasCommerce): bool {
                 $key = (string) ($s['key'] ?? '');
-                if (in_array($key, ['views', 'cta', 'tel'], true)) {
+                if (in_array($key, $always, true)) {
                     return true;
                 }
-                if ($key === 'form') {
-                    return $forms > 0 || $hasCommerce;
+                if ($key === 'form' && ($forms > 0 || in_array('form', $available, true) || $hasCommerce)) {
+                    return true;
                 }
-                if (in_array($key, ['cart', 'checkout', 'purchase'], true)) {
-                    return $hasCommerce;
+                if ((int) ($s['value'] ?? 0) > 0) {
+                    return true;
+                }
+                if ($available === []) {
+                    return in_array($key, ['form', 'cart', 'checkout', 'purchase'], true) && $hasCommerce;
                 }
 
-                return (int) ($s['value'] ?? 0) > 0;
+                return in_array($key, $available, true);
             }
         ));
         if ($steps === []) {

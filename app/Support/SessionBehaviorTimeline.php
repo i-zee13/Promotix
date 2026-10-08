@@ -132,18 +132,19 @@ class SessionBehaviorTimeline
             }
 
             if (
-                in_array($type, ['phone_click', 'tel_click'], true)
+                in_array($type, ['phone_click', 'tel_click', 'call_click'], true)
                 || ($type === 'click' && SessionClickClassifier::classifyClickEvent($raw)['tel'])
             ) {
                 $text = trim((string) ($raw['element_text'] ?? $raw['text'] ?? ''));
                 $href = trim((string) ($raw['href'] ?? ''));
                 $tel = trim((string) ($raw['tel_number'] ?? preg_replace('/^(tel|callto|sms):/i', '', $href)));
+                $isTelLink = SessionClickClassifier::isTelHref($href) || $type === 'tel_click';
                 $rows[] = array_merge($base, [
-                    'label' => 'Phone Click',
-                    'detail' => ($text !== '' ? $text.' → ' : '').($tel !== '' ? $tel : ($href !== '' ? $href : 'tel:')),
+                    'label' => $isTelLink ? 'Tel Link Clicked' : 'Call Button Clicked',
+                    'detail' => ($text !== '' ? $text.' → ' : '').($tel !== '' ? $tel : ($href !== '' ? $href : 'call')),
                     'kind' => 'phone',
-                    'type' => 'phone_click',
-                    'link_type' => 'tel',
+                    'type' => $isTelLink ? 'tel_click' : 'call_click',
+                    'link_type' => $isTelLink ? 'tel' : 'call',
                     'tel_number' => $tel !== '' ? $tel : null,
                     'element_text' => $text !== '' ? $text : null,
                     'href' => $href !== '' ? $href : null,
@@ -232,6 +233,144 @@ class SessionBehaviorTimeline
                 continue;
             }
 
+            if (in_array($type, ['chat_message_sent', 'chat_message', 'chat_sent'], true)) {
+                $rows[] = array_merge($base, [
+                    'label' => 'Chat Message Sent',
+                    'detail' => trim((string) ($raw['element_text'] ?? $raw['message'] ?? 'message')),
+                    'kind' => 'cta',
+                    'type' => 'chat_message_sent',
+                ]);
+
+                continue;
+            }
+
+            if (in_array($type, ['book_click', 'book'], true)) {
+                $rows[] = array_merge($base, [
+                    'label' => 'Book Clicked',
+                    'detail' => trim((string) ($raw['element_text'] ?? 'book')).' · attempt',
+                    'kind' => 'cta',
+                    'type' => 'book_click',
+                    'success' => false,
+                ]);
+
+                continue;
+            }
+
+            if (in_array($type, ['appointment_click', 'appointment'], true)) {
+                $rows[] = array_merge($base, [
+                    'label' => 'Appointment Clicked',
+                    'detail' => trim((string) ($raw['element_text'] ?? 'appointment')).' · attempt',
+                    'kind' => 'cta',
+                    'type' => 'appointment_click',
+                    'success' => false,
+                ]);
+
+                continue;
+            }
+
+            if (in_array($type, ['booking_confirmed', 'booked'], true)) {
+                $rows[] = array_merge($base, [
+                    'label' => 'Booking Confirmed',
+                    'detail' => trim((string) ($raw['order_id'] ?? $raw['element_text'] ?? 'confirmed')),
+                    'kind' => 'commerce',
+                    'type' => 'booking_confirmed',
+                    'success' => true,
+                ]);
+
+                continue;
+            }
+
+            if ($type === 'appointment_confirmed') {
+                $rows[] = array_merge($base, [
+                    'label' => 'Appointment Confirmed',
+                    'detail' => trim((string) ($raw['order_id'] ?? $raw['element_text'] ?? 'confirmed')),
+                    'kind' => 'commerce',
+                    'type' => 'appointment_confirmed',
+                    'success' => true,
+                ]);
+
+                continue;
+            }
+
+            if (in_array($type, ['form_field_focused', 'form_opened'], true)) {
+                $rows[] = array_merge($base, [
+                    'label' => 'Form Field Focused',
+                    'detail' => trim((string) ($raw['field_name'] ?? self::formDetail($raw))),
+                    'kind' => 'form',
+                    'type' => 'form_field_focused',
+                ]);
+
+                continue;
+            }
+
+            if ($type === 'form_validation_failed') {
+                $rows[] = array_merge($base, [
+                    'label' => 'Form Validation Failed',
+                    'detail' => trim((string) ($raw['field_name'] ?? self::formDetail($raw))),
+                    'kind' => 'form',
+                    'type' => 'form_validation_failed',
+                    'success' => false,
+                ]);
+
+                continue;
+            }
+
+            if (in_array($type, ['form_submit_failed', 'form_submission_failed'], true)) {
+                $rows[] = array_merge($base, [
+                    'label' => 'Form Submission Failed',
+                    'detail' => self::formDetail($raw),
+                    'kind' => 'form',
+                    'type' => 'form_submit_failed',
+                    'success' => false,
+                ]);
+
+                continue;
+            }
+
+            if ($type === 'zip_entered') {
+                $rows[] = array_merge($base, [
+                    'label' => 'ZIP Entered',
+                    'detail' => trim((string) ($raw['zip_code'] ?? 'zip')),
+                    'kind' => 'form',
+                    'type' => 'zip_entered',
+                ]);
+
+                continue;
+            }
+
+            if ($type === 'provider_selected') {
+                $rows[] = array_merge($base, [
+                    'label' => 'Provider Selected',
+                    'detail' => trim((string) ($raw['provider'] ?? $raw['value'] ?? 'provider')),
+                    'kind' => 'form',
+                    'type' => 'provider_selected',
+                ]);
+
+                continue;
+            }
+
+            if ($type === 'navigation_menu_opened') {
+                $rows[] = array_merge($base, [
+                    'label' => 'Navigation Menu Opened',
+                    'detail' => trim((string) ($raw['element_text'] ?? 'menu')),
+                    'kind' => 'page',
+                    'type' => 'navigation_menu_opened',
+                ]);
+
+                continue;
+            }
+
+            if ($type === 'search_used') {
+                $rows[] = array_merge($base, [
+                    'label' => 'Search Used',
+                    'detail' => trim((string) ($raw['element_text'] ?? 'search')),
+                    'kind' => 'page',
+                    'type' => 'search_used',
+                ]);
+
+                continue;
+            }
+
             if (in_array($type, ['pricing_viewed', 'provider_viewed', 'availability_viewed'], true)) {
                 $rows[] = array_merge($base, [
                     'label' => match ($type) {
@@ -274,7 +413,7 @@ class SessionBehaviorTimeline
             if (in_array($type, ['form_submit', 'form_fill'], true)) {
                 $success = array_key_exists('success', $raw) ? ((bool) $raw['success'] ? 'success' : 'failed') : '';
                 $rows[] = array_merge($base, [
-                    'label' => 'Form Submit',
+                    'label' => 'Form Submitted',
                     'detail' => trim(self::formDetail($raw).($success !== '' ? ' · '.$success : '')),
                     'kind' => 'form',
                     'type' => 'form_submit',
@@ -298,9 +437,9 @@ class SessionBehaviorTimeline
                 continue;
             }
 
-            if ($type === 'checkout') {
+            if (in_array($type, ['checkout', 'begin_checkout', 'initiate_checkout'], true)) {
                 $rows[] = array_merge($base, [
-                    'label' => 'Checkout',
+                    'label' => 'Checkout Started',
                     'detail' => self::commerceDetail($raw),
                     'kind' => 'commerce',
                     'type' => 'checkout',
@@ -309,9 +448,9 @@ class SessionBehaviorTimeline
                 continue;
             }
 
-            if (in_array($type, ['purchase', 'sale'], true)) {
+            if (in_array($type, ['purchase', 'sale', 'order', 'transaction', 'purchase_completed'], true)) {
                 $rows[] = array_merge($base, [
-                    'label' => 'Purchase',
+                    'label' => 'Purchase Completed',
                     'detail' => self::commerceDetail($raw),
                     'kind' => 'commerce',
                     'type' => 'purchase',

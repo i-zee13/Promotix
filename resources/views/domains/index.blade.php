@@ -51,8 +51,8 @@
 
         {{-- Domains table --}}
         <div class="overflow-hidden rounded-[10px] border border-white/20 bg-[#151515]">
-            <div class="overflow-x-auto">
-                <table class="w-full min-w-[760px] border-collapse text-left text-[12px]">
+            <div class="figma-sa-table-scroll overflow-x-auto">
+                <table class="figma-domains-table w-full min-w-[860px] border-collapse text-left text-[12px]">
                     <thead>
                         <tr class="border-b border-white/15 bg-[#1a1a1a] text-[11px] font-semibold uppercase tracking-wide text-[#a9a9a9]">
                             <th class="px-[16px] py-[12px]">Domain</th>

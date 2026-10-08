@@ -78,133 +78,214 @@
 >
     <section class="mx-auto w-full max-w-[1120px] px-[18px] pb-[28px] pt-[28px] sm:px-[22px] xl:max-w-none xl:px-[24px] xl:pt-[68px]">
         <style>
-            .figma-filter-bar--detection {
-                width: 100% !important;
-                max-width: 100% !important;
-                margin-left: 0;
-                display: flex !important;
-                flex-wrap: wrap !important;
-                align-items: stretch;
-                gap: 0 !important;
-                row-gap: 0;
-                overflow: visible;
-                box-sizing: border-box;
-            }
             .detection-page-head {
+                display: flex;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 14px;
                 width: 100%;
                 min-width: 0;
+                max-width: 100%;
             }
-            @container figma-main (min-width: 1400px) {
-                .detection-page-head {
-                    flex-direction: row;
-                    align-items: center;
-                    justify-content: space-between;
-                }
-                .figma-filter-bar--detection {
-                    width: fit-content !important;
-                    max-width: min(100%, 920px) !important;
-                    margin-left: auto;
-                }
+            .detection-page-head__title {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 12px;
+                flex-shrink: 0;
+                min-width: 0;
             }
-            .figma-filter-bar--detection > label {
-                flex: 1 1 0 !important;
-                width: auto !important;
+            /* Beat global overview nowrap / fit-content that cause overlap */
+            .figma-filter-bar.figma-filter-bar--overview.figma-filter-bar--detection.ov-filter-bar,
+            .figma-filter-bar--detection {
+                display: grid !important;
+                grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
+                align-items: stretch;
+                gap: 0 !important;
+                row-gap: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                min-width: 0 !important;
+                margin-left: 0 !important;
+                flex-wrap: unset !important;
+                overflow: visible !important;
+                box-sizing: border-box;
+                min-height: 0 !important;
+            }
+            .figma-filter-bar--detection > label,
+            .figma-filter-bar--detection > .figma-filter-calendar-host {
+                display: flex !important;
+                flex-direction: column;
+                justify-content: flex-end;
+                align-items: stretch;
+                gap: 3px;
                 min-width: 0 !important;
                 max-width: none !important;
-                padding-left: 6px !important;
-                padding-right: 6px !important;
+                width: auto !important;
+                flex: unset !important;
+                margin: 0 !important;
+                padding: 8px !important;
                 box-sizing: border-box;
+                position: relative;
+                overflow: visible;
+                border-right: 1px solid rgba(0, 0, 0, 0.2);
+                border-left: 0 !important;
+                border-top: 0 !important;
             }
-            .figma-filter-bar--detection > label > span:first-child {
-                font-size: clamp(6px, 0.7cqi, 8px) !important;
-                white-space: nowrap;
-                overflow: hidden;
+            .figma-filter-bar--detection > .figma-filter-calendar-host {
+                border-right: 0;
+                align-items: center;
+                justify-content: flex-end;
+                padding-left: 10px !important;
+                padding-right: 10px !important;
+                min-width: 0 !important;
+                width: auto !important;
+            }
+            .figma-filter-bar--detection > label > span:first-child,
+            .figma-filter-bar--detection .figma-filter-calendar-host > span:first-child {
+                display: block !important;
+                position: static !important;
+                width: auto !important;
+                height: auto !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: hidden !important;
+                clip: auto !important;
+                clip-path: none !important;
+                white-space: nowrap !important;
                 text-overflow: ellipsis;
+                font-size: 8px !important;
+                font-weight: 600 !important;
+                letter-spacing: 0.03em;
+                text-transform: uppercase;
+                line-height: 1.2;
+                color: rgba(0, 0, 0, 0.55) !important;
             }
             .figma-filter-bar--detection .figma-filter-select-wrap,
             .figma-filter-bar--detection .figma-filter-control,
             .figma-filter-bar--detection .figma-filter-path-wrap {
                 box-sizing: border-box !important;
-                height: 23px !important;
-                min-height: 23px !important;
-                min-width: 0 !important;
                 width: 100% !important;
-                font-size: clamp(8px, 0.95cqi, 11px) !important;
+                min-width: 0 !important;
+                height: 28px !important;
+                min-height: 28px !important;
+                max-height: 28px !important;
+                font-size: 11px !important;
+            }
+            .figma-filter-bar--detection .figma-filter-select-wrap {
+                display: flex !important;
+                align-items: center;
+                padding-top: 0 !important;
+                padding-bottom: 0 !important;
             }
             .figma-filter-bar--detection .figma-filter-select-wrap span {
                 overflow: hidden;
                 text-overflow: ellipsis;
                 white-space: nowrap;
             }
-            .figma-filter-bar--detection .figma-filter-calendar-host {
+            .figma-filter-bar--detection .figma-filter-path-wrap {
+                position: relative;
                 display: flex;
-                flex: 0 0 auto !important;
-                flex-shrink: 0 !important;
                 align-items: center;
-                justify-content: center;
-                align-self: stretch;
-                border-left: 1px solid rgba(0, 0, 0, 0.2);
-                padding: 6px 8px;
-                margin: 0;
-                box-sizing: border-box;
             }
+            .figma-filter-bar--detection .figma-filter-path-wrap .figma-filter-control {
+                height: 28px !important;
+            }
+            .figma-filter-bar--detection .figma-filter-calendar-btn,
             .figma-filter-bar--detection .figma-filter-calendar-btn--responsive {
-                height: 30px !important;
-                min-height: 30px !important;
-                width: 30px !important;
-                min-width: 30px !important;
                 box-sizing: border-box !important;
+                width: 28px !important;
+                min-width: 28px !important;
+                max-width: 28px !important;
+                height: 28px !important;
+                min-height: 28px !important;
+                padding: 0 !important;
+                flex-shrink: 0;
             }
-            /* Right sidebar open / narrow main: Landing Page + calendar on next row */
-            @container figma-main (max-width: 1200px) {
-                .figma-filter-bar--detection > label {
-                    flex: 1 1 110px !important;
-                    padding-left: 5px !important;
-                    padding-right: 5px !important;
+            /* Tablet / narrow main column */
+            @container figma-main (max-width: 1180px), (max-width: 1280px) {
+                .figma-filter-bar.figma-filter-bar--overview.figma-filter-bar--detection.ov-filter-bar,
+                .figma-filter-bar--detection {
+                    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
                 }
-                .figma-filter-bar--detection > label > span:first-child {
-                    font-size: 6px !important;
+                .figma-filter-bar--detection > label:nth-child(n+4),
+                .figma-filter-bar--detection > .figma-filter-calendar-host {
+                    border-top: 1px solid rgba(0, 0, 0, 0.12) !important;
                 }
-                .figma-filter-bar--detection .figma-filter-control,
-                .figma-filter-bar--detection .figma-filter-select-wrap {
-                    font-size: 9px !important;
+                .figma-filter-bar--detection > label:nth-child(3),
+                .figma-filter-bar--detection > label:nth-child(6),
+                .figma-filter-bar--detection > .figma-filter-calendar-host {
+                    border-right: 0 !important;
                 }
-                .figma-filter-bar--detection .detection-f-landing,
-                .figma-filter-bar--detection .figma-filter-calendar-host {
-                    flex: 1 1 100% !important;
-                    width: 100% !important;
-                    max-width: none !important;
-                    border-left: 0 !important;
-                    border-top: 1px solid rgba(0, 0, 0, 0.12);
-                }
-                .figma-filter-bar--detection .detection-f-landing {
-                    flex: 1 1 calc(100% - 48px) !important;
-                    border-top: 1px solid rgba(0, 0, 0, 0.12);
-                }
-                .figma-filter-bar--detection .figma-filter-calendar-host {
-                    flex: 0 0 auto !important;
-                    margin-left: auto;
-                    justify-content: center;
+                .figma-filter-bar--detection > .figma-filter-calendar-host {
+                    grid-column: 3;
+                    align-items: flex-end;
                 }
             }
-            @container figma-main (max-width: 900px) {
-                .figma-filter-bar--detection > label {
-                    flex: 1 1 46% !important;
+            /* Small tablet / large phone */
+            @container figma-main (max-width: 780px), (max-width: 900px) {
+                .figma-filter-bar.figma-filter-bar--overview.figma-filter-bar--detection.ov-filter-bar,
+                .figma-filter-bar--detection {
+                    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
                 }
-                .figma-filter-bar--detection .detection-f-landing,
-                .figma-filter-bar--detection .figma-filter-calendar-host {
-                    flex: 1 1 100% !important;
-                    margin-left: 0;
+                .figma-filter-bar--detection > label,
+                .figma-filter-bar--detection > .figma-filter-calendar-host {
+                    border-top: 1px solid rgba(0, 0, 0, 0.12) !important;
+                }
+                .figma-filter-bar--detection > label:nth-child(-n+2) {
+                    border-top: 0 !important;
+                }
+                .figma-filter-bar--detection > label:nth-child(odd),
+                .figma-filter-bar--detection > .figma-filter-calendar-host {
+                    border-right: 1px solid rgba(0, 0, 0, 0.2) !important;
+                }
+                .figma-filter-bar--detection > label:nth-child(even),
+                .figma-filter-bar--detection > .figma-filter-calendar-host {
+                    border-right: 0 !important;
+                }
+                .figma-filter-bar--detection > .figma-filter-calendar-host {
+                    grid-column: 2;
+                    align-items: flex-end;
+                }
+                .figma-filter-bar--detection > label > span:first-child,
+                .figma-filter-bar--detection .figma-filter-calendar-host > span:first-child {
+                    font-size: 7px !important;
+                }
+                .figma-filter-bar--detection .figma-filter-select-wrap,
+                .figma-filter-bar--detection .figma-filter-control {
+                    font-size: 10px !important;
                 }
             }
+            /* Mobile */
             @media (max-width: 640px) {
-                .figma-filter-bar--detection > label { flex: 1 1 100% !important; }
-                .figma-filter-bar--detection .figma-filter-calendar-host {
-                    flex: 1 1 100% !important;
-                    margin-left: 0;
-                    border-left: 0;
-                    border-top: 1px solid rgba(0, 0, 0, 0.12);
+                .figma-filter-bar.figma-filter-bar--overview.figma-filter-bar--detection.ov-filter-bar,
+                .figma-filter-bar--detection {
+                    grid-template-columns: 1fr !important;
+                }
+                .figma-filter-bar--detection > label,
+                .figma-filter-bar--detection > .figma-filter-calendar-host {
+                    border-right: 0 !important;
+                    border-top: 1px solid rgba(0, 0, 0, 0.12) !important;
+                    align-items: stretch;
+                }
+                .figma-filter-bar--detection > label:first-child {
+                    border-top: 0 !important;
+                }
+                .figma-filter-bar--detection > .figma-filter-calendar-host {
+                    grid-column: 1;
+                    align-items: flex-start;
+                }
+                .figma-filter-bar--detection .figma-filter-calendar-btn,
+                .figma-filter-bar--detection .figma-filter-calendar-btn--responsive {
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    min-width: 0 !important;
                     justify-content: flex-start;
+                    padding: 0 10px !important;
+                    gap: 8px;
+                }
+                .figma-filter-bar--detection .figma-filter-calendar-btn__label {
+                    display: inline-block !important;
                 }
             }
 
@@ -1479,18 +1560,18 @@
             html.light-mode .figma-rule-editor-title { color: #2d2d3a; }
         </style>
 
-        <div class="bp-adv-page-head detection-page-head mb-[23px] flex flex-col gap-[14px]">
-            <div class="flex flex-wrap items-center gap-[12px] shrink-0">
+        <div class="bp-adv-page-head detection-page-head mb-[23px]">
+            <div class="detection-page-head__title">
                 <h1 class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Paid Marketing</h1>
                 <span class="h-[34px] w-[2px] bg-[#a9a9a9] sm:h-[44px]"></span>
                 <span class="text-[24px] font-semibold leading-none text-[#a9a9a9] sm:text-[32px]">Detection</span>
             </div>
 
             @if ($domains->isNotEmpty())
-                <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--detection ov-filter-bar ml-auto flex min-h-[54px] w-full max-w-full flex-wrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)]">
-                    <label class="relative flex min-w-0 flex-1 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]" @click.outside="filterMenus.domain = false">
-                        <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Domain</span>
-                        <button type="button" @click="toggleFilterMenu('domain')" class="figma-filter-select-wrap flex h-[23px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[11px] text-[#8c8787]">
+                <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--detection ov-filter-bar rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)]">
+                    <label class="relative" @click.outside="filterMenus.domain = false">
+                        <span>Domain</span>
+                        <button type="button" @click="toggleFilterMenu('domain')" class="figma-filter-select-wrap rounded-[3px] border-0 bg-[#101010] pl-[8px] pr-[22px] text-left text-[#8c8787]">
                             <span class="truncate" x-text="domainFilterLabel()"></span>
                         </button>
                         <div x-show="filterMenus.domain" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[8px] !right-auto">
@@ -1500,9 +1581,9 @@
                             </template>
                         </div>
                     </label>
-                    <label class="relative flex min-w-0 flex-1 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]" @click.outside="filterMenus.traffic = false">
-                        <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Traffic Source</span>
-                        <button type="button" @click="toggleFilterMenu('traffic')" class="figma-filter-select-wrap flex h-[23px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[11px] text-[#8c8787]">
+                    <label class="relative" @click.outside="filterMenus.traffic = false">
+                        <span>Traffic Source</span>
+                        <button type="button" @click="toggleFilterMenu('traffic')" class="figma-filter-select-wrap rounded-[3px] border-0 bg-[#101010] pl-[8px] pr-[22px] text-left text-[#8c8787]">
                             <span class="truncate" x-text="trafficFilterLabel()"></span>
                         </button>
                         <div x-show="filterMenus.traffic" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[8px] !right-auto">
@@ -1511,9 +1592,9 @@
                             </template>
                         </div>
                     </label>
-                    <label class="relative flex min-w-0 flex-1 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]" @click.outside="filterMenus.account = false">
-                        <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Google Ads Account</span>
-                        <button type="button" @click="toggleFilterMenu('account')" class="figma-filter-select-wrap flex h-[23px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[11px] text-[#8c8787]">
+                    <label class="relative" @click.outside="filterMenus.account = false">
+                        <span>Google Ads Account</span>
+                        <button type="button" @click="toggleFilterMenu('account')" class="figma-filter-select-wrap rounded-[3px] border-0 bg-[#101010] pl-[8px] pr-[22px] text-left text-[#8c8787]">
                             <span class="truncate" x-text="accountFilterLabel()"></span>
                         </button>
                         <div x-show="filterMenus.account" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[8px] !right-auto !min-w-[220px]">
@@ -1526,9 +1607,9 @@
                             </template>
                         </div>
                     </label>
-                    <label class="relative flex min-w-0 flex-1 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]" @click.outside="filterMenus.campaign = false">
-                        <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Campaign</span>
-                        <button type="button" @click="toggleFilterMenu('campaign')" class="figma-filter-select-wrap flex h-[23px] w-full items-center rounded-[3px] border-0 bg-[#101010] py-0 pl-[8px] pr-[22px] text-left text-[11px] text-[#8c8787]">
+                    <label class="relative" @click.outside="filterMenus.campaign = false">
+                        <span>Campaign</span>
+                        <button type="button" @click="toggleFilterMenu('campaign')" class="figma-filter-select-wrap rounded-[3px] border-0 bg-[#101010] pl-[8px] pr-[22px] text-left text-[#8c8787]">
                             <span class="truncate" x-text="filters.campaign || 'All Campaigns'"></span>
                         </button>
                         <div x-show="filterMenus.campaign" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll !left-[8px] !right-auto !min-w-[200px]">
@@ -1541,11 +1622,11 @@
                             </template>
                         </div>
                     </label>
-                    <label class="detection-f-landing flex min-w-0 flex-1 flex-col justify-center border-r border-black/20 px-[8px] py-[6px]">
-                        <span class="mb-[3px] text-[8px] font-semibold uppercase text-black/55">Landing Page</span>
+                    <label class="detection-f-landing relative">
+                        <span>Landing Page</span>
                         <div class="figma-filter-path-wrap">
                             <svg class="figma-filter-path-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                            <input x-model="filters.path" @keydown.enter.prevent="applyFilters()" @change="applyFilters()" placeholder="All Pages" class="figma-filter-control h-[23px] w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[22px] pr-[8px] text-[10px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
+                            <input x-model="filters.path" @keydown.enter.prevent="applyFilters()" @change="applyFilters()" placeholder="All Pages" class="figma-filter-control w-full rounded-[3px] border-0 bg-[#101010] py-0 pl-[22px] pr-[8px] text-[#8c8787] placeholder:text-[#8c8787] focus:ring-0">
                         </div>
                     </label>
                     @include('partials.figma-filter-date-fields')

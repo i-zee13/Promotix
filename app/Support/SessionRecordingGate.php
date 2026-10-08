@@ -29,8 +29,9 @@ class SessionRecordingGate
             return false;
         }
 
-        // Toggle ON → capture detailed timeline for paid and organic visits.
-        return true;
+        // Event Timeline / paid analytics: capture detailed recordings for paid Ads
+        // traffic only. Organic is excluded at ingest (not just hidden in the UI).
+        return $isPaidTraffic;
     }
 
     /**

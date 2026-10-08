@@ -1270,7 +1270,7 @@
                     <span class="pa-kpi__icon" x-html="card.icon"></span>
                     <p class="pa-kpi__title" x-text="card.title"></p>
                 </div>
-                <p class="pa-kpi__value" x-text="card.value"></p>
+                <p class="pa-kpi__value" x-text="card.key === 'conversions' ? fmt(filteredTotalConversions()) : card.value"></p>
                 <p
                     class="pa-kpi__delta"
                     :class="Number(card.delta || 0) >= 0 ? 'is-up' : 'is-down'"
@@ -1365,7 +1365,7 @@
                 </template>
             </div>
         </div>
-        <div class="pa-perf__chart" aria-hidden="true" x-html="performanceChartSvg(perfMode, (perfActiveSeries || []).join(',') + '|' + (perfCardKeys || []).join(',') + '|' + (perfGranularity || 'daily') + '|' + (pagePerformance()?.granularity || '') + '|' + ((pagePerformanceCards()[0]?.points || []).length) + '|' + ((pagePerformanceCards()[0]?.labels || [])[0] || '') + '|' + (perfChartNonce || 0))"></div>
+        <div class="pa-perf__chart" aria-hidden="true" x-html="performanceChartSvg(perfMode, (perfActiveSeries || []).join(',') + '|' + (perfCardKeys || []).join(',') + '|' + (perfGranularity || 'daily') + '|' + (pagePerformance()?.granularity || '') + '|' + ((pagePerformanceCards()[0]?.points || []).length) + '|' + ((pagePerformanceCards()[0]?.labels || [])[0] || '') + '|' + (perfChartNonce || 0) + '|' + (funnelSelectedKeys || []).join(','))"></div>
         <p x-show="!(pagePerformanceCards() || []).length" class="pa-empty">No performance data in this window.</p>
         <p class="pa-perf__sub" style="margin-top:8px" x-show="perfGranularity === 'hourly'" x-cloak>
             Showing hourly analytics for this range (up to 7 days).

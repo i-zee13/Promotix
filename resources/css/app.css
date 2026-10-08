@@ -17903,6 +17903,7 @@ html.light-mode .pa-dash .pa-geo__dot-label {
     .figma-main .overflow-x-auto,
     .figma-sa-main .overflow-x-auto,
     .figma-customer-canvas .overflow-x-auto,
+    .figma-domains-page .overflow-x-auto,
     .pm-adv-table-body-scroll,
     .promotix-slim-scroll.max-h-\[320px\] {
         overflow-x: auto !important;
@@ -17915,10 +17916,12 @@ html.light-mode .pa-dash .pa-geo__dot-label {
     .figma-sa-products-table,
     .figma-sa-dash-table,
     .paid-detailed-table,
+    .figma-domains-table,
     .figma-sa-products-table.figma-sa-roles-table {
         width: max-content !important;
-        min-width: 780px !important;
+        min-width: 960px !important;
         max-width: none !important;
+        table-layout: auto !important;
     }
 
     .figma-sa-subs-table thead th,
@@ -17926,8 +17929,59 @@ html.light-mode .pa-dash .pa-geo__dot-label {
     .figma-sa-users-table thead th,
     .figma-sa-users-table tbody td,
     .figma-sa-products-table thead th,
-    .figma-sa-products-table tbody td {
-        white-space: nowrap;
+    .figma-sa-products-table tbody td,
+    .figma-domains-table thead th,
+    .figma-domains-table tbody td {
+        white-space: nowrap !important;
+        overflow: visible !important;
+        text-overflow: unset !important;
+        min-width: 110px !important;
+        width: auto !important;
+        max-width: none !important;
+    }
+
+    .figma-sa-users-table th:first-child,
+    .figma-sa-users-table td:first-child,
+    .figma-domains-table thead th:first-child,
+    .figma-domains-table tbody td:first-child {
+        min-width: 44px !important;
+        width: 44px !important;
+    }
+
+    .figma-sa-users-table th:nth-child(2),
+    .figma-sa-users-table td:nth-child(2) {
+        min-width: 220px !important;
+    }
+
+    .figma-sa-users-table th:last-child,
+    .figma-sa-users-table td:last-child {
+        min-width: 52px !important;
+        width: 52px !important;
+    }
+
+    .figma-sa-users-usercell,
+    .figma-sa-users-usercell > span:last-child,
+    .figma-sa-users-name,
+    .figma-sa-users-subemail {
+        min-width: 0 !important;
+        max-width: none !important;
+        overflow: visible !important;
+        text-overflow: unset !important;
+        white-space: nowrap !important;
+    }
+
+    .figma-domains-table thead th:nth-child(1),
+    .figma-domains-table tbody td:nth-child(1) {
+        min-width: 180px !important;
+    }
+
+    .figma-sa-users-table-shell,
+    .figma-sa-products-table-shell,
+    .figma-sa-subs-table-scroll,
+    .figma-sa-table-scroll {
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        max-width: 100% !important;
     }
 
     /* Customer portal / analytics tables */
@@ -17952,5 +18006,27 @@ html.light-mode .pa-dash .pa-geo__dot-label {
     .figma-sa-users-table td {
         overflow: visible;
         text-overflow: unset;
+    }
+
+    /* Sidebar drawer: overlay only — do not squeeze main content */
+    .figma-shell.figma-sidebar-open {
+        --figma-left: 0px !important;
+        padding-left: 0 !important;
+    }
+    .figma-shell.figma-sidebar-open .figma-main {
+        width: 100% !important;
+        max-width: 100vw !important;
+    }
+    .figma-sidebar {
+        position: fixed !important;
+        z-index: 60;
+        height: 100dvh;
+        top: 0;
+        left: 0;
+    }
+    html.figma-drawer-open,
+    body.figma-drawer-open {
+        overflow: hidden !important;
+        touch-action: none;
     }
 }

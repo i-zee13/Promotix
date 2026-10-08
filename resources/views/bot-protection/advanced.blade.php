@@ -1882,7 +1882,7 @@ function botProtectionAdvancedFigma(config = {}) {
             action: '',
             threat_group: '',
             only_invalid: false,
-            only_paid: false,
+            only_paid: true,
             from: '',
             to: '',
         },

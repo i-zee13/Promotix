@@ -111,7 +111,8 @@ class BehaviorEventPersister
     {
         return match ($type) {
             'cta_click' => self::isCallPayload($raw) ? 'phone_click' : 'cta_click',
-            'phone_click', 'tel_click', 'call_click' => 'phone_click',
+            'phone_click', 'tel_click' => 'phone_click',
+            'call_click' => 'call_click',
             'email_click', 'mailto_click' => 'email_click',
             'form_start' => 'form_start',
             'form_view', 'form_viewed' => 'form_view',
@@ -122,6 +123,11 @@ class BehaviorEventPersister
             'zip_checked', 'zip_check', 'postal_check' => 'zip_checked',
             'zip_entered' => 'zip_entered',
             'chat_opened', 'chat_open', 'chat_started' => 'chat_opened',
+            'chat_message_sent', 'chat_message', 'chat_sent' => 'chat_message_sent',
+            'book_click', 'book' => 'book_click',
+            'appointment_click', 'appointment' => 'appointment_click',
+            'booking_confirmed', 'booked' => 'booking_confirmed',
+            'appointment_confirmed' => 'appointment_confirmed',
             'pricing_viewed', 'pricing_view' => 'pricing_viewed',
             'provider_viewed', 'provider_view' => 'provider_viewed',
             'provider_selected' => 'provider_selected',
@@ -143,7 +149,7 @@ class BehaviorEventPersister
             'scroll' => isset($raw['depth']) ? 'scroll' : null,
             'add_to_cart' => 'add_to_cart',
             'checkout', 'begin_checkout', 'initiate_checkout' => 'checkout',
-            'purchase', 'sale', 'order', 'transaction' => 'purchase',
+            'purchase', 'sale', 'order', 'transaction', 'purchase_completed' => 'purchase',
             // Prefer typed click events; also promote legacy generic clicks that look like CTAs.
             'click' => self::mapLegacyClick($raw) ?? (
                 // Keep a click as CTA when it has actionable text/href so timeline is not empty.
