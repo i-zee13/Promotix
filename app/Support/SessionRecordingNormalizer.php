@@ -127,12 +127,23 @@ class SessionRecordingNormalizer
             $x = $event['x'] ?? ($event['data']['x'] ?? null);
             $y = $event['y'] ?? ($event['data']['y'] ?? null);
 
+            $linkType = (string) ($event['link_type'] ?? $event['data']['link_type'] ?? '');
+            if ($linkType === '' && $type === 'call_click') {
+                $linkType = 'call';
+            }
+            if ($linkType === '' && in_array($type, ['tel_click', 'phone_click'], true)) {
+                $linkType = 'tel';
+            }
+
             return [
                 't' => $t,
                 'type' => $normalizedType,
                 'label' => mb_substr($label, 0, 120),
                 'href' => (string) ($event['href'] ?? $event['data']['href'] ?? ''),
                 'page_url' => (string) ($event['page_url'] ?? $event['path'] ?? ''),
+                'link_type' => $linkType,
+                'tel_number' => (string) ($event['tel_number'] ?? $event['data']['tel_number'] ?? ''),
+                'element_text' => mb_substr((string) ($event['element_text'] ?? $event['text'] ?? $label), 0, 120),
                 'x' => is_numeric($x) ? (float) $x : null,
                 'y' => is_numeric($y) ? (float) $y : null,
             ];

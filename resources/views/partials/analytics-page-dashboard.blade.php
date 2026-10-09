@@ -705,7 +705,7 @@
         }
         .pa-dash .pa-funnel__row {
             display: grid;
-            grid-template-columns: 28px minmax(0, 1fr) minmax(3.5ch, auto) minmax(4.5ch, auto);
+            grid-template-columns: 28px minmax(7rem, 1fr) minmax(3.5ch, auto) minmax(4.5ch, auto);
             gap: 8px;
             align-items: center;
             padding: 9px 0;
@@ -735,6 +735,15 @@
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            line-height: 1.25;
+        }
+        @media (min-width: 900px) {
+            .pa-dash .pa-funnel__label {
+                white-space: normal;
+                display: -webkit-box;
+                -webkit-line-clamp: 2;
+                -webkit-box-orient: vertical;
+            }
         }
         .pa-dash .pa-funnel__count,
         .pa-dash .pa-funnel__pct {

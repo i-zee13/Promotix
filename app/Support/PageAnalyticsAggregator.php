@@ -2023,6 +2023,8 @@ class PageAnalyticsAggregator
      */
     private function domainFunnelAvailableKeys(array $domainIds): array
     {
+        // Baseline always (original working actions). Extra conversion keys only when
+        // that domain's website has produced the event in the last 90 days.
         $core = ['views', 'cta', 'tel', 'form'];
         if ($domainIds === [] || ! Schema::hasTable('visit_behavior_events')) {
             return $core;
@@ -2032,13 +2034,9 @@ class PageAnalyticsAggregator
             'cta_click' => 'cta',
             'phone_click' => 'tel',
             'tel_click' => 'tel',
-            'call_click' => 'tel', // Call button + tel link both feed Call Clicks funnel key
+            'call_click' => 'tel',
             'form_submit' => 'form',
             'form_fill' => 'form',
-            'form_start' => 'form_start',
-            'form_view' => 'form_view',
-            'form_field_focused' => 'form_focus',
-            'form_validation_failed' => 'form_validation_failed',
             'form_submit_failed' => 'form_submit_failed',
             'email_click' => 'email',
             'mailto_click' => 'email',
@@ -2059,8 +2057,6 @@ class PageAnalyticsAggregator
             'transaction' => 'purchase',
             'provider_selected' => 'provider_selected',
             'pricing_viewed' => 'pricing_viewed',
-            'navigation_menu_opened' => 'nav_menu',
-            'search_used' => 'search',
         ];
 
         try {
@@ -2119,7 +2115,7 @@ class PageAnalyticsAggregator
         $catalog = [
             ['key' => 'views', 'label' => $viewsLabel, 'value' => $views, 'counts_toward_conversions' => false],
             ['key' => 'cta', 'label' => 'CTA Clicks', 'value' => $cta, 'counts_toward_conversions' => true],
-            ['key' => 'tel', 'label' => 'Call Clicks / Tel Link', 'value' => $tel, 'counts_toward_conversions' => true],
+            ['key' => 'tel', 'label' => 'Call Clicks', 'value' => $tel, 'counts_toward_conversions' => true],
             ['key' => 'email', 'label' => 'Email Link Clicked', 'value' => (int) ($stats['email'] ?? 0), 'counts_toward_conversions' => true],
             ['key' => 'form_view', 'label' => 'Form Opened', 'value' => (int) ($stats['form_view'] ?? 0), 'counts_toward_conversions' => false],
             ['key' => 'form_focus', 'label' => 'Form Field Focused', 'value' => (int) ($stats['form_focus'] ?? 0), 'counts_toward_conversions' => false],
@@ -2132,8 +2128,8 @@ class PageAnalyticsAggregator
             ['key' => 'chat_opened', 'label' => 'Chat Opened', 'value' => (int) ($stats['chat_opened'] ?? 0), 'counts_toward_conversions' => false],
             ['key' => 'chat_message', 'label' => 'Chat Message Sent', 'value' => (int) ($stats['chat_message'] ?? 0), 'counts_toward_conversions' => true],
             ['key' => 'cart', 'label' => 'Add to Cart', 'value' => $cart, 'counts_toward_conversions' => true],
-            ['key' => 'appointment', 'label' => 'Appointment Clicked', 'value' => (int) ($stats['appointment'] ?? 0), 'counts_toward_conversions' => false],
-            ['key' => 'book', 'label' => 'Book Clicked', 'value' => (int) ($stats['book'] ?? 0), 'counts_toward_conversions' => false],
+            ['key' => 'appointment', 'label' => 'Appointment', 'value' => (int) ($stats['appointment'] ?? 0), 'counts_toward_conversions' => false],
+            ['key' => 'book', 'label' => 'Book', 'value' => (int) ($stats['book'] ?? 0), 'counts_toward_conversions' => false],
             ['key' => 'checkout', 'label' => 'Checkout Started', 'value' => $checkout, 'counts_toward_conversions' => true],
             ['key' => 'purchase', 'label' => 'Purchase Completed', 'value' => $purchase, 'counts_toward_conversions' => true],
             ['key' => 'booking_confirmed', 'label' => 'Booking Confirmed', 'value' => (int) ($stats['booking_confirmed'] ?? 0), 'counts_toward_conversions' => true],
@@ -2143,24 +2139,18 @@ class PageAnalyticsAggregator
             ['key' => 'search', 'label' => 'Search Used', 'value' => (int) ($stats['search'] ?? 0), 'counts_toward_conversions' => false],
         ];
 
-        // Domain-specific: only show actions available on this site (history) or with activity in range.
-        // Core views/cta/tel always stay so the selector is never empty.
-        $always = ['views', 'cta', 'tel'];
+        // Funnel 3-dots: baseline + only events detected on this website (or active in range).
+        // New detected keys are auto-selected in the UI (ensureFunnelSelection).
+        $always = ['views', 'cta', 'tel', 'form'];
         $steps = array_values(array_filter(
             $catalog,
-            static function (array $s) use ($available, $always, $forms, $hasCommerce): bool {
+            static function (array $s) use ($available, $always): bool {
                 $key = (string) ($s['key'] ?? '');
                 if (in_array($key, $always, true)) {
                     return true;
                 }
-                if ($key === 'form' && ($forms > 0 || in_array('form', $available, true) || $hasCommerce)) {
-                    return true;
-                }
                 if ((int) ($s['value'] ?? 0) > 0) {
                     return true;
-                }
-                if ($available === []) {
-                    return in_array($key, ['form', 'cart', 'checkout', 'purchase'], true) && $hasCommerce;
                 }
 
                 return in_array($key, $available, true);

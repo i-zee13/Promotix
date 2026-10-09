@@ -2078,7 +2078,9 @@ function botProtectionFigma(config = {}) {
             let selected = Array.isArray(this.funnelSelectedKeys) ? this.funnelSelectedKeys.map(String) : null;
             if (!selected) {
                 try {
-                    const saved = JSON.parse(localStorage.getItem('pa-funnel-event-keys-v2:' + domainKey) || 'null');
+                    const saved = JSON.parse(localStorage.getItem('pa-funnel-event-keys-v3:' + domainKey)
+                        || localStorage.getItem('pa-funnel-event-keys-v2:' + domainKey)
+                        || 'null');
                     if (Array.isArray(saved)) selected = saved.map(String);
                 } catch (e) {}
             }
@@ -2087,7 +2089,9 @@ function botProtectionFigma(config = {}) {
             } else {
                 let prevAvailable = null;
                 try {
-                    prevAvailable = JSON.parse(localStorage.getItem('pa-funnel-event-available-v2:' + domainKey) || 'null');
+                    prevAvailable = JSON.parse(localStorage.getItem('pa-funnel-event-available-v3:' + domainKey)
+                        || localStorage.getItem('pa-funnel-event-available-v2:' + domainKey)
+                        || 'null');
                 } catch (e) {}
                 const prevSet = Array.isArray(prevAvailable) ? new Set(prevAvailable.map(String)) : new Set(available);
                 selected = selected.filter((k) => available.includes(k));
@@ -2102,9 +2106,9 @@ function botProtectionFigma(config = {}) {
         persistFunnelEventKeys(availableKeys) {
             try {
                 const domainKey = this.funnelStorageDomainKey();
-                localStorage.setItem('pa-funnel-event-keys-v2:' + domainKey, JSON.stringify(this.funnelSelectedKeys || []));
+                localStorage.setItem('pa-funnel-event-keys-v3:' + domainKey, JSON.stringify(this.funnelSelectedKeys || []));
                 if (Array.isArray(availableKeys)) {
-                    localStorage.setItem('pa-funnel-event-available-v2:' + domainKey, JSON.stringify(availableKeys));
+                    localStorage.setItem('pa-funnel-event-available-v3:' + domainKey, JSON.stringify(availableKeys));
                 }
             } catch (e) {}
         },

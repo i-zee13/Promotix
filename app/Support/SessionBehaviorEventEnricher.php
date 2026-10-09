@@ -89,7 +89,7 @@ class SessionBehaviorEventEnricher
             ->whereIn('event_type', [
                 'page_view', 'page_change', 'scroll', 'session_exit',
                 'session_started', 'ad_click_detected', 'landing_page_viewed', 'next_page_viewed', 'time_on_page',
-                'cta_click', 'phone_click', 'tel_click', 'email_click',
+                'cta_click', 'phone_click', 'tel_click', 'call_click', 'email_click',
                 'form_start', 'form_view', 'form_field_focused', 'form_validation_failed',
                 'form_submit', 'form_fill', 'form_submit_failed',
                 'zip_checked', 'zip_entered', 'chat_opened',
@@ -271,7 +271,8 @@ class SessionBehaviorEventEnricher
             $label = match ($type) {
                 'scroll' => 'Scroll',
                 'cta_click' => trim((string) ($ev->element_text ?? '')) ?: 'CTA click',
-                'phone_click', 'tel_click' => trim((string) ($ev->element_text ?? '')) ?: 'Phone click',
+                'phone_click', 'tel_click' => trim((string) ($ev->element_text ?? '')) ?: 'Tel link clicked',
+                'call_click' => trim((string) ($ev->element_text ?? '')) ?: 'Call button clicked',
                 'form_start' => 'Form start',
                 'form_submit', 'form_fill' => 'Form submit',
                 'add_to_cart' => 'Add to cart',
@@ -284,7 +285,7 @@ class SessionBehaviorEventEnricher
             $kind = match ($type) {
                 'scroll' => 'scroll',
                 'cta_click' => 'cta',
-                'phone_click', 'tel_click' => 'phone',
+                'phone_click', 'tel_click', 'call_click' => 'phone',
                 'form_start', 'form_submit', 'form_fill' => 'form',
                 'add_to_cart', 'checkout', 'begin_checkout', 'purchase', 'sale' => 'commerce',
                 'session_exit' => 'exit',
@@ -292,7 +293,8 @@ class SessionBehaviorEventEnricher
             };
             $normType = match ($type) {
                 'page_view', 'page_change' => 'page',
-                'phone_click', 'tel_click' => 'phone',
+                'phone_click', 'tel_click' => 'tel_click',
+                'call_click' => 'call_click',
                 'form_start', 'form_submit', 'form_fill' => 'form',
                 'cta_click' => 'cta',
                 'scroll' => 'scroll',
@@ -302,6 +304,8 @@ class SessionBehaviorEventEnricher
 
             $candidate = [
                 'type' => match ($normType) {
+                    'tel_click' => 'tel_click',
+                    'call_click' => 'call_click',
                     'phone' => 'phone_click',
                     'cta' => 'cta_click',
                     'form' => $type === 'form_start' ? 'form_start' : 'form_submit',
@@ -353,7 +357,7 @@ class SessionBehaviorEventEnricher
         );
         $row['tel_clicks'] = max(
             (int) ($row['tel_clicks'] ?? 0),
-            (int) $bucket->whereIn('event_type', ['phone_click', 'tel_click'])->count()
+            (int) $bucket->whereIn('event_type', ['phone_click', 'tel_click', 'call_click'])->count()
         );
         $row['form_starts'] = max(
             (int) ($row['form_starts'] ?? 0),
@@ -407,7 +411,7 @@ class SessionBehaviorEventEnricher
             if ($kind === '' || $kind === 'exit') {
                 $kind = match (true) {
                     in_array($type, ['cta', 'cta_click'], true) => 'cta',
-                    in_array($type, ['phone', 'phone_click', 'tel_click'], true) => 'phone',
+                    in_array($type, ['phone', 'phone_click', 'tel_click', 'call_click'], true) => 'phone',
                     in_array($type, ['form', 'form_start', 'form_submit', 'form_fill'], true) => 'form',
                     $type === 'scroll' => 'scroll',
                     in_array($type, ['add_to_cart', 'checkout', 'purchase', 'sale'], true) => 'commerce',

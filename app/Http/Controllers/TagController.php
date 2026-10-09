@@ -707,16 +707,23 @@ class TagController extends Controller
 
     function isFormSubmitControl(el){
       if (!el || !el.tagName) return false;
+      // Never treat call / tel / email / commerce / booking controls as form submit.
+      if (isTelHref(readHref(el)) || isTelDataAttr(el) || isCallEl(el)) return false;
+      if (isEmailEl(el)) return false;
+      if (commerceKind(el) || bookingIntentKind(el, elementText(el))) return false;
       var tag = String(el.tagName).toUpperCase();
       var type = String(el.type || '').toLowerCase();
       if (tag === 'INPUT' && (type === 'submit' || type === 'image')) return true;
       if (tag === 'BUTTON' && (type === '' || type === 'submit')) {
-        // Prefer real form submitters; bare <button> outside forms can still be CTAs.
-        if (el.form || (el.closest && el.closest('form'))) return true;
+        // Only real submitters: type=submit, or default button whose label is submit-like.
+        if (type === 'submit') return true;
+        var btnText = elementText(el);
+        if ((el.form || (el.closest && el.closest('form'))) && btnText && /^(submit|send|send\\s*message|submit\\s*(form|request|application))$/i.test(btnText)) return true;
+        return false;
       }
       if (el.getAttribute && /^(submit|form_submit|form-submit)$/i.test(String(el.getAttribute('data-action') || el.getAttribute('data-cr-event') || ''))) return true;
       var text = elementText(el);
-      if (text && /^(submit|send|send\\s*message|submit\\s*(form|request|application)|get\\s*started)$/i.test(text) && el.closest && el.closest('form')) return true;
+      if (text && /^(submit|send|send\\s*message|submit\\s*(form|request|application))$/i.test(text) && el.closest && el.closest('form')) return true;
       return false;
     }
     function isCtaEl(el){
@@ -836,6 +843,23 @@ class TagController extends Controller
     function onClick(e){
       var target = closestActionEl(e.target);
       var meta = elementMeta(target);
+      // Call / tel first — must never be swallowed by form-submit / chat / CTA guards.
+      var isTelLink = isTelHref(meta.href) || isTelDataAttr(target);
+      var isCallBtn = !isTelLink && isCallEl(target);
+      if (isTelLink || isCallBtn) {
+        var telNumEarly = telNumberFromHref(meta.href) || (looksLikePhoneNumber(meta.element_text) ? String(meta.element_text).replace(/[^\\d+]/g, '').slice(0, 64) : '');
+        push(isTelLink ? 'phone_click' : 'call_click', Object.assign({}, meta, {
+          x: e.clientX,
+          y: e.clientY,
+          tel_number: telNumEarly,
+          link_type: isTelLink ? 'tel' : 'call',
+          success: 0,
+          status: 'attempt'
+        }));
+        softFlushRecording();
+        return;
+      }
+
       // Submit control click ≠ successful form_submit (that fires only on submit + validity).
       if (isFormSubmitControl(target)) return;
       // Chat send handled in capture extras (avoid double-count as CTA).
@@ -853,27 +877,12 @@ class TagController extends Controller
         if (/purchase|checkout|book|appointment|cart|form/.test(explicit)) finishRecording();
         return;
       }
+      var commerce = commerceKind(target);
+      var booking = !commerce && bookingIntentKind(target, meta.element_text);
+      var email = !commerce && !booking && isEmailEl(target);
+      var cta = !commerce && !booking && !email && isCtaEl(target);
 
-      var isTelLink = isTelHref(meta.href) || isTelDataAttr(target);
-      var isCallBtn = !isTelLink && isCallEl(target);
-      var commerce = !isTelLink && !isCallBtn && commerceKind(target);
-      var booking = !isTelLink && !isCallBtn && !commerce && bookingIntentKind(target, meta.element_text);
-      var email = !isTelLink && !isCallBtn && !commerce && !booking && isEmailEl(target);
-      var cta = !isTelLink && !isCallBtn && !commerce && !booking && !email && isCtaEl(target);
-
-      if (isTelLink || isCallBtn) {
-        var telNum = telNumberFromHref(meta.href) || (looksLikePhoneNumber(meta.element_text) ? String(meta.element_text).replace(/[^\\d+]/g, '').slice(0, 64) : '');
-        push(isTelLink ? 'phone_click' : 'call_click', Object.assign({}, meta, {
-          x: e.clientX,
-          y: e.clientY,
-          tel_number: telNum,
-          link_type: isTelLink ? 'tel' : 'call',
-          success: 0,
-          status: 'attempt'
-        }));
-        // Dialer may unload before pagehide — soft-flush; keep listening for another click.
-        softFlushRecording();
-      } else if (commerce) {
+      if (commerce) {
         // Click = attempt. Confirmed purchase/checkout success via dataLayer / Clickronix.track.
         push(commerce, Object.assign({}, meta, {
           x: e.clientX,
@@ -925,7 +934,7 @@ class TagController extends Controller
         });
       }
 
-      if (target && meta.tag === 'A' && meta.href && !isTelLink && !isCallBtn) {
+      if (target && meta.tag === 'A' && meta.href) {
         markPageSoon();
       }
     }

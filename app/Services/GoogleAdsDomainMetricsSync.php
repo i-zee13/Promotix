@@ -278,14 +278,53 @@ class GoogleAdsDomainMetricsSync
             ->selectRaw('COALESCE(SUM(clicks), 0) as clicks, COALESCE(SUM(cost), 0) as cost, COALESCE(SUM(impressions), 0) as impressions')
             ->first();
 
+        $clicks = (int) ($agg->clicks ?? 0);
+        $cost = self::normalizeStoredCost((float) ($agg->cost ?? 0), $clicks);
+
         return [
-            'clicks' => (int) ($agg->clicks ?? 0),
-            'cost' => round((float) ($agg->cost ?? 0), 2),
+            'clicks' => $clicks,
+            'cost' => $cost,
             'impressions' => (int) ($agg->impressions ?? 0),
             'from' => $range['from'],
             'to' => $range['to'],
             'used_stored_bounds' => $range['used_stored_bounds'],
         ];
+    }
+
+    /**
+     * Guard against cost_micros accidentally persisted as currency units (inflates CPC / Cost Saved).
+     */
+    public static function normalizeStoredCost(float $cost, int $clicks, ?string $currencyCode = null): float
+    {
+        if ($cost <= 0) {
+            return 0.0;
+        }
+
+        $currency = strtoupper(trim((string) $currencyCode));
+        $maxCpc = match ($currency) {
+            'PKR', 'INR' => 50_000.0,
+            'JPY' => 100_000.0,
+            'IDR', 'VND' => 5_000_000.0,
+            default => 500.0,
+        };
+        // CPC this high almost always means cost_micros was stored as currency units.
+        $absurdCpc = match ($currency) {
+            'PKR', 'INR' => 200_000.0,
+            'JPY' => 500_000.0,
+            'IDR', 'VND' => 10_000_000.0,
+            default => 1_000.0,
+        };
+
+        $cpc = $clicks > 0 ? ($cost / $clicks) : $cost;
+        if ($cpc >= $absurdCpc || ($clicks === 0 && $cost >= 1_000_000)) {
+            $asCurrency = $cost / 1_000_000;
+            $asCpc = $clicks > 0 ? ($asCurrency / $clicks) : $asCurrency;
+            if ($asCpc > 0 && $asCpc <= $maxCpc) {
+                return round($asCurrency, 2);
+            }
+        }
+
+        return round($cost, 2);
     }
 
     /**
@@ -334,9 +373,11 @@ class GoogleAdsDomainMetricsSync
             ->selectRaw('COALESCE(SUM(clicks), 0) as clicks, COALESCE(SUM(cost), 0) as cost, COALESCE(SUM(impressions), 0) as impressions')
             ->first();
 
+        $clicks = (int) ($agg->clicks ?? 0);
+
         return [
-            'clicks' => (int) ($agg->clicks ?? 0),
-            'cost' => round((float) ($agg->cost ?? 0), 2),
+            'clicks' => $clicks,
+            'cost' => self::normalizeStoredCost((float) ($agg->cost ?? 0), $clicks),
             'impressions' => (int) ($agg->impressions ?? 0),
             'from' => $fromDate,
             'to' => $toDate,
@@ -480,10 +521,16 @@ class GoogleAdsDomainMetricsSync
             }
             $account = $accounts->get($accountId);
             $fromCode = trim((string) ($account?->currency_code ?? ''));
-            if ($fromCode === '') {
-                $fromCode = AccountCurrency::fromTimezone((string) ($account?->time_zone ?? ''));
+            $tz = trim((string) ($account?->time_zone ?? ''));
+            $tzCurrency = $tz !== '' ? AccountCurrency::fromTimezone($tz) : '';
+            if ($fromCode !== '') {
+                $currency = AccountCurrency::normalize($fromCode);
+                if ($currency === 'USD' && $tzCurrency !== '' && $tzCurrency !== 'USD') {
+                    $currency = $tzCurrency;
+                }
+            } else {
+                $currency = $tzCurrency !== '' ? $tzCurrency : 'USD';
             }
-            $currency = AccountCurrency::normalize($fromCode !== '' ? $fromCode : 'USD');
             $bundles[] = [
                 'currency_code' => $currency,
                 'clicks' => $clicks,

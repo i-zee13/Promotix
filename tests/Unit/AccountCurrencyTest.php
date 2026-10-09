@@ -2,7 +2,9 @@
 
 namespace Tests\Unit;
 
+use App\Models\Domain;
 use App\Models\GoogleAdsAccount;
+use App\Services\GoogleAdsDomainMetricsSync;
 use App\Support\AccountCurrency;
 use PHPUnit\Framework\TestCase;
 
@@ -54,5 +56,62 @@ class AccountCurrencyTest extends TestCase
         $this->assertSame(9333.3333, $costPerConversion);
         $this->assertSame('Rs 1.79K', AccountCurrency::formatCompact($avgCpc, 'PKR'));
         $this->assertSame('Rs 9.33K', AccountCurrency::formatCompact($costPerConversion, 'PKR'));
+    }
+
+    public function test_from_domain_uses_timezone_when_currency_missing(): void
+    {
+        $account = new GoogleAdsAccount([
+            'currency_code' => null,
+            'time_zone' => 'Asia/Karachi',
+        ]);
+        $domain = new Domain;
+        $domain->setRelation('googleAdsAccount', $account);
+
+        $this->assertSame('PKR', AccountCurrency::fromDomain($domain));
+    }
+
+    public function test_from_domain_prefers_timezone_over_stale_usd(): void
+    {
+        $account = new GoogleAdsAccount([
+            'currency_code' => 'USD',
+            'time_zone' => 'Asia/Karachi',
+        ]);
+        $domain = new Domain;
+        $domain->setRelation('googleAdsAccount', $account);
+
+        $this->assertSame('PKR', AccountCurrency::fromDomain($domain));
+    }
+
+    public function test_from_domain_fallback_when_ads_metadata_missing(): void
+    {
+        $account = new GoogleAdsAccount([
+            'currency_code' => null,
+            'time_zone' => null,
+        ]);
+        $domain = new Domain;
+        $domain->setRelation('googleAdsAccount', $account);
+
+        $this->assertSame('PKR', AccountCurrency::fromDomain($domain, 'PKR'));
+        $this->assertSame('USD', AccountCurrency::fromDomain($domain));
+    }
+
+    public function test_all_domains_cost_saved_does_not_fx_inflate_pkr(): void
+    {
+        // ~16 invalid × ~Rs 1,500 CPC ≈ Rs 24K — must NOT become ~Rs 6.8M via USD→PKR.
+        $wasteNative = 24500.0;
+        $pkrPerUsd = 278.50;
+        $wrongRelabelAsUsdThenToPkr = $wasteNative * $pkrPerUsd;
+        $rightSameCurrency = $wasteNative; // PKR → PKR, one hop
+
+        $this->assertSame(24500.0, $rightSameCurrency);
+        $this->assertGreaterThan(1_000_000, $wrongRelabelAsUsdThenToPkr);
+        $this->assertSame('Rs 24.5K', AccountCurrency::formatCompact($rightSameCurrency, 'PKR'));
+        $this->assertStringContainsString('M', AccountCurrency::formatCompact($wrongRelabelAsUsdThenToPkr, 'PKR'));
+    }
+
+    public function test_normalize_stored_cost_divides_micros(): void
+    {
+        $normalized = GoogleAdsDomainMetricsSync::normalizeStoredCost(50_000_000.0, 100, 'PKR');
+        $this->assertSame(50.0, $normalized);
     }
 }

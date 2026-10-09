@@ -1415,7 +1415,7 @@ class VisitorJourneyIntelligence
                         $hadMeaningful = true;
                         break;
                     }
-                    if (in_array($tt, ['tel', 'tel_click', 'phone', 'phone_click'], true)) {
+                    if (in_array($tt, ['tel', 'tel_click', 'phone', 'phone_click', 'call_click', 'call'], true)) {
                         $actionBuckets['Call button clicked']++;
                         $hadMeaningful = true;
                         break;

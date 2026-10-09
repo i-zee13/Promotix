@@ -454,7 +454,11 @@
             .vj-ev-legend__item .vj-ev-icon {
                 flex:0 0 14px; width:14px; height:14px;
             }
+            .vj-ev-legend__label { white-space: nowrap; }
             .vj-ev-legend__item.is-off { opacity: 0.38; }
+            /* No ⋮ / kebab menus on timeline event legend */
+            .vj-ev-legend .vj-ev-legend__menu-btn,
+            .vj-ev-legend .vj-ev-legend__panel { display: none !important; }
             /* Align caption with the time track (same 168px sid column as rows). */
             .vj-axis-label {
                 display:grid; grid-template-columns:168px 1fr; gap:0; min-width:720px;
@@ -1370,11 +1374,8 @@
                                 <div class="vj-card__title" style="margin:0">Visitor Journey</div>
                             </div>
                             <div class="vj-mini-filters" x-show="flowTab === 'timeline'">
-                                <select x-model="eventFilter" @change="selectedEvent = null">
+                                <select x-model="eventFilter" @change="selectedEvent = null" class="vj-event-filter" aria-label="Filter timeline events">
                                     <option value="all">All events</option>
-                                    <option value="page">Page view</option>
-                                    <option value="scroll">Scroll</option>
-                                    <option value="cta">CTA click</option>
                                     <option value="tel_click">Tel Link Clicked</option>
                                     <option value="call_click">Call Button Clicked</option>
                                     <option value="form_submit">Form Submitted</option>
@@ -1391,8 +1392,11 @@
                                     <option value="purchase">Purchase Completed</option>
                                     <option value="provider_selected">Provider Selected</option>
                                     <option value="pricing_viewed">Pricing Viewed</option>
+                                    <option value="scroll">Scroll</option>
                                     <option value="navigation_menu_opened">Menu navigation</option>
                                     <option value="exit">Exit</option>
+                                    <option value="page">Page view</option>
+                                    <option value="cta">CTA click</option>
                                 </select>
                                 <select x-model="timeScale">
                                     <option value="30">30s scale</option>
@@ -1461,7 +1465,7 @@
                         {{-- Event Timeline (multi-session lanes) --}}
                         <div class="vj-timeline-wrap" x-show="flowTab === 'timeline'">
                             <div class="vj-tab-body vj-tab-body--timeline">
-                            <div class="vj-ev-legend">
+                            <div class="vj-ev-legend" aria-label="Event types">
                                 <template x-for="item in eventLegendItems" :key="'leg-'+item.key">
                                     <button type="button"
                                             class="vj-ev-legend__item"
@@ -1469,8 +1473,8 @@
                                             @click="toggleEventType(item.key)"
                                             :title="isEventTypeEnabled(item.key) ? ('Hide ' + item.label) : ('Show ' + item.label)"
                                             :aria-pressed="isEventTypeEnabled(item.key)">
-                                        <span class="vj-ev-icon" :class="'is-' + item.icon" x-html="eventTypeIconSvg(item.icon || item.key)"></span>
-                                        <span x-text="item.label"></span>
+                                        <span class="vj-ev-icon" :class="'is-' + (item.icon || item.key)" x-html="eventTypeIconSvg(item.icon || item.key)"></span>
+                                        <span class="vj-ev-legend__label" x-text="item.label"></span>
                                     </button>
                                 </template>
                             </div>
@@ -2115,9 +2119,6 @@ function visitorJourneyPage() {
         eventFilter: 'all',
         eventFilterOptions: [
             { value: 'all', label: 'All events' },
-            { value: 'page', label: 'Page view' },
-            { value: 'scroll', label: 'Scroll' },
-            { value: 'cta', label: 'CTA click' },
             { value: 'tel_click', label: 'Tel Link Clicked' },
             { value: 'call_click', label: 'Call Button Clicked' },
             { value: 'form_submit', label: 'Form Submitted' },
@@ -2134,26 +2135,41 @@ function visitorJourneyPage() {
             { value: 'purchase', label: 'Purchase Completed' },
             { value: 'provider_selected', label: 'Provider Selected' },
             { value: 'pricing_viewed', label: 'Pricing Viewed' },
+            { value: 'scroll', label: 'Scroll' },
             { value: 'navigation_menu_opened', label: 'Menu navigation' },
             { value: 'exit', label: 'Exit' },
+            { value: 'page', label: 'Page view' },
+            { value: 'cta', label: 'CTA click' },
         ],
         eventLegendItems: [
-            { key: 'page', label: 'Page view', icon: 'page' },
-            { key: 'scroll', label: 'Scroll', icon: 'scroll' },
-            { key: 'cta', label: 'CTA click', icon: 'cta' },
-            { key: 'tel_click', label: 'Tel link', icon: 'phone' },
-            { key: 'call_click', label: 'Call', icon: 'phone' },
-            { key: 'form_submit', label: 'Form', icon: 'form' },
+            { key: 'tel_click', label: 'Tel Link', icon: 'phone' },
+            { key: 'call_click', label: 'Call Button', icon: 'phone' },
+            { key: 'form_submit', label: 'Form Submitted', icon: 'form' },
+            { key: 'form_submit_failed', label: 'Form Failed', icon: 'form' },
             { key: 'email_click', label: 'Email', icon: 'email' },
-            { key: 'chat_opened', label: 'Chat', icon: 'chat' },
-            { key: 'add_to_cart', label: 'Cart', icon: 'commerce' },
+            { key: 'zip_entered', label: 'ZIP Entered', icon: 'zip' },
+            { key: 'zip_checked', label: 'ZIP Checked', icon: 'zip' },
+            { key: 'chat_opened', label: 'Chat Opened', icon: 'chat' },
+            { key: 'chat_message_sent', label: 'Chat Message', icon: 'chat' },
+            { key: 'add_to_cart', label: 'Add to Cart', icon: 'commerce' },
+            { key: 'appointment_click', label: 'Appointment', icon: 'book' },
+            { key: 'book_click', label: 'Book', icon: 'book' },
+            { key: 'checkout', label: 'Checkout', icon: 'commerce' },
+            { key: 'purchase', label: 'Purchase', icon: 'commerce' },
+            { key: 'provider_selected', label: 'Provider', icon: 'nav' },
+            { key: 'pricing_viewed', label: 'Pricing', icon: 'nav' },
+            { key: 'scroll', label: 'Scroll', icon: 'scroll' },
+            { key: 'navigation_menu_opened', label: 'Menu', icon: 'nav' },
             { key: 'exit', label: 'Exit', icon: 'exit' },
+            { key: 'page', label: 'Page view', icon: 'page' },
+            { key: 'cta', label: 'CTA click', icon: 'cta' },
         ],
         enabledEventTypes: [
-            'page', 'scroll', 'cta', 'tel_click', 'call_click', 'form_submit', 'form_submit_failed',
+            'tel_click', 'call_click', 'form_submit', 'form_submit_failed',
             'email_click', 'zip_entered', 'zip_checked', 'chat_opened', 'chat_message_sent',
             'add_to_cart', 'appointment_click', 'book_click', 'checkout', 'purchase',
-            'provider_selected', 'pricing_viewed', 'navigation_menu_opened', 'exit',
+            'provider_selected', 'pricing_viewed', 'scroll', 'navigation_menu_opened', 'exit',
+            'page', 'cta',
         ],
         timeScale: '30',
         selectedEvent: null,
@@ -2679,9 +2695,14 @@ function visitorJourneyPage() {
         eventFamilyKey(ev) {
             let t = String(ev?.type || ev?.kind || '').toLowerCase();
             if (t === 'session_exit' || t === 'session_end') return 'exit';
-            if (t === 'phone_click') {
+            // Normalize all call/phone variants for filters + legend.
+            if (t === 'phone_click' || t === 'phone') {
                 const href = String(ev?.href || '').toLowerCase();
-                return /^(tel|callto|sms):/.test(href) || ev?.link_type === 'tel' ? 'tel_click' : 'call_click';
+                const linkType = String(ev?.link_type || '').toLowerCase();
+                if (/^(tel|callto|sms):/.test(href) || linkType === 'tel') return 'tel_click';
+                if (linkType === 'call') return 'call_click';
+                // Legacy phone_click (Call Now / CallRail) → call_click family.
+                return 'call_click';
             }
             if (t === 'tel_click') return 'tel_click';
             if (t === 'call_click') return 'call_click';
@@ -2721,13 +2742,25 @@ function visitorJourneyPage() {
             if (k === 'scroll') return 'scroll';
             return 'page';
         },
+        isPhoneFamily(key) {
+            return key === 'tel_click' || key === 'call_click' || key === 'phone' || key === 'phone_click';
+        },
         filteredEvents(row) {
             const list = row.timeline || [];
             const enabled = Array.isArray(this.enabledEventTypes) ? this.enabledEventTypes : [];
+            const phoneEnabled = enabled.some((k) => this.isPhoneFamily(k));
             return list.filter((e) => {
                 const t = this.eventFamilyKey(e);
-                if (enabled.length && !enabled.includes(t)) return false;
+                if (enabled.length) {
+                    if (this.isPhoneFamily(t)) {
+                        if (!phoneEnabled) return false;
+                    } else if (!enabled.includes(t)) {
+                        return false;
+                    }
+                }
                 if (this.eventFilter === 'all') return true;
+                // Tel Link / Call Button filters both show the phone family so older phone_click rows still appear.
+                if (this.isPhoneFamily(this.eventFilter)) return this.isPhoneFamily(t);
                 return t === this.eventFilter;
             });
         },

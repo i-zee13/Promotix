@@ -15,24 +15,48 @@ class AccountCurrency
         return strlen($code) === 3 ? $code : 'USD';
     }
 
-    public static function fromDomain(?Domain $domain): string
+    /**
+     * @param  string|null  $fallback  Used when Ads currency + timezone are both missing
+     *                                 (e.g. viewer TZ currency) so PKR spend is not labeled USD.
+     */
+    public static function fromDomain(?Domain $domain, ?string $fallback = null): string
     {
         if (! $domain) {
-            return 'USD';
+            return self::normalize($fallback ?? 'USD');
         }
 
-        $code = trim((string) ($domain->googleAdsAccount?->currency_code ?? ''));
+        $account = $domain->googleAdsAccount;
+        $code = trim((string) ($account?->currency_code ?? ''));
         if ($code === '' && $domain->relationLoaded('googleAdsMappings')) {
             foreach ($domain->googleAdsMappings as $mapping) {
                 $mapped = trim((string) ($mapping->account?->currency_code ?? ''));
                 if ($mapped !== '') {
                     $code = $mapped;
+                    $account = $mapping->account;
                     break;
                 }
             }
         }
 
-        return self::normalize($code !== '' ? $code : null);
+        $tz = trim((string) ($account?->time_zone ?? ''));
+        $tzCurrency = $tz !== '' ? self::fromTimezone($tz) : '';
+
+        if ($code !== '') {
+            $normalized = self::normalize($code);
+            // Stored "USD" with a clearly non-US Ads timezone is usually missing metadata
+            // (empty was normalized to USD earlier). Prefer timezone to avoid ×FX millions.
+            if ($normalized === 'USD' && $tzCurrency !== '' && $tzCurrency !== 'USD') {
+                return $tzCurrency;
+            }
+
+            return $normalized;
+        }
+
+        if ($tzCurrency !== '') {
+            return $tzCurrency;
+        }
+
+        return self::normalize($fallback ?? 'USD');
     }
 
     public static function fromTimezone(?string $timezone): string

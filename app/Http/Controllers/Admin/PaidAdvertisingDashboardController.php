@@ -253,22 +253,30 @@ class PaidAdvertisingDashboardController extends Controller
             : ($uniqueValidPaidClicks > 0 ? 100 : 0);
 
         $currencyCode = AccountCurrency::resolveForRequest($request, $domains);
+        $displayCurrency = AccountCurrency::fromTimezone($reportingTz);
+        $isAllDomains = ! $request->filled('domain_id');
+        // Re-label USD-only bundles when converting into a non-USD viewer currency — otherwise
+        // PKR (etc.) spend treated as USD then ×FX becomes fake millions (e.g. Rs 6.82M).
         $googleCost = (float) (is_array($googleAds) ? ($googleAds['cost'] ?? 0) : 0);
         $bundles = is_array($googleAds) && is_array($googleAds['bundles'] ?? null) ? $googleAds['bundles'] : [];
         if ($bundles !== []) {
+            $bundles = $this->alignBundleCurrenciesForDisplay($bundles, $displayCurrency, $domains);
             $converted = CurrencyConverter::sumBundlesInCurrency($bundles, $currencyCode);
             $googleCost = $converted['cost'];
         }
+        $googleCost = GoogleAdsDomainMetricsSync::normalizeStoredCost($googleCost, $googleClicks, $currencyCode);
         $invalidForSavings = $uniqueInvalidPaidClicks > 0 ? $uniqueInvalidPaidClicks : $invalid;
+        $invalidForSavings = min($invalidForSavings, max(0, $googleClicks > 0 ? $googleClicks : $invalidForSavings));
         $avgCpc = $googleClicks > 0 ? ($googleCost / $googleClicks) : 0.0;
         $costSaved = round($avgCpc * $invalidForSavings, 2);
+        if ($costSaved > $googleCost && $googleCost > 0) {
+            $costSaved = round($googleCost, 2);
+        }
         $costSavedBreakdown = [];
 
-        // All Domains: per-domain waste → convert each to USD → sum (never mix raw PKR+USD),
-        // then convert the USD total into the viewer timezone currency (PKT→PKR, etc.).
-        $isAllDomains = ! $request->filled('domain_id');
-        if ($isAllDomains && $adsLinkedDomainIds->count() > 1) {
-            $fx = $this->allDomainsWasteInUsd(
+        // All Domains (any ads-linked count): per-domain CPC×invalid → one FX hop into viewer TZ currency.
+        if ($isAllDomains && $adsLinkedDomainIds->isNotEmpty()) {
+            $fx = $this->allDomainsWasteInDisplayCurrency(
                 $request,
                 $adsLinkedDomainIds,
                 $domains,
@@ -276,12 +284,11 @@ class PaidAdvertisingDashboardController extends Controller
                 $metricTo,
                 $reportingTz,
             );
-            $displayCurrency = AccountCurrency::fromTimezone($reportingTz);
-            $googleCost = round(CurrencyConverter::convert($fx['google_cost_usd'], 'USD', $displayCurrency), 2);
-            $avgCpc = round(CurrencyConverter::convert($fx['avg_cpc_usd'], 'USD', $displayCurrency), 4);
-            $costSaved = round(CurrencyConverter::convert($fx['cost_saved_usd'], 'USD', $displayCurrency), 2);
+            $googleCost = $fx['google_cost'];
+            $avgCpc = $fx['avg_cpc'];
+            $costSaved = $fx['cost_saved'];
             $costSavedBreakdown = $fx['breakdown'];
-            $currencyCode = $displayCurrency;
+            $currencyCode = $fx['currency_code'];
         }
 
         $selectedDomain = $request->filled('domain_id') && $domains->count() === 1
@@ -680,6 +687,7 @@ class PaidAdvertisingDashboardController extends Controller
                 $best = collect($group)->sortByDesc(fn ($row) => (int) ($row['total'] ?? $row['clicks'] ?? 0))->first();
                 $total = (int) ($best['total'] ?? $best['clicks'] ?? 0);
                 $invalid = (int) ($best['invalid'] ?? 0);
+                $invalid = min($invalid, max(0, $total > 0 ? $total : $invalid));
                 $costSaved = round($avgCpc * $invalid, 2);
 
                 return [
@@ -3621,18 +3629,61 @@ class PaidAdvertisingDashboardController extends Controller
     }
 
     /**
-     * All Domains waste: per-domain CPC × invalid in native currency, then FX → USD and sum.
+     * If every Ads bundle is unlabeled USD while the viewer (or domain TZ) is PKR/AED/…,
+     * treat spend as already in display currency — never ×FX again into millions.
+     *
+     * @param  list<array{currency_code?: string, clicks?: int, cost?: float}>  $bundles
+     * @param  \Illuminate\Support\Collection<int, Domain>|iterable<Domain>  $domains
+     * @return list<array{currency_code: string, clicks: int, cost: float}>
+     */
+    private function alignBundleCurrenciesForDisplay(array $bundles, string $displayCurrency, $domains): array
+    {
+        $displayCurrency = AccountCurrency::normalize($displayCurrency);
+        if ($displayCurrency === 'USD' || $bundles === []) {
+            return $bundles;
+        }
+
+        $domainCurrencies = collect($domains)
+            ->map(fn ($d) => $d instanceof Domain ? AccountCurrency::fromDomain($d, $displayCurrency) : null)
+            ->filter()
+            ->unique()
+            ->values();
+
+        $allUsd = collect($bundles)->every(
+            fn ($b) => AccountCurrency::normalize((string) ($b['currency_code'] ?? 'USD')) === 'USD'
+        );
+        if (! $allUsd) {
+            return $bundles;
+        }
+
+        // Prefer a single non-USD domain currency; else viewer display currency.
+        $native = $domainCurrencies->count() === 1 && $domainCurrencies->first() !== 'USD'
+            ? (string) $domainCurrencies->first()
+            : $displayCurrency;
+
+        return collect($bundles)
+            ->map(function (array $bundle) use ($native) {
+                $bundle['currency_code'] = $native;
+
+                return $bundle;
+            })
+            ->all();
+    }
+
+    /**
+     * All Domains waste: per-domain CPC × distinct invalid (Ads currency) → convert once to display currency.
      *
      * @param  \Illuminate\Support\Collection<int, int>  $adsLinkedDomainIds
      * @param  \Illuminate\Support\Collection<int, Domain>  $domains
      * @return array{
-     *     google_cost_usd: float,
-     *     avg_cpc_usd: float,
-     *     cost_saved_usd: float,
+     *     currency_code: string,
+     *     google_cost: float,
+     *     avg_cpc: float,
+     *     cost_saved: float,
      *     breakdown: list<array<string, mixed>>
      * }
      */
-    private function allDomainsWasteInUsd(
+    private function allDomainsWasteInDisplayCurrency(
         Request $request,
         $adsLinkedDomainIds,
         $domains,
@@ -3642,6 +3693,7 @@ class PaidAdvertisingDashboardController extends Controller
     ): array {
         $sync = app(GoogleAdsDomainMetricsSync::class);
         $domainsById = $domains->keyBy('id');
+        $displayCurrency = AccountCurrency::fromTimezone($reportingTz);
         $invalidByDomain = [];
 
         if (Schema::hasTable('visits') && $adsLinkedDomainIds->isNotEmpty()) {
@@ -3665,9 +3717,9 @@ class PaidAdvertisingDashboardController extends Controller
             }
         }
 
-        $costUsd = 0.0;
+        $costDisplay = 0.0;
         $clicksTotal = 0;
-        $savedUsd = 0.0;
+        $savedDisplay = 0.0;
         $breakdown = [];
 
         foreach ($adsLinkedDomainIds as $domainId) {
@@ -3683,17 +3735,29 @@ class PaidAdvertisingDashboardController extends Controller
             [$fromDate, $toDate] = UserTimezone::googleMetricDateBounds($metricFrom, $metricTo, $reportingTz, $googleTz);
             $totals = $sync->clickTotalsForDomain($domainId, $fromDate, $toDate);
             $clicks = (int) ($totals['clicks'] ?? 0);
-            $costNative = (float) ($totals['cost'] ?? 0);
-            $currency = AccountCurrency::fromDomain($domain);
+            // Fallback to viewer display currency when Ads currency+TZ missing (avoids USD→PKR ×FX).
+            $currency = AccountCurrency::fromDomain($domain, $displayCurrency);
+            $costNative = GoogleAdsDomainMetricsSync::normalizeStoredCost(
+                (float) ($totals['cost'] ?? 0),
+                $clicks,
+                $currency,
+            );
             $invalid = (int) ($invalidByDomain[$domainId] ?? 0);
+            // Distinct invalid click IDs only; never more than Google clicks for that domain.
+            $invalid = min($invalid, max(0, $clicks > 0 ? $clicks : $invalid));
             $cpcNative = $clicks > 0 ? ($costNative / $clicks) : 0.0;
             $wasteNative = round($cpcNative * $invalid, 2);
-            $costUsdDomain = CurrencyConverter::convert($costNative, $currency, 'USD');
-            $wasteUsdDomain = CurrencyConverter::convert($wasteNative, $currency, 'USD');
+            if ($wasteNative > $costNative && $costNative > 0) {
+                $wasteNative = round($costNative, 2);
+            }
 
-            $costUsd += $costUsdDomain;
+            // One FX hop: Ads account currency → viewer display currency (no USD re-label).
+            $costDomain = CurrencyConverter::convert($costNative, $currency, $displayCurrency);
+            $wasteDomain = CurrencyConverter::convert($wasteNative, $currency, $displayCurrency);
+
+            $costDisplay += $costDomain;
             $clicksTotal += $clicks;
-            $savedUsd += $wasteUsdDomain;
+            $savedDisplay += $wasteDomain;
 
             $breakdown[] = [
                 'id' => $domainId,
@@ -3701,20 +3765,26 @@ class PaidAdvertisingDashboardController extends Controller
                 'currency_code' => $currency,
                 'google_clicks' => $clicks,
                 'google_cost_native' => round($costNative, 2),
-                'google_cost_usd' => round($costUsdDomain, 2),
+                'google_cost' => round($costDomain, 2),
                 'invalid_clicks' => $invalid,
                 'avg_cpc_native' => round($cpcNative, 4),
                 'cost_saved_native' => $wasteNative,
                 'cost_saved_native_label' => AccountCurrency::formatAmount($wasteNative, $currency),
-                'cost_saved_usd' => round($wasteUsdDomain, 2),
+                'cost_saved' => round($wasteDomain, 2),
+                'cost_saved_label' => AccountCurrency::formatAmount($wasteDomain, $displayCurrency),
                 'fx_units_per_usd' => CurrencyConverter::unitsPerUsd($currency),
             ];
         }
 
+        if ($savedDisplay > $costDisplay && $costDisplay > 0) {
+            $savedDisplay = $costDisplay;
+        }
+
         return [
-            'google_cost_usd' => round($costUsd, 2),
-            'avg_cpc_usd' => $clicksTotal > 0 ? round($costUsd / $clicksTotal, 4) : 0.0,
-            'cost_saved_usd' => round($savedUsd, 2),
+            'currency_code' => $displayCurrency,
+            'google_cost' => round($costDisplay, 2),
+            'avg_cpc' => $clicksTotal > 0 ? round($costDisplay / $clicksTotal, 4) : 0.0,
+            'cost_saved' => round($savedDisplay, 2),
             'breakdown' => $breakdown,
         ];
     }
@@ -3736,8 +3806,10 @@ class PaidAdvertisingDashboardController extends Controller
         $googleAds = app(\App\Services\GoogleAdsDomainMetricsSync::class)
             ->clickTotalsForDomainsReporting($domainIds, $metricFrom, $metricTo, $reportingTz, $domains);
         $currencyCode = AccountCurrency::resolveForRequest($request, $domains);
+        $displayCurrency = AccountCurrency::fromTimezone($reportingTz);
         $bundles = is_array($googleAds['bundles'] ?? null) ? $googleAds['bundles'] : [];
         if ($bundles !== []) {
+            $bundles = $this->alignBundleCurrenciesForDisplay($bundles, $displayCurrency, $domains);
             $converted = CurrencyConverter::sumBundlesInCurrency($bundles, $currencyCode);
             $clicks = $converted['clicks'];
             $cost = $converted['cost'];
@@ -3745,6 +3817,7 @@ class PaidAdvertisingDashboardController extends Controller
             $clicks = (int) ($googleAds['clicks'] ?? 0);
             $cost = (float) ($googleAds['cost'] ?? 0);
         }
+        $cost = GoogleAdsDomainMetricsSync::normalizeStoredCost($cost, $clicks, $currencyCode);
 
         return $clicks > 0 ? ($cost / $clicks) : 0.0;
     }
@@ -4104,6 +4177,7 @@ class PaidAdvertisingDashboardController extends Controller
             $allowlistSig,
             (string) $metricFrom,
             (string) $metricTo,
+            'cost_saved_fx_v4',
         ])), 0, 24);
 
         $meta = [

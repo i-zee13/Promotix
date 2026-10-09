@@ -138,7 +138,10 @@ class SessionBehaviorTimeline
                 $text = trim((string) ($raw['element_text'] ?? $raw['text'] ?? ''));
                 $href = trim((string) ($raw['href'] ?? ''));
                 $tel = trim((string) ($raw['tel_number'] ?? preg_replace('/^(tel|callto|sms):/i', '', $href)));
-                $isTelLink = SessionClickClassifier::isTelHref($href) || $type === 'tel_click';
+                $linkType = strtolower(trim((string) ($raw['link_type'] ?? '')));
+                $isTelLink = SessionClickClassifier::isTelHref($href)
+                    || $type === 'tel_click'
+                    || $linkType === 'tel';
                 $rows[] = array_merge($base, [
                     'label' => $isTelLink ? 'Tel Link Clicked' : 'Call Button Clicked',
                     'detail' => ($text !== '' ? $text.' → ' : '').($tel !== '' ? $tel : ($href !== '' ? $href : 'call')),
