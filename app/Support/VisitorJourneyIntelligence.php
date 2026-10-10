@@ -25,7 +25,10 @@ class VisitorJourneyIntelligence
             return $this->emptyPayload();
         }
 
-        $cacheKey = 'vj:intel:v9:'.md5(json_encode([
+        $sessionPage = max(1, (int) $request->query('session_page', 1));
+        $sessionPerPage = min(100, max(5, (int) $request->query('session_per_page', 20)));
+
+        $cacheKey = 'vj:intel:v10:'.md5(json_encode([
             'domains' => array_values($domainIds),
             'from' => $from->toIso8601String(),
             'to' => $to->toIso8601String(),
@@ -35,6 +38,9 @@ class VisitorJourneyIntelligence
             'q' => trim((string) ($filters['q'] ?? '')),
             'domain_id' => (int) $request->query('domain_id', 0),
             'google_ads_account_id' => (string) $request->query('google_ads_account_id', ''),
+            'session_page' => $sessionPage,
+            'session_per_page' => $sessionPerPage,
+            'ip' => trim((string) $request->query('ip', '')),
         ]));
 
         return Cache::remember($cacheKey, 90, function () use ($domainIds, $from, $to, $request, $filters) {
@@ -92,23 +98,25 @@ class VisitorJourneyIntelligence
         // Cheap previous-period counts for KPI deltas (avoid a second full aggregator build).
         $prevTracked = $this->cheapSessionCount($domainIds, $prevFrom, $prevTo);
 
-        // Fetch enough recent paid sessions WITH recordings so Event Timeline has
-        // scroll / CTA / form markers (withRecordings=false left only page+exit stubs).
+        // Paginated paid sessions WITH recordings (was hard-capped at 48 → fake totals).
+        $page = max(1, (int) $request->query('session_page', 1));
+        $perPage = min(100, max(5, (int) $request->query('session_per_page', 20)));
         $sessionPage = app(TrafficControlSessionQuery::class)->paginate(
             $domainIds,
             $from,
             $to,
             $request,
-            1,
-            48,
+            $page,
+            $perPage,
             'paid',
-            false,
+            true,
             true,
         );
 
         $sessions = $sessionPage['data'] ?? [];
-        // TrafficControlSessionQuery already merges visit_behavior_events when withRecordings=true.
+        // Distinct paid sessions in range (not the page size).
         $sessionTotal = max(
+            (int) ($sessionPage['total'] ?? 0),
             (int) ($current['journey_summary']['sessions'] ?? 0),
             count($sessions),
         );
@@ -263,6 +271,8 @@ class VisitorJourneyIntelligence
             'timeline' => $selected['timeline'] ?? [],
             'meta' => [
                 'session_total' => $sessionTotal,
+                'session_page' => $page,
+                'session_per_page' => $perPage,
                 'tracked' => $tracked,
                 'campaigns' => $campaigns,
                 'days' => $days,
@@ -1927,7 +1937,14 @@ class VisitorJourneyIntelligence
             'sessions' => [],
             'selected' => null,
             'timeline' => [],
-            'meta' => ['session_total' => 0, 'tracked' => 0, 'campaigns' => [], 'days' => 0],
+            'meta' => [
+                'session_total' => 0,
+                'session_page' => 1,
+                'session_per_page' => 20,
+                'tracked' => 0,
+                'campaigns' => [],
+                'days' => 0,
+            ],
         ];
     }
 }

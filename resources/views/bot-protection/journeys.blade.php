@@ -442,10 +442,36 @@
                 height:32px; border-radius:8px; border:1px solid rgba(255,255,255,.14); background:#0f0f0f;
                 color:rgba(255,255,255,.75); font-size:11px; padding:0 28px 0 10px; appearance:none;
             }
-            .vj-ev-legend {
-                display:flex; flex-wrap:wrap; gap:16px; align-items:center;
-                margin:0 0 10px; padding:0 2px; font-size:11px; color:rgba(255,255,255,.55);
+            .vj-theme-select { position: relative; min-width: 148px; }
+            .vj-theme-select--pager { min-width: 108px; }
+            .vj-theme-select__btn {
+                display: flex; align-items: center; width: 100%; height: 32px;
+                border-radius: 8px; border: 1px solid rgba(255,102,0,.45);
+                background: #101010; color: rgba(255,255,255,.85);
+                font-size: 11px; padding: 0 28px 0 10px; text-align: left; cursor: pointer;
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23FF6600' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+                background-repeat: no-repeat; background-position: right 10px center;
             }
+            .vj-theme-select__btn:hover { border-color: rgba(255,102,0,.75); }
+            .vj-theme-select__menu {
+                left: 0 !important; right: auto !important; min-width: 220px !important;
+                max-height: 280px; z-index: 140 !important;
+            }
+            .vj-ev-legend {
+                display:flex; flex-wrap:wrap; gap:10px 16px; align-items:center;
+                margin:0 0 10px; padding:0 6px 0 2px; font-size:11px; color:rgba(255,255,255,.55);
+                max-height: 52px; /* ~2 rows; rest scrolls */
+                overflow-x: hidden;
+                overflow-y: auto;
+                scrollbar-width: thin;
+                scrollbar-color: rgba(255,102,0,.55) transparent;
+            }
+            .vj-ev-legend::-webkit-scrollbar { width: 6px; }
+            .vj-ev-legend::-webkit-scrollbar-track { background: transparent; }
+            .vj-ev-legend::-webkit-scrollbar-thumb {
+                background: rgba(255,102,0,.45); border-radius: 999px;
+            }
+            .vj-ev-legend::-webkit-scrollbar-thumb:hover { background: rgba(255,102,0,.7); }
             .vj-ev-legend__item {
                 display:inline-flex; align-items:center; gap:6px; line-height:1;
                 position: relative; border:0; background:transparent; color:inherit;
@@ -910,7 +936,8 @@
             html.light-mode .vj-ev-icon.is-phone { color:#059669 !important; }
             html.light-mode .vj-ev-icon.is-form { color:#16A34A !important; }
             html.light-mode .vj-ev-icon.is-exit { color:#E11D48 !important; }
-            html.light-mode .vj-mini-filters select {
+            html.light-mode .vj-mini-filters select,
+            html.light-mode .vj-theme-select__btn {
                 background: #ffffff !important;
                 border-color: rgba(255, 102, 0, 0.32) !important;
                 color: #2d2d3a !important;
@@ -1374,35 +1401,30 @@
                                 <div class="vj-card__title" style="margin:0">Visitor Journey</div>
                             </div>
                             <div class="vj-mini-filters" x-show="flowTab === 'timeline'">
-                                <select x-model="eventFilter" @change="selectedEvent = null" class="vj-event-filter" aria-label="Filter timeline events">
-                                    <option value="all">All events</option>
-                                    <option value="tel_click">Tel Link Clicked</option>
-                                    <option value="call_click">Call Button Clicked</option>
-                                    <option value="form_submit">Form Submitted</option>
-                                    <option value="form_submit_failed">Form Submission Failed</option>
-                                    <option value="email_click">Email Link Clicked</option>
-                                    <option value="zip_entered">ZIP Code Entered</option>
-                                    <option value="zip_checked">ZIP Check Completed</option>
-                                    <option value="chat_opened">Chat Opened</option>
-                                    <option value="chat_message_sent">Chat Message Sent</option>
-                                    <option value="add_to_cart">Add to Cart</option>
-                                    <option value="appointment_click">Appointment</option>
-                                    <option value="book_click">Book</option>
-                                    <option value="checkout">Checkout Started</option>
-                                    <option value="purchase">Purchase Completed</option>
-                                    <option value="provider_selected">Provider Selected</option>
-                                    <option value="pricing_viewed">Pricing Viewed</option>
-                                    <option value="scroll">Scroll</option>
-                                    <option value="navigation_menu_opened">Menu navigation</option>
-                                    <option value="exit">Exit</option>
-                                    <option value="page">Page view</option>
-                                    <option value="cta">CTA click</option>
-                                </select>
-                                <select x-model="timeScale">
-                                    <option value="30">30s scale</option>
-                                    <option value="15">15s scale</option>
-                                    <option value="60">60s scale</option>
-                                </select>
+                                <div class="vj-theme-select" @click.outside="filterMenus.event = false">
+                                    <button type="button" class="vj-theme-select__btn" @click="toggleFilterMenu('event')" :aria-expanded="!!filterMenus.event">
+                                        <span class="truncate" x-text="eventFilterLabel()"></span>
+                                    </button>
+                                    <div x-show="filterMenus.event" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll vj-theme-select__menu">
+                                        <template x-for="opt in eventFilterOptions" :key="'evf-'+opt.value">
+                                            <button type="button" class="paid-advanced-campaign-option" :class="eventFilter === opt.value && 'is-active'" @click="pickEventFilter(opt.value)">
+                                                <span class="paid-advanced-campaign-option__label" x-text="opt.label"></span>
+                                            </button>
+                                        </template>
+                                    </div>
+                                </div>
+                                <div class="vj-theme-select" @click.outside="filterMenus.scale = false">
+                                    <button type="button" class="vj-theme-select__btn" @click="toggleFilterMenu('scale')" :aria-expanded="!!filterMenus.scale">
+                                        <span class="truncate" x-text="timeScaleLabel()"></span>
+                                    </button>
+                                    <div x-show="filterMenus.scale" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll vj-theme-select__menu">
+                                        <template x-for="opt in timeScaleOptions" :key="'tsc-'+opt.value">
+                                            <button type="button" class="paid-advanced-campaign-option" :class="String(timeScale) === String(opt.value) && 'is-active'" @click="pickTimeScale(opt.value)">
+                                                <span class="paid-advanced-campaign-option__label" x-text="opt.label"></span>
+                                            </button>
+                                        </template>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -1530,12 +1552,18 @@
                                         </template>
                                         <button type="button" class="adv-pager__btn" :disabled="timelinePage >= timelinePageCount" @click="setTimelinePage(timelinePage + 1)">›</button>
                                     </div>
-                                    <select class="adv-pager__select" x-model.number="timelinePerPage" @change="setTimelinePage(1)" aria-label="Rows per page">
-                                        <option :value="5">5 / page</option>
-                                        <option :value="8">8 / page</option>
-                                        <option :value="10">10 / page</option>
-                                        <option :value="20">20 / page</option>
-                                    </select>
+                                    <div class="vj-theme-select vj-theme-select--pager" @click.outside="filterMenus.perPage = false">
+                                        <button type="button" class="vj-theme-select__btn" @click="filterMenus.perPage = !filterMenus.perPage" aria-label="Rows per page">
+                                            <span x-text="timelinePerPage + ' / page'"></span>
+                                        </button>
+                                        <div x-show="filterMenus.perPage" x-cloak class="paid-advanced-campaign-menu promotix-slim-scroll vj-theme-select__menu">
+                                            <template x-for="n in [5, 8, 10, 20]" :key="'tpp-'+n">
+                                                <button type="button" class="paid-advanced-campaign-option" :class="timelinePerPage === n && 'is-active'" @click="timelinePerPage = n; filterMenus.perPage = false; changeTimelinePerPage()">
+                                                    <span class="paid-advanced-campaign-option__label" x-text="n + ' / page'"></span>
+                                                </button>
+                                            </template>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1546,12 +1574,12 @@
                                 <div class="vj-is__pane">
                                     <div class="vj-is__head">
                                         <div class="vj-is__title">Sessions</div>
-                                        <div class="vj-is__count" x-text="filteredSessionList.length + ' sessions'"></div>
+                                        <div class="vj-is__count" x-text="(sessionTotal || filteredSessionList.length) + ' sessions'"></div>
                                     </div>
                                     <div class="vj-is__tools">
                                         <div class="vj-is__search">
                                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                                            <input type="search" x-model="sessionSearch" @input="sessionPage = 1" placeholder="Search session or device ID...">
+                                            <input type="search" x-model="sessionSearch" @input="scheduleSessionSearch()" placeholder="Search session or device ID...">
                                         </div>
                                         <select x-model="sessionStatusFilter" @change="sessionPage = 1">
                                             <option value="all">All sessions</option>
@@ -1601,14 +1629,14 @@
                                     </template>
                                     <div class="vj-empty" x-show="!filteredSessionList.length">No sessions match.</div>
 
-                                    <div class="vj-pager" x-show="filteredSessionList.length">
+                                    <div class="vj-pager" x-show="sessionTotal > 0 || filteredSessionList.length">
                                         <div x-text="sessionPageLabel"></div>
                                         <div class="vj-pager__btns">
-                                            <button type="button" @click="sessionPage = Math.max(1, sessionPage - 1)">‹</button>
+                                            <button type="button" @click="setSessionPage(sessionPage - 1)">‹</button>
                                             <template x-for="p in sessionPageNumbers" :key="'pg'+p">
-                                                <button type="button" :class="{ 'is-on': sessionPage === p }" @click="sessionPage = p" x-text="p"></button>
+                                                <button type="button" :class="{ 'is-on': sessionPage === p }" @click="p !== '…' && setSessionPage(p)" x-text="p"></button>
                                             </template>
-                                            <button type="button" @click="sessionPage = Math.min(sessionPageCount, sessionPage + 1)">›</button>
+                                            <button type="button" @click="setSessionPage(sessionPage + 1)">›</button>
                                         </div>
                                     </div>
                                 </div>
@@ -2043,7 +2071,13 @@ function visitorJourneyPage() {
             from: '',
             to: '',
         },
-        filterMenus: { account: false, domain: false, campaign: false, device: false },
+        filterMenus: { account: false, domain: false, campaign: false, device: false, event: false, scale: false, perPage: false },
+        sessionTotal: 0,
+        timeScaleOptions: [
+            { value: '30', label: '30s scale' },
+            { value: '15', label: '15s scale' },
+            { value: '60', label: '60s scale' },
+        ],
         accountOptions: @js(collect($googleAdsAccounts ?? [])->map(function ($account) {
             $cid = method_exists($account, 'formattedCustomerId') ? $account->formattedCustomerId() : '';
             $currency = \App\Support\AccountCurrency::normalize((string) ($account->currency_code ?: 'USD'));
@@ -2194,8 +2228,25 @@ function visitorJourneyPage() {
 
         toggleFilterMenu(key) {
             const next = !this.filterMenus[key];
-            this.filterMenus = { account: false, domain: false, campaign: false, device: false };
+            this.filterMenus = { account: false, domain: false, campaign: false, device: false, event: false, scale: false, perPage: false };
             this.filterMenus[key] = next;
+        },
+        eventFilterLabel() {
+            const hit = (this.eventFilterOptions || []).find((o) => o.value === this.eventFilter);
+            return hit ? hit.label : 'All events';
+        },
+        timeScaleLabel() {
+            const hit = (this.timeScaleOptions || []).find((o) => String(o.value) === String(this.timeScale));
+            return hit ? hit.label : '30s scale';
+        },
+        pickEventFilter(value) {
+            this.eventFilter = String(value || 'all');
+            this.selectedEvent = null;
+            this.filterMenus.event = false;
+        },
+        pickTimeScale(value) {
+            this.timeScale = String(value || '30');
+            this.filterMenus.scale = false;
         },
         accountFilterLabel() {
             if (!this.filters.google_ads_account_id) return 'All Accounts';
@@ -2234,16 +2285,14 @@ function visitorJourneyPage() {
         },
 
         get timelineTotal() {
-            return (this.sessions || []).length;
+            return Math.max(Number(this.sessionTotal) || 0, (this.sessions || []).length);
         },
         get timelinePageCount() {
             return Math.max(1, Math.ceil(this.timelineTotal / Math.max(1, this.timelinePerPage)));
         },
         get timelineSessions() {
-            const per = Math.max(1, Number(this.timelinePerPage) || 8);
-            const page = Math.min(this.timelinePageCount, Math.max(1, Number(this.timelinePage) || 1));
-            const start = (page - 1) * per;
-            return (this.sessions || []).slice(start, start + per);
+            // Server already returns the current page.
+            return this.sessions || [];
         },
         get timelinePageItems() {
             return this.pagerPages(this.timelinePage, this.timelinePageCount);
@@ -2253,13 +2302,20 @@ function visitorJourneyPage() {
             if (!total) return 'Showing 0 to 0 of 0 results';
             const per = Math.max(1, Number(this.timelinePerPage) || 8);
             const page = Math.min(this.timelinePageCount, Math.max(1, Number(this.timelinePage) || 1));
-            const start = (page - 1) * per + 1;
-            const end = Math.min(total, page * per);
+            const loaded = (this.sessions || []).length;
+            const start = loaded ? (page - 1) * per + 1 : 0;
+            const end = loaded ? Math.min(total, (page - 1) * per + loaded) : 0;
             return `Showing ${start} to ${end} of ${Number(total).toLocaleString()} results`;
         },
         setTimelinePage(p) {
             const next = Math.min(this.timelinePageCount, Math.max(1, Number(p) || 1));
+            if (next === this.timelinePage && (this.sessions || []).length) return;
             this.timelinePage = next;
+            this.reload({ paging: true, keepPage: true });
+        },
+        changeTimelinePerPage() {
+            this.timelinePage = 1;
+            this.reload({ keepPage: true });
         },
         pagerPages(page, totalPages) {
             const last = Math.max(1, Number(totalPages) || 1);
@@ -2338,14 +2394,6 @@ function visitorJourneyPage() {
         },
         get filteredSessionList() {
             let list = [...(this.sessions || [])];
-            const q = String(this.sessionSearch || '').trim().toLowerCase();
-            if (q) {
-                list = list.filter((s) =>
-                    String(s.session_id || '').toLowerCase().includes(q)
-                    || String(s.device_id || '').toLowerCase().includes(q)
-                    || String(s.campaign || '').toLowerCase().includes(q)
-                );
-            }
             if (this.sessionStatusFilter !== 'all') {
                 list = list.filter((s) => (s.outcome?.tone || 'none') === this.sessionStatusFilter);
             }
@@ -2357,22 +2405,34 @@ function visitorJourneyPage() {
             return list;
         },
         get sessionPageCount() {
-            return Math.max(1, Math.ceil(this.filteredSessionList.length / this.sessionPerPage));
+            return Math.max(1, Math.ceil((Number(this.sessionTotal) || this.filteredSessionList.length) / Math.max(1, this.sessionPerPage)));
         },
         get pagedSessions() {
-            const start = (this.sessionPage - 1) * this.sessionPerPage;
-            return this.filteredSessionList.slice(start, start + this.sessionPerPage);
+            return this.filteredSessionList;
         },
         get sessionPageNumbers() {
-            const n = this.sessionPageCount;
-            return Array.from({ length: Math.min(n, 5) }, (_, i) => i + 1);
+            return this.pagerPages(this.sessionPage, this.sessionPageCount);
         },
         get sessionPageLabel() {
-            const total = this.filteredSessionList.length;
+            const total = Number(this.sessionTotal) || this.filteredSessionList.length;
             if (!total) return '0 of 0 sessions';
-            const start = (this.sessionPage - 1) * this.sessionPerPage + 1;
-            const end = Math.min(total, this.sessionPage * this.sessionPerPage);
-            return `${start}-${end} of ${total} sessions`;
+            const loaded = this.filteredSessionList.length;
+            const start = loaded ? (this.sessionPage - 1) * this.sessionPerPage + 1 : 0;
+            const end = loaded ? Math.min(total, (this.sessionPage - 1) * this.sessionPerPage + loaded) : 0;
+            return `${start}-${end} of ${Number(total).toLocaleString()} sessions`;
+        },
+        setSessionPage(p) {
+            const next = Math.min(this.sessionPageCount, Math.max(1, Number(p) || 1));
+            if (next === this.sessionPage && (this.sessions || []).length) return;
+            this.sessionPage = next;
+            this.reload({ paging: true, keepPage: true });
+        },
+        scheduleSessionSearch() {
+            clearTimeout(this._sessionSearchTimer);
+            this._sessionSearchTimer = setTimeout(() => {
+                this.sessionPage = 1;
+                this.reload({ keepPage: true });
+            }, 350);
         },
         get maxLanding() {
             return Math.max(1, ...(this.landingPages || []).map((r) => Number(r.value || 0)));
@@ -2449,9 +2509,24 @@ function visitorJourneyPage() {
             if (this.filters.device) p.set('device', this.filters.device);
             if (this.filters.from) p.set('from', this.filters.from);
             if (this.filters.to) p.set('to', this.filters.to);
+            const per = this.flowTab === 'sessions'
+                ? Math.max(5, Number(this.sessionPerPage) || 5)
+                : Math.max(5, Number(this.timelinePerPage) || 8);
+            const page = this.flowTab === 'sessions'
+                ? Math.max(1, Number(this.sessionPage) || 1)
+                : Math.max(1, Number(this.timelinePage) || 1);
+            p.set('session_page', String(page));
+            p.set('session_per_page', String(per));
+            const q = String(this.sessionSearch || '').trim();
+            if (this.flowTab === 'sessions' && q) p.set('ip', q);
             return p;
         },
-        async reload() {
+        async reload(opts = {}) {
+            const keepPage = !!opts.keepPage;
+            if (!keepPage && !opts.paging) {
+                this.timelinePage = 1;
+                this.sessionPage = 1;
+            }
             this.loading = true;
             try {
                 const res = await fetch('/bot-protection/visitor-journey/intelligence?' + this.queryParams().toString(), {
@@ -2468,11 +2543,15 @@ function visitorJourneyPage() {
                 this.exitPages = data.exit_pages || [];
                 this.outcomes = data.outcomes || { total: 0, slices: [] };
                 this.sessions = data.sessions || [];
+                this.sessionTotal = Number(data.meta?.session_total) || this.sessions.length;
                 this.campaignOptions = data.meta?.campaigns || [];
                 this.selected = data.selected || this.sessions[0] || null;
                 this.timeline = data.timeline || this.selected?.timeline || [];
-                this.timelinePage = 1;
-                this.sessionPage = 1;
+                if (data.meta?.session_page) {
+                    const sp = Number(data.meta.session_page) || 1;
+                    if (this.flowTab === 'sessions') this.sessionPage = sp;
+                    else this.timelinePage = sp;
+                }
                 this.ensureSelectedEvent();
                 this.$nextTick(() => {
                     this.flowDrawTick++;
@@ -2485,20 +2564,13 @@ function visitorJourneyPage() {
             }
         },
         setFlowTab(tab) {
+            const prev = this.flowTab;
             this.flowTab = tab;
-            if (!this.selected && this.sessions.length) {
-                this.selected = this.sessions[0];
-                this.timeline = this.selected.timeline || [];
-            }
+            if (tab === 'timeline') this.timelinePage = 1;
+            if (tab === 'sessions') this.sessionPage = 1;
             if (tab === 'timeline' || tab === 'sessions') {
-                this.ensureSelectedEvent();
-            }
-            if (tab === 'timeline') {
-                this.timelinePage = 1;
-            }
-            if (tab === 'sessions') {
-                this.sessionPage = 1;
-                if (!this.selected && this.sessions[0]) this.selected = this.sessions[0];
+                if (prev !== tab) this.reload({ keepPage: true });
+                else this.ensureSelectedEvent();
             }
             this.$nextTick(() => {
                 void this.filteredSessionList.length;

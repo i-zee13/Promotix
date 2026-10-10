@@ -74,18 +74,30 @@
                     align-self: stretch;
                     flex: 0 0 auto !important;
                     display: flex !important;
-                    flex-wrap: wrap !important;
+                    flex-wrap: nowrap !important;
                     align-items: stretch;
                     justify-content: flex-start !important;
                     gap: 0 !important;
-                    overflow: visible !important;
+                    overflow-x: auto !important;
+                    overflow-y: visible !important;
                     box-sizing: border-box;
                     min-height: 44px !important;
+                    scrollbar-width: thin;
+                    scrollbar-color: rgba(255, 102, 0, 0.55) transparent;
+                }
+                .figma-filter-bar--bp-dash::-webkit-scrollbar { height: 6px; }
+                .figma-filter-bar--bp-dash::-webkit-scrollbar-track { background: transparent; }
+                .figma-filter-bar--bp-dash::-webkit-scrollbar-thumb {
+                    background: rgba(255, 102, 0, 0.45);
+                    border-radius: 999px;
+                }
+                .figma-filter-bar--bp-dash::-webkit-scrollbar-thumb:hover {
+                    background: rgba(255, 102, 0, 0.7);
                 }
                 .figma-filter-bar--bp-dash > label {
-                    flex: 1 1 0 !important;
+                    flex: 1 0 128px !important;
                     width: auto !important;
-                    min-width: 0 !important;
+                    min-width: 128px !important;
                     max-width: none !important;
                     margin: 0 !important;
                     padding: 4px 6px !important;
@@ -94,21 +106,24 @@
                     z-index: 1;
                     overflow: visible;
                 }
-                .figma-filter-bar--bp-dash > label.bp-dash-f-search,
+                .figma-filter-bar--bp-dash > label.bp-dash-f-search {
+                    flex: 1.2 0 150px !important;
+                    min-width: 150px !important;
+                }
                 .figma-filter-bar--bp-dash > label.bp-dash-f-account,
                 .figma-filter-bar--bp-dash > label.bp-dash-f-domain,
                 .figma-filter-bar--bp-dash > label.bp-dash-f-campaign,
                 .figma-filter-bar--bp-dash > label.bp-dash-f-device,
                 .figma-filter-bar--bp-dash > label.bp-dash-f-path {
                     width: auto !important;
-                    flex: 1 1 0 !important;
-                    min-width: 0 !important;
+                    flex: 1 0 128px !important;
+                    min-width: 128px !important;
                 }
                 .figma-filter-bar--bp-dash > label > span:first-child,
                 .figma-filter-bar--bp-dash .figma-filter-label {
                     color: rgba(0, 0, 0, 0.55) !important;
                     font-weight: 600 !important;
-                    font-size: clamp(6px, 0.7cqi, 8px) !important;
+                    font-size: 8px !important;
                     letter-spacing: 0.03em;
                     margin-bottom: 2px !important;
                     white-space: nowrap;
@@ -116,7 +131,7 @@
                     text-overflow: ellipsis;
                 }
                 .figma-filter-bar--bp-dash .figma-filter-control {
-                    font-size: clamp(8px, 0.95cqi, 11px) !important;
+                    font-size: 10px !important;
                     height: 22px !important;
                     min-width: 0 !important;
                 }
@@ -128,7 +143,7 @@
                 }
                 .figma-filter-bar--bp-dash .figma-filter-select-wrap {
                     height: 22px !important;
-                    font-size: clamp(8px, 0.95cqi, 11px) !important;
+                    font-size: 10px !important;
                     padding-left: 6px !important;
                     padding-right: 18px !important;
                     overflow: hidden;
@@ -142,6 +157,7 @@
                     display: inline-flex !important;
                     flex: 0 0 auto !important;
                     flex-shrink: 0 !important;
+                    min-width: max-content !important;
                     align-items: stretch;
                     align-self: stretch;
                     position: relative;
@@ -215,42 +231,32 @@
                     width: 14px;
                     height: 14px;
                 }
-                /* Tablet / narrow desktop only — phones use the @media block below. */
+                /* Narrow desktop: keep one row + horizontal scroll (no 6px crush). */
                 @container figma-main (max-width: 1200px) and (min-width: 1024px) {
+                    .figma-filter-bar--bp-dash {
+                        flex-wrap: nowrap !important;
+                        overflow-x: auto !important;
+                    }
                     .figma-filter-bar--bp-dash > label {
-                        flex: 1 1 100px !important;
-                        padding-left: 4px !important;
-                        padding-right: 4px !important;
+                        flex: 0 0 132px !important;
+                        min-width: 132px !important;
+                        padding-left: 6px !important;
+                        padding-right: 6px !important;
+                    }
+                    .figma-filter-bar--bp-dash > label.bp-dash-f-search {
+                        flex: 0 0 160px !important;
+                        min-width: 160px !important;
                     }
                     .figma-filter-bar--bp-dash > label > span:first-child,
                     .figma-filter-bar--bp-dash .figma-filter-label {
-                        font-size: 6px !important;
+                        font-size: 8px !important;
                     }
                     .figma-filter-bar--bp-dash .figma-filter-control,
                     .figma-filter-bar--bp-dash .figma-filter-select-wrap {
-                        font-size: 8px !important;
-                    }
-                    .figma-filter-bar--bp-dash .bp-dash-f-path,
-                    .figma-filter-bar--bp-dash .bp-dash-f-actions {
-                        border-left: 0 !important;
-                        border-top: 1px solid rgba(0, 0, 0, 0.12);
-                    }
-                    .figma-filter-bar--bp-dash .bp-dash-f-path {
-                        flex: 1 1 calc(100% - 80px) !important;
+                        font-size: 10px !important;
                     }
                     .figma-filter-bar--bp-dash .bp-dash-f-actions {
                         flex: 0 0 auto !important;
-                        margin-left: auto !important;
-                        justify-content: flex-end;
-                    }
-                }
-                @container figma-main (max-width: 900px) and (min-width: 1024px) {
-                    .figma-filter-bar--bp-dash > label {
-                        flex: 1 1 46% !important;
-                    }
-                    .figma-filter-bar--bp-dash .bp-dash-f-path,
-                    .figma-filter-bar--bp-dash .bp-dash-f-actions {
-                        flex: 1 1 100% !important;
                         margin-left: 0 !important;
                     }
                 }
@@ -343,7 +349,7 @@
                 }
             </style>
 
-            <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--bp-dash ov-filter-bar flex min-h-[44px] w-full max-w-full flex-wrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)]">
+            <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--bp-dash ov-filter-bar flex min-h-[44px] w-full max-w-full flex-nowrap overflow-x-auto overflow-y-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)]">
                 <label class="bp-dash-f-search flex flex-col justify-center border-r border-black/20 px-[7px] py-[5px]">
                     <span class="figma-filter-label mb-[2px] text-[7px] font-semibold uppercase">Search</span>
                     <div class="figma-filter-path-wrap">
