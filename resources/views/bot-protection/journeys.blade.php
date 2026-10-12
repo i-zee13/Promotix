@@ -539,6 +539,12 @@
             }
             .vj-et__marker.is-hover { z-index: 40; }
             .vj-et__marker.is-selected .vj-ev-icon { outline:2px solid var(--brand-primary, #FF6600); outline-offset:2px; }
+            .vj-et__marker.is-dim { opacity: 0.28; }
+            .vj-et__marker.is-focus { z-index: 35; }
+            .vj-et__marker.is-focus .vj-ev-icon {
+                outline: 2px solid var(--brand-primary, #FF6600); outline-offset: 2px;
+                box-shadow: 0 0 0 3px rgba(255,102,0,.25);
+            }
             .vj-et__m-label {
                 position:absolute; left:50%; bottom:calc(100% + 6px);
                 transform:translateX(-50%);
@@ -1524,7 +1530,9 @@
                                                     class="vj-et__marker"
                                                     :class="{
                                                         'is-selected': isEventSelected(row, ev),
-                                                        'is-hover': hoverEvent && hoverEvent.session === row.session_key && hoverEvent.id === ev.id
+                                                        'is-hover': hoverEvent && hoverEvent.session === row.session_key && hoverEvent.id === ev.id,
+                                                        'is-dim': eventFilter !== 'all' && !isEventFilterMatch(ev),
+                                                        'is-focus': eventFilter !== 'all' && isEventFilterMatch(ev)
                                                     }"
                                                     :style="'left:' + ev.leftPct + '%; --stack:' + (ev.stackOffset || 0) + 'px'"
                                                     @click.stop="selectEvent(row, ev)"
@@ -2291,7 +2299,7 @@ function visitorJourneyPage() {
             return Math.max(1, Math.ceil(this.timelineTotal / Math.max(1, this.timelinePerPage)));
         },
         get timelineSessions() {
-            // Server already returns the current page.
+            // Always show every session on the page with full website captures.
             return this.sessions || [];
         },
         get timelinePageItems() {
@@ -2634,13 +2642,11 @@ function visitorJourneyPage() {
 
             rawList.forEach((ev, idx) => {
                 if (!ev || typeof ev !== 'object') return;
-                let type = String(ev.type || ev.kind || '').toLowerCase();
+                let type = this.eventFamilyKey(ev);
                 if (type === 'session_exit' || type === 'session_end') type = 'exit';
-                else if (['phone_click', 'tel_click', 'call_click', 'phone'].includes(type)) type = 'phone';
-                else if (type === 'cta_click' || type === 'cta') type = 'cta';
-                else if (['form_submit', 'form_start', 'form_fill', 'form'].includes(type)) type = 'form';
-                else if (['page_view', 'page_change', 'meta', 'page'].includes(type)) type = 'page';
-                else if (type === 'scroll') type = 'scroll';
+                else if (type === 'cta_click') type = 'cta';
+                else if (['form_start', 'form_fill', 'form'].includes(type)) type = 'form_submit';
+                else if (['page_view', 'page_change', 'meta'].includes(type)) type = 'page';
                 let sec = Math.max(0, Number(ev.elapsed_sec || 0));
                 if (type === 'exit') {
                     if (exitSeen) return;
@@ -2650,9 +2656,14 @@ function visitorJourneyPage() {
                 // Prefer a readable action label over raw path for mid-session markers.
                 let label = String(ev.label || ev.event || type || 'event');
                 const pageName = String(ev.page || ev.path || '').trim();
-                if (type === 'phone' && (!label || label === 'phone' || label.startsWith('/'))) label = 'Phone click';
+                if (type === 'call_click' && (!label || label === 'call_click' || label.startsWith('/'))) label = 'Call Button';
+                if (type === 'tel_click' && (!label || label === 'tel_click' || label.startsWith('/'))) label = 'Tel Link';
+                if ((type === 'phone' || type === 'phone_click') && (!label || label === 'phone' || label.startsWith('/'))) label = 'Phone click';
                 if (type === 'cta' && (!label || label === 'cta' || label.startsWith('/'))) label = 'CTA click';
-                if (type === 'form' && (!label || label === 'form' || label.startsWith('/'))) label = 'Form submit';
+                if ((type === 'form_submit' || type === 'form') && (!label || label === 'form' || label.startsWith('/'))) label = 'Form submit';
+                if (type === 'email_click' && (!label || label.startsWith('/'))) label = 'Email';
+                if (type === 'chat_opened' && (!label || label.startsWith('/'))) label = 'Chat Opened';
+                if (type === 'chat_message_sent' && (!label || label.startsWith('/'))) label = 'Chat Message';
                 if (type === 'scroll' && (!label || label.startsWith('/'))) label = 'Scroll';
                 if (type === 'exit') label = 'Exit';
                 if (type === 'page') {
@@ -2673,6 +2684,8 @@ function visitorJourneyPage() {
                     kind: ev.kind || '',
                     status: ev.status || '',
                     note: ev.note || '',
+                    href: ev.href || '',
+                    link_type: ev.link_type || '',
                     elapsed_sec: sec,
                     elapsed: this.formatClockPad(sec),
                     elapsed_short: this.formatClockShort(sec),
@@ -2707,11 +2720,12 @@ function visitorJourneyPage() {
             // CTA/phone/form/scroll already mark activity.
             let visible = events;
             if (dur > 0 && dur < 30) {
-                const hasMid = events.some((e) => ['cta', 'phone', 'form', 'scroll'].includes(e.type));
+                const midTypes = ['cta', 'phone', 'phone_click', 'call_click', 'tel_click', 'form', 'form_submit', 'scroll', 'email_click', 'chat_opened', 'chat_message_sent'];
+                const hasMid = events.some((e) => midTypes.includes(e.type));
                 const hasPageChange = events.some((e) => e.type === 'page' && Number(e.elapsed_sec || 0) > 0);
                 visible = events.filter((e) => {
                     if (e.type === 'exit') return true;
-                    if (['cta', 'phone', 'form', 'scroll'].includes(e.type)) return true;
+                    if (midTypes.includes(e.type)) return true;
                     if (e.type === 'page' && Number(e.elapsed_sec || 0) > 0) return true;
                     // Keep the 0:00 landing page when nothing else (besides exit) would show.
                     if (e.type === 'page' && Number(e.elapsed_sec || 0) === 0) {
@@ -2790,8 +2804,10 @@ function visitorJourneyPage() {
             if (t === 'add_to_cart') return 'add_to_cart';
             if (['appointment_click', 'appointment'].includes(t)) return 'appointment_click';
             if (['book_click', 'book'].includes(t)) return 'book_click';
+            if (['booking_confirmed', 'appointment_confirmed'].includes(t)) return 'booking_confirmed';
             if (['checkout', 'begin_checkout', 'initiate_checkout'].includes(t)) return 'checkout';
             if (['purchase', 'sale', 'order', 'transaction', 'purchase_completed'].includes(t)) return 'purchase';
+            if (['file_download', 'external_link'].includes(t)) return t;
             if (t === 'provider_selected') return 'provider_selected';
             if (t === 'pricing_viewed') return 'pricing_viewed';
             if (t === 'navigation_menu_opened') return 'navigation_menu_opened';
@@ -2807,8 +2823,10 @@ function visitorJourneyPage() {
             if (k === 'email_click') return 'email';
             if (k === 'zip_entered' || k === 'zip_checked') return 'zip';
             if (k === 'chat_opened' || k === 'chat_message_sent') return 'chat';
-            if (k === 'book_click' || k === 'appointment_click') return 'book';
+            if (k === 'book_click' || k === 'appointment_click' || k === 'booking_confirmed') return 'book';
             if (k === 'add_to_cart' || k === 'checkout' || k === 'purchase') return 'commerce';
+            if (k === 'email_click') return 'email';
+            if (k === 'chat_opened' || k === 'chat_message_sent') return 'chat';
             if (k === 'navigation_menu_opened' || k === 'pricing_viewed' || k === 'provider_selected') return 'nav';
             if (k === 'exit') return 'exit';
             if (k === 'scroll') return 'scroll';
@@ -2818,23 +2836,29 @@ function visitorJourneyPage() {
             return key === 'tel_click' || key === 'call_click' || key === 'phone' || key === 'phone_click';
         },
         filteredEvents(row) {
+            // Full website capture on every lane. Legend chips can hide types;
+            // the event dropdown only highlights (does not remove) markers.
             const list = row.timeline || [];
             const enabled = Array.isArray(this.enabledEventTypes) ? this.enabledEventTypes : [];
             const phoneEnabled = enabled.some((k) => this.isPhoneFamily(k));
             return list.filter((e) => {
                 const t = this.eventFamilyKey(e);
-                if (enabled.length) {
-                    if (this.isPhoneFamily(t)) {
-                        if (!phoneEnabled) return false;
-                    } else if (!enabled.includes(t)) {
-                        return false;
-                    }
+                if (!enabled.length) return true;
+                if (this.isPhoneFamily(t)) return phoneEnabled;
+                if (t === 'booking_confirmed') {
+                    return enabled.includes('book_click') || enabled.includes('appointment_click') || enabled.includes('booking_confirmed');
                 }
-                if (this.eventFilter === 'all') return true;
-                // Tel Link / Call Button filters both show the phone family so older phone_click rows still appear.
-                if (this.isPhoneFamily(this.eventFilter)) return this.isPhoneFamily(t);
-                return t === this.eventFilter;
+                return enabled.includes(t);
             });
+        },
+        isEventFilterMatch(ev) {
+            if (this.eventFilter === 'all') return true;
+            const t = this.eventFamilyKey(ev);
+            if (this.isPhoneFamily(this.eventFilter)) return this.isPhoneFamily(t);
+            if (this.eventFilter === 'book_click' || this.eventFilter === 'appointment_click') {
+                return t === this.eventFilter || t === 'booking_confirmed';
+            }
+            return t === this.eventFilter;
         },
         isEventTypeEnabled(key) {
             return (this.enabledEventTypes || []).includes(key);

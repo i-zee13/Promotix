@@ -28,7 +28,7 @@ class VisitorJourneyIntelligence
         $sessionPage = max(1, (int) $request->query('session_page', 1));
         $sessionPerPage = min(100, max(5, (int) $request->query('session_per_page', 20)));
 
-        $cacheKey = 'vj:intel:v10:'.md5(json_encode([
+        $cacheKey = 'vj:intel:v12:'.md5(json_encode([
             'domains' => array_values($domainIds),
             'from' => $from->toIso8601String(),
             'to' => $to->toIso8601String(),
@@ -624,7 +624,9 @@ class VisitorJourneyIntelligence
 
             $out = [];
             $prevElapsed = 0;
-            foreach (array_slice($flat, 0, 40) as $i => $ev) {
+            // Prefer action events over page noise; keep up to 120 markers.
+            $flat = $this->prioritizeTimelineEvents($flat, 120);
+            foreach ($flat as $i => $ev) {
                 if (! is_array($ev)) {
                     continue;
                 }
@@ -650,6 +652,8 @@ class VisitorJourneyIntelligence
                     'page' => $page,
                     'note' => (string) ($ev['note'] ?? ''),
                     'status' => (string) ($ev['status'] ?? $this->statusForType($type)),
+                    'link_type' => (string) ($ev['link_type'] ?? ''),
+                    'href' => (string) ($ev['href'] ?? ''),
                 ]);
             }
             if ($out !== []) {
@@ -741,18 +745,20 @@ class VisitorJourneyIntelligence
                 'status' => 'Submitted',
             ]);
         }
-        if ((int) ($row['tel_clicks'] ?? 0) > 0 && ! $has('phone')) {
+        $hasPhone = $has('phone') || $has('phone_click') || $has('tel_click') || $has('call_click');
+        if ((int) ($row['tel_clicks'] ?? 0) > 0 && ! $hasPhone) {
             $telAt = $sessionDur > 0 ? min($sessionDur, max(1, (int) round($sessionDur * 0.65))) : 1;
             $out[] = $this->timelineEvent([
-                'type' => 'phone',
-                'label' => 'Phone click',
-                'event' => 'phone_click',
-                'kind' => 'Phone click',
+                'type' => 'call_click',
+                'label' => 'Call Button',
+                'event' => 'call_click',
+                'kind' => 'Call button',
                 'time' => $this->formatClock($base + $telAt),
                 'elapsed_sec' => $telAt,
                 'page' => $pageAt(0.65),
                 'note' => '',
                 'status' => 'Click recorded',
+                'link_type' => 'call',
             ]);
         }
         if ((int) ($row['cta_clicks'] ?? 0) > 0 && ! $has('cta')) {
@@ -1131,6 +1137,8 @@ class VisitorJourneyIntelligence
             'note' => (string) ($data['note'] ?? ''),
             'status' => (string) ($data['status'] ?? $this->statusForType($type)),
             'gap_before' => (string) ($data['gap_before'] ?? ''),
+            'link_type' => (string) ($data['link_type'] ?? ''),
+            'href' => (string) ($data['href'] ?? ''),
         ];
     }
 
@@ -1169,30 +1177,150 @@ class VisitorJourneyIntelligence
         if ($s === '') {
             return 'page';
         }
-        // Phone before generic "click" (phone_click contains "click").
-        if (preg_match('/\b(phone|tel_click|tel:|callto|sms:|call_click|call click|call now)\b/', $s)
-            || str_starts_with($s, 'phone')
-            || str_contains($s, 'phone_click')
-            || str_contains($s, 'tel_click')) {
-            return 'phone';
+
+        // Keep capture types distinct — do not collapse call/email/chat into CTA/phone.
+        $exact = [
+            'call_click' => 'call_click',
+            'tel_click' => 'tel_click',
+            'phone_click' => 'phone_click',
+            'email_click' => 'email_click',
+            'mailto_click' => 'email_click',
+            'chat_opened' => 'chat_opened',
+            'chat_open' => 'chat_opened',
+            'chat_message_sent' => 'chat_message_sent',
+            'chat_message' => 'chat_message_sent',
+            'zip_entered' => 'zip_entered',
+            'zip_checked' => 'zip_checked',
+            'zip_check' => 'zip_checked',
+            'add_to_cart' => 'add_to_cart',
+            'appointment_click' => 'appointment_click',
+            'book_click' => 'book_click',
+            'booking_confirmed' => 'booking_confirmed',
+            'appointment_confirmed' => 'booking_confirmed',
+            'checkout' => 'checkout',
+            'begin_checkout' => 'checkout',
+            'purchase' => 'purchase',
+            'provider_selected' => 'provider_selected',
+            'pricing_viewed' => 'pricing_viewed',
+            'navigation_menu_opened' => 'navigation_menu_opened',
+            'file_download' => 'file_download',
+            'external_link' => 'external_link',
+            'cta_click' => 'cta',
+            'form_submit' => 'form_submit',
+            'form_submit_failed' => 'form_submit_failed',
+            'form_start' => 'form_submit',
+            'scroll' => 'scroll',
+            'session_exit' => 'exit',
+            'session_end' => 'exit',
+            'page_view' => 'page',
+            'page_change' => 'page',
+        ];
+        if (isset($exact[$s])) {
+            return $exact[$s];
+        }
+
+        if (str_contains($s, 'call_click') || str_contains($s, 'call button') || str_contains($s, 'call now')) {
+            return 'call_click';
+        }
+        if (str_contains($s, 'tel_click') || preg_match('/\b(tel:|callto:|sms:)\b/', $s)) {
+            return 'tel_click';
+        }
+        if (str_contains($s, 'phone_click') || str_starts_with($s, 'phone')) {
+            return 'phone_click';
+        }
+        if (str_contains($s, 'email') || str_contains($s, 'mailto')) {
+            return 'email_click';
+        }
+        if (str_contains($s, 'chat_message') || str_contains($s, 'chat_sent')) {
+            return 'chat_message_sent';
+        }
+        if (str_contains($s, 'chat')) {
+            return 'chat_opened';
         }
         if (str_contains($s, 'scroll')) {
             return 'scroll';
         }
-        if (str_contains($s, 'form') || str_contains($s, 'zip') || str_contains($s, 'submit') || str_contains($s, 'availability')) {
-            return 'form';
+        if (str_contains($s, 'form_submit_failed') || str_contains($s, 'submission failed')) {
+            return 'form_submit_failed';
+        }
+        if (str_contains($s, 'form') || str_contains($s, 'submit') || str_contains($s, 'availability')) {
+            return 'form_submit';
+        }
+        if (str_contains($s, 'zip')) {
+            return str_contains($s, 'check') ? 'zip_checked' : 'zip_entered';
         }
         if (str_contains($s, 'exit') || str_contains($s, 'session_end') || $s === 'end') {
             return 'exit';
         }
-        if (str_contains($s, 'cart') || str_contains($s, 'checkout') || str_contains($s, 'purchase') || str_contains($s, 'booking_confirmed') || str_contains($s, 'commerce')) {
-            return 'commerce';
+        if (str_contains($s, 'appointment')) {
+            return 'appointment_click';
         }
-        if (str_contains($s, 'cta') || str_contains($s, 'click') || str_contains($s, 'chat') || str_contains($s, 'email') || str_contains($s, 'book') || str_contains($s, 'appointment')) {
+        if (str_contains($s, 'book')) {
+            return 'book_click';
+        }
+        if (str_contains($s, 'cart')) {
+            return 'add_to_cart';
+        }
+        if (str_contains($s, 'checkout')) {
+            return 'checkout';
+        }
+        if (str_contains($s, 'purchase') || str_contains($s, 'booking_confirmed')) {
+            return 'purchase';
+        }
+        if (str_contains($s, 'cta') || ($s === 'click')) {
             return 'cta';
         }
 
         return 'page';
+    }
+
+    /**
+     * @param  list<mixed>  $flat
+     * @return list<array<string, mixed>>
+     */
+    private function prioritizeTimelineEvents(array $flat, int $limit): array
+    {
+        $rows = [];
+        foreach ($flat as $ev) {
+            if (is_array($ev)) {
+                $rows[] = $ev;
+            }
+        }
+        if (count($rows) <= $limit) {
+            return $rows;
+        }
+
+        $actionWeight = static function (array $ev): int {
+            $t = strtolower(trim((string) ($ev['type'] ?? $ev['kind'] ?? '')));
+            if (in_array($t, ['call_click', 'tel_click', 'phone_click', 'form_submit', 'purchase', 'checkout', 'email_click', 'chat_message_sent'], true)) {
+                return 0;
+            }
+            if (in_array($t, ['cta_click', 'cta', 'chat_opened', 'zip_checked', 'book_click', 'appointment_click', 'add_to_cart'], true)) {
+                return 1;
+            }
+            if (in_array($t, ['scroll', 'session_exit', 'exit'], true)) {
+                return 2;
+            }
+
+            return 3;
+        };
+
+        usort($rows, static function (array $a, array $b) use ($actionWeight): int {
+            $wa = $actionWeight($a);
+            $wb = $actionWeight($b);
+            if ($wa !== $wb) {
+                return $wa <=> $wb;
+            }
+
+            return strcmp((string) ($a['at'] ?? ''), (string) ($b['at'] ?? ''));
+        });
+
+        $kept = array_slice($rows, 0, $limit);
+        usort($kept, static function (array $a, array $b): int {
+            return strcmp((string) ($a['at'] ?? ''), (string) ($b['at'] ?? ''));
+        });
+
+        return $kept;
     }
 
     private function kindForType(string $type): string
@@ -1200,9 +1328,15 @@ class VisitorJourneyIntelligence
         return match ($type) {
             'scroll' => 'Scroll',
             'cta' => 'CTA click',
-            'phone' => 'Phone click',
-            'form' => 'Form submit',
-            'commerce' => 'Commerce',
+            'phone', 'phone_click' => 'Phone click',
+            'call_click' => 'Call button',
+            'tel_click' => 'Tel link',
+            'email_click' => 'Email',
+            'chat_opened' => 'Chat opened',
+            'chat_message_sent' => 'Chat message',
+            'form_submit', 'form' => 'Form submit',
+            'form_submit_failed' => 'Form failed',
+            'commerce', 'add_to_cart', 'checkout', 'purchase' => 'Commerce',
             'exit' => 'Exit',
             default => 'Page view',
         };
@@ -1212,8 +1346,8 @@ class VisitorJourneyIntelligence
     {
         return match ($type) {
             'scroll' => 'Scroll recorded',
-            'cta', 'phone' => 'Click recorded',
-            'form' => 'Submitted',
+            'cta', 'phone', 'phone_click', 'call_click', 'tel_click', 'email_click' => 'Click recorded',
+            'form_submit', 'form' => 'Submitted',
             'exit' => 'Session ended',
             default => 'Page viewed',
         };
@@ -1222,14 +1356,32 @@ class VisitorJourneyIntelligence
     private function shortEventLabel(string $label, string $type): string
     {
         $label = trim($label);
-        if ($type === 'phone') {
-            return 'Phone click';
+        if ($type === 'call_click') {
+            return $label !== '' && ! preg_match('/^(call|phone)/i', $label) ? mb_substr($label, 0, 28) : 'Call Button';
+        }
+        if ($type === 'tel_click') {
+            return $label !== '' && ! preg_match('/^(tel|phone)/i', $label) ? mb_substr($label, 0, 28) : 'Tel Link';
+        }
+        if ($type === 'phone' || $type === 'phone_click') {
+            return $label !== '' && ! preg_match('/^(phone|call|tel)/i', $label) ? mb_substr($label, 0, 28) : 'Phone click';
+        }
+        if ($type === 'email_click') {
+            return 'Email';
+        }
+        if ($type === 'chat_opened') {
+            return 'Chat Opened';
+        }
+        if ($type === 'chat_message_sent') {
+            return 'Chat Message';
         }
         if ($type === 'cta') {
             return strlen($label) > 0 && ! preg_match('/^(cta|call)/i', $label) ? mb_substr($label, 0, 24) : 'CTA click';
         }
-        if ($type === 'form') {
+        if ($type === 'form' || $type === 'form_submit') {
             return strlen($label) > 18 ? 'Form submit' : ($label !== '' ? $label : 'Form submit');
+        }
+        if ($type === 'form_submit_failed') {
+            return 'Form Failed';
         }
         if ($type === 'exit') {
             return 'Exit';

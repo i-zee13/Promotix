@@ -39,8 +39,8 @@
                     min-width: 0;
                     width: 100%;
                     position: relative;
-                    /* Below mobile drawer (sidebar z-40 / overlay z-35) so filters never cover nav. */
-                    z-index: 20;
+                    /* Above KPI cards so filter menus are not covered; below mobile drawer (z-40). */
+                    z-index: 30;
                     overflow: visible;
                 }
                 .figma-sidebar-open .bp-adv-page-head,
@@ -78,21 +78,15 @@
                     align-items: stretch;
                     justify-content: flex-start !important;
                     gap: 0 !important;
-                    overflow-x: auto !important;
-                    overflow-y: visible !important;
+                    /* overflow-x:auto clips dropdowns (CSS forces overflow-y to auto too). */
+                    overflow: visible !important;
                     box-sizing: border-box;
                     min-height: 44px !important;
-                    scrollbar-width: thin;
-                    scrollbar-color: rgba(255, 102, 0, 0.55) transparent;
                 }
-                .figma-filter-bar--bp-dash::-webkit-scrollbar { height: 6px; }
-                .figma-filter-bar--bp-dash::-webkit-scrollbar-track { background: transparent; }
-                .figma-filter-bar--bp-dash::-webkit-scrollbar-thumb {
-                    background: rgba(255, 102, 0, 0.45);
-                    border-radius: 999px;
-                }
-                .figma-filter-bar--bp-dash::-webkit-scrollbar-thumb:hover {
-                    background: rgba(255, 102, 0, 0.7);
+                .figma-filter-bar--bp-dash.is-menu-open {
+                    overflow: visible !important;
+                    position: relative;
+                    z-index: 80 !important;
                 }
                 .figma-filter-bar--bp-dash > label {
                     flex: 1 0 128px !important;
@@ -105,6 +99,10 @@
                     position: relative;
                     z-index: 1;
                     overflow: visible;
+                }
+                .figma-filter-bar--bp-dash > label:has(.paid-advanced-campaign-menu),
+                .figma-filter-bar--bp-dash > label:focus-within {
+                    z-index: 90 !important;
                 }
                 .figma-filter-bar--bp-dash > label.bp-dash-f-search {
                     flex: 1.2 0 150px !important;
@@ -186,7 +184,12 @@
                 .figma-filter-bar--bp-dash .paid-advanced-campaign-menu,
                 .figma-filter-bar--bp-dash .figma-gads-calendar,
                 .figma-filter-bar--bp-dash .figma-date-range-popover {
-                    z-index: 130 !important;
+                    z-index: 200 !important;
+                }
+                .figma-bp-dashboard,
+                .bpv2-kpi-row {
+                    position: relative;
+                    z-index: 1;
                 }
                 .figma-filter-bar--bp-dash .figma-filter-calendar-btn--responsive {
                     width: 30px !important;
@@ -231,11 +234,11 @@
                     width: 14px;
                     height: 14px;
                 }
-                /* Narrow desktop: keep one row + horizontal scroll (no 6px crush). */
+                /* Narrow desktop: keep one row; overflow visible so menus are not clipped. */
                 @container figma-main (max-width: 1200px) and (min-width: 1024px) {
                     .figma-filter-bar--bp-dash {
                         flex-wrap: nowrap !important;
-                        overflow-x: auto !important;
+                        overflow: visible !important;
                     }
                     .figma-filter-bar--bp-dash > label {
                         flex: 0 0 132px !important;
@@ -349,7 +352,8 @@
                 }
             </style>
 
-            <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--bp-dash ov-filter-bar flex min-h-[44px] w-full max-w-full flex-nowrap overflow-x-auto overflow-y-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)]">
+            <div class="figma-filter-bar figma-filter-bar--overview figma-filter-bar--bp-dash ov-filter-bar flex min-h-[44px] w-full max-w-full flex-nowrap overflow-visible rounded-[10px] border border-white/25 bg-[#d9d9d9] text-[10px] text-black shadow-[0_2px_10px_rgba(0,0,0,.35)]"
+                 :class="{ 'is-menu-open': Object.values(filterMenus || {}).some(Boolean) }">
                 <label class="bp-dash-f-search flex flex-col justify-center border-r border-black/20 px-[7px] py-[5px]">
                     <span class="figma-filter-label mb-[2px] text-[7px] font-semibold uppercase">Search</span>
                     <div class="figma-filter-path-wrap">
