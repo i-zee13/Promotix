@@ -125,10 +125,17 @@
             .vj-kpi__delta-vs { color:rgba(255,255,255,.35); }
             .vj-kpi__spark { margin-top:auto; padding-top:8px; height:34px; }
 
-            .vj-main { display:grid; grid-template-columns:minmax(0,1fr); gap:14px; margin-bottom:16px; }
+            .vj-main {
+                display:grid; grid-template-columns:minmax(0,1fr); gap:14px; margin-bottom:16px;
+                position: relative; z-index: 4;
+            }
             @media (min-width:1180px){ .vj-main{ grid-template-columns:minmax(0,1fr) 320px; align-items:start; } }
             .vj-card {
-                border-radius:12px; border:1px solid rgba(255,102,0,.22); background:#121212; overflow:hidden; min-width:0;
+                border-radius:12px; border:1px solid rgba(255,102,0,.22); background:#121212;
+                overflow: visible; /* was hidden — clipped pager / page-size menu */
+                min-width:0;
+                position: relative;
+                z-index: 2;
             }
             .vj-card__pad { padding:14px; }
             .vj-card__title { font-size:15px; font-weight:650; color:#fff; margin-bottom:12px; }
@@ -168,6 +175,23 @@
                 flex: 0 0 auto;
                 margin-top: 0;
                 border-radius: 0 0 8px 8px;
+                position: relative;
+                z-index: 60;
+                overflow: visible !important;
+            }
+            .vj-theme-select--pager {
+                position: relative;
+                z-index: 70;
+            }
+            .vj-theme-select--pager .vj-theme-select__menu,
+            .vj-theme-select--pager .paid-advanced-campaign-menu {
+                top: auto !important;
+                bottom: calc(100% + 4px) !important; /* open upward over timeline, not under Exit Pages */
+                left: auto !important;
+                right: 0 !important;
+                min-width: 120px !important;
+                max-height: 200px;
+                z-index: 200 !important;
             }
             .vj-tab-body--paths {
                 overflow-x: auto;
@@ -354,6 +378,8 @@
             .vj-widgets {
                 display:grid; grid-template-columns:1fr; gap:12px; margin-bottom:16px;
                 align-items: stretch;
+                position: relative;
+                z-index: 1; /* below timeline pager menus */
             }
             @media (min-width:900px){ .vj-widgets{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
             @media (min-width:1280px){ .vj-widgets{ grid-template-columns:repeat(4,minmax(0,1fr)); } }
@@ -362,6 +388,8 @@
                 padding:14px; min-width:0;
                 height: 260px; max-height: 260px;
                 display: flex; flex-direction: column;
+                position: relative;
+                z-index: 1;
             }
             .vj-widget__title { font-size:13px; font-weight:650; color:#fff; margin-bottom:12px; flex-shrink:0; }
             .vj-widget__body {

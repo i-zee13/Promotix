@@ -30,6 +30,7 @@
             </div>
 
             <style>
+                /* Zoom-stable: title then full-width filters at 80% / 100% / 125% (no side-by-side swap). */
                 .bp-adv-page-head {
                     display: flex;
                     flex-direction: column;
@@ -39,7 +40,6 @@
                     min-width: 0;
                     width: 100%;
                     position: relative;
-                    /* Above KPI cards so filter menus are not covered; below mobile drawer (z-40). */
                     z-index: 30;
                     overflow: visible;
                 }
@@ -50,20 +50,6 @@
                 }
                 .figma-sidebar-open .bp-adv-page-head .figma-filter-bar--bp-dash * {
                     pointer-events: none;
-                }
-                @container figma-main (min-width: 1400px) {
-                    .bp-adv-page-head {
-                        flex-direction: row;
-                        align-items: center;
-                        justify-content: space-between;
-                        gap: 12px;
-                    }
-                    .figma-filter-bar--bp-dash.ov-filter-bar,
-                    .figma-filter-bar--bp-dash {
-                        width: fit-content !important;
-                        max-width: min(100%, 980px) !important;
-                        margin-left: auto !important;
-                    }
                 }
                 .figma-filter-bar--bp-dash.ov-filter-bar,
                 .figma-filter-bar--bp-dash {
@@ -78,7 +64,6 @@
                     align-items: stretch;
                     justify-content: flex-start !important;
                     gap: 0 !important;
-                    /* overflow-x:auto clips dropdowns (CSS forces overflow-y to auto too). */
                     overflow: visible !important;
                     box-sizing: border-box;
                     min-height: 44px !important;
@@ -89,12 +74,12 @@
                     z-index: 80 !important;
                 }
                 .figma-filter-bar--bp-dash > label {
-                    flex: 1 0 128px !important;
+                    flex: 1 1 0 !important;
                     width: auto !important;
-                    min-width: 128px !important;
+                    min-width: 0 !important;
                     max-width: none !important;
                     margin: 0 !important;
-                    padding: 4px 6px !important;
+                    padding: 4px 5px !important;
                     box-sizing: border-box;
                     position: relative;
                     z-index: 1;
@@ -105,8 +90,8 @@
                     z-index: 90 !important;
                 }
                 .figma-filter-bar--bp-dash > label.bp-dash-f-search {
-                    flex: 1.2 0 150px !important;
-                    min-width: 150px !important;
+                    flex: 1.25 1 0 !important;
+                    min-width: 0 !important;
                 }
                 .figma-filter-bar--bp-dash > label.bp-dash-f-account,
                 .figma-filter-bar--bp-dash > label.bp-dash-f-domain,
@@ -114,8 +99,8 @@
                 .figma-filter-bar--bp-dash > label.bp-dash-f-device,
                 .figma-filter-bar--bp-dash > label.bp-dash-f-path {
                     width: auto !important;
-                    flex: 1 0 128px !important;
-                    min-width: 128px !important;
+                    flex: 1 1 0 !important;
+                    min-width: 0 !important;
                 }
                 .figma-filter-bar--bp-dash > label > span:first-child,
                 .figma-filter-bar--bp-dash .figma-filter-label {
@@ -234,37 +219,8 @@
                     width: 14px;
                     height: 14px;
                 }
-                /* Narrow desktop: keep one row; overflow visible so menus are not clipped. */
-                @container figma-main (max-width: 1200px) and (min-width: 1024px) {
-                    .figma-filter-bar--bp-dash {
-                        flex-wrap: nowrap !important;
-                        overflow: visible !important;
-                    }
-                    .figma-filter-bar--bp-dash > label {
-                        flex: 0 0 132px !important;
-                        min-width: 132px !important;
-                        padding-left: 6px !important;
-                        padding-right: 6px !important;
-                    }
-                    .figma-filter-bar--bp-dash > label.bp-dash-f-search {
-                        flex: 0 0 160px !important;
-                        min-width: 160px !important;
-                    }
-                    .figma-filter-bar--bp-dash > label > span:first-child,
-                    .figma-filter-bar--bp-dash .figma-filter-label {
-                        font-size: 8px !important;
-                    }
-                    .figma-filter-bar--bp-dash .figma-filter-control,
-                    .figma-filter-bar--bp-dash .figma-filter-select-wrap {
-                        font-size: 10px !important;
-                    }
-                    .figma-filter-bar--bp-dash .bp-dash-f-actions {
-                        flex: 0 0 auto !important;
-                        margin-left: 0 !important;
-                    }
-                }
-                /* Mobile: 2-col filter grid + calendar/export on own row. */
-                @media (max-width: 1023px) {
+                /* Phone only — keep 80/100/125% desktop zoom on the same single-row layout. */
+                @media (max-width: 767px) {
                     .figma-filter-bar.figma-filter-bar--overview.figma-filter-bar--bp-dash,
                     .figma-filter-bar--bp-dash.ov-filter-bar,
                     .figma-filter-bar--bp-dash {
