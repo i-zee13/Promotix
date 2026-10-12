@@ -458,15 +458,14 @@
                 max-height: 280px; z-index: 140 !important;
             }
             .vj-ev-legend {
-                display:flex; flex-wrap:wrap; gap:10px 16px; align-items:center;
-                margin:0 0 10px; padding:0 6px 0 2px; font-size:11px; color:rgba(255,255,255,.55);
-                max-height: 52px; /* ~2 rows; rest scrolls */
-                overflow-x: hidden;
-                overflow-y: auto;
+                display:flex; flex-wrap:nowrap; gap:16px; align-items:center;
+                margin:0 0 10px; padding:0 2px 8px; font-size:11px; color:rgba(255,255,255,.55);
+                overflow-x: auto;
+                overflow-y: hidden;
                 scrollbar-width: thin;
                 scrollbar-color: rgba(255,102,0,.55) transparent;
             }
-            .vj-ev-legend::-webkit-scrollbar { width: 6px; }
+            .vj-ev-legend::-webkit-scrollbar { height: 6px; }
             .vj-ev-legend::-webkit-scrollbar-track { background: transparent; }
             .vj-ev-legend::-webkit-scrollbar-thumb {
                 background: rgba(255,102,0,.45); border-radius: 999px;
@@ -474,6 +473,7 @@
             .vj-ev-legend::-webkit-scrollbar-thumb:hover { background: rgba(255,102,0,.7); }
             .vj-ev-legend__item {
                 display:inline-flex; align-items:center; gap:6px; line-height:1;
+                flex: 0 0 auto;
                 position: relative; border:0; background:transparent; color:inherit;
                 font:inherit; padding:0; cursor:pointer;
             }
